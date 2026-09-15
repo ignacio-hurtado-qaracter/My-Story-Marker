@@ -1,6 +1,6 @@
 # Spec 1 — Story Creator Harness
 
-Status: draft v0.2 · Source diagram: `DiagramaHarnessStoryCreator.drawio` · Config: `harness.config.json`
+Status: draft v0.3 · Config: `config.json`
 
 ## 1. Intent
 
@@ -20,7 +20,7 @@ The output is a manuscript that reads as if one author with a clear outline wrot
 
 ### 2.1 Input
 
-A single JSON configuration file, `harness.config.json`. Every parameter the spec refers to lives there, so a test run only needs to swap the file. All fields are optional except `chapters.count`; missing fields take the defaults shown.
+A single JSON configuration file, `config.json`. Every parameter the spec refers to lives there, so a test run only needs to swap the file. All fields are optional except `chapters.count`; missing fields take the defaults shown.
 
 | Field | Type | Default | Meaning |
 |-------|------|---------|---------|
@@ -32,6 +32,8 @@ A single JSON configuration file, `harness.config.json`. Every parameter the spe
 | `fragment.min_paragraphs` | int | 3 | Minimum paragraphs per Writer fragment. |
 | `fragment.max_paragraphs` | int | 6 | Maximum paragraphs per Writer fragment. |
 | `context.recent_paragraphs` | int | 4 | N: paragraphs given verbatim to the Writer as recent context. |
+| `context.distant_chapters` | int | 1 | M: number of previous chapters whose summaries are given to the Writer as distant context. |
+| `model` | string | "claude-fable-5-1" | Model used by every agent. Writer and Reviewer always share the same model. |
 | `retries.max_fragment_retries` | int | 3 | Rejections allowed for one fragment before it counts as a fragment failure. |
 | `retries.max_fragment_failures_per_chapter` | int | 2 | Fragment failures allowed inside one chapter before the chapter is discarded and re-planned. |
 | `retries.max_chapter_regenerations` | int | 2 | Times a single chapter may be discarded and re-planned before the run stops with an error. |
@@ -45,14 +47,14 @@ The novel only: one Markdown file at `output.path`, with one heading per chapter
 
 ```mermaid
 flowchart TD
-    CFG([harness.config.json]) --> S0[Create Spirit]
+    CFG([config.json]) --> S0[Create Spirit]
     S0 --> SP[(Spirit<br/>main thread · chapters · characters)]
 
     subgraph CW[Writer context window]
         SPv[Spirit view<br/>main thread · current chapter · characters]
         subgraph SC[Specific context]
             R[Recent<br/>last N paragraphs verbatim]
-            D[Distant<br/>summary of previous chapter]
+            D[Distant<br/>summaries of last M chapters]
             F[Future<br/>pending beats from the present onward]
         end
     end
@@ -135,7 +137,7 @@ Rebuilt after every approved fragment.
 | Part | Content | Source |
 |------|---------|--------|
 | Recent | Last N paragraphs of the manuscript, verbatim (N = `context.recent_paragraphs`) | Manuscript |
-| Distant | Summary of the previous chapter (empty in chapter 1) | Generated once when a chapter closes, cached |
+| Distant | Summaries of the last M closed chapters, oldest first (M = `context.distant_chapters`; empty in chapter 1, fewer than M while not enough chapters exist) | One summary generated when each chapter closes, cached |
 | Future | The ordered list of beats not yet done, starting from the current one, for the current chapter; plus the next chapter's introduction beat if the current chapter is on its last beat | Spirit beats with status `current` or `pending` |
 
 ### 4.4 The "present"
@@ -153,6 +155,8 @@ Kept by the harness, reset as indicated.
 | `chapter_regenerations[chapter_id]` | Never |
 
 ## 5. Agents
+
+All agents run on the model named in `model`. In particular the Writer and the Reviewer share the same model; the separation of roles comes from their prompts and contracts, not from different models.
 
 ### 5.1 Spirit Creator
 
@@ -209,7 +213,7 @@ verdict:
 ## 6. Orchestration loop
 
 ```
-config = load("harness.config.json")
+config = load("config.json")
 spirit = create_spirit(config)
 while spirit.current_chapter exists:
     ctx = build_context(spirit, manuscript, config)
@@ -272,10 +276,7 @@ Character `state` is not rolled back automatically. Because the discarded fragme
 
 ## 7. Open decisions
 
-- Whether the Writer and Reviewer use the same model.
-- Whether "Distant" should also include summaries of all earlier chapters, not just the previous one, for long novels.
-- Whether a human can edit the Spirit mid-run and how the loop reacts.
-- Whether `chapters.target_paragraphs` should be a per-chapter list instead of a single value.
+None at the moment. Resolved decisions are recorded in the change log.
 
 ## 8. Acceptance scenarios
 
@@ -289,8 +290,3 @@ Character `state` is not rolled back automatically. Because the discarded fragme
 8. **Chapter re-plan**: given `max_fragment_failures_per_chapter` = 2, when a chapter reaches 2 fragment failures, then its text is removed from the manuscript, its plan in the Spirit changes, its beats are reset, and character states equal the snapshot taken at chapter start.
 9. **Run abort**: given `max_chapter_regenerations` = 2, when the same chapter fails a third time, then the run stops with an error naming the chapter and no output file is written.
 10. **Config defaults**: given a config with only `chapters.count`, the run uses every default from section 2.1.
-
-## 9. Change log
-
-- v0.2 (2026-09-15): added inputs/outputs section and externalised all parameters to `harness.config.json`. Added the chapter failure rule (discard and re-plan) with three retry levels: fragment, chapter, regeneration. N default set to 4 following the author's edit. Removed the unresolved `escalate()` decision, now covered by the retry levels.
-- v0.1 (2026-09-15): first written spec from the draw.io diagram and two rounds of clarification. Key decisions: both agents read the Spirit; the "no spoilers" rule became the pacing rule, because moving into the next beat is legitimate once the current beat is finished; chapter advance is a two-condition rule owned by the harness with the Reviewer providing the second signal.
