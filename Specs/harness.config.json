@@ -1,0 +1,25 @@
+{
+  "$comment": "Input of the Story Creator Harness. See Spec1.md section 2.1. Only chapters.count is required; every other field falls back to the value shown here.",
+  "theme": null,
+  "language": "en",
+  "tone_and_style": null,
+  "chapters": {
+    "count": 3,
+    "target_paragraphs": 40
+  },
+  "fragment": {
+    "min_paragraphs": 3,
+    "max_paragraphs": 6
+  },
+  "context": {
+    "recent_paragraphs": 4
+  },
+  "retries": {
+    "max_fragment_retries": 3,
+    "max_fragment_failures_per_chapter": 2,
+    "max_chapter_regenerations": 2
+  },
+  "output": {
+    "path": "output/novel.md"
+  }
+}

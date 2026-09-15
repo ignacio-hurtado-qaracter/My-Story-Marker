@@ -1,0 +1,122 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Página-1" id="kXCOKyIEwTWoYXNrqSJp">
+    <mxGraphModel dx="1106" dy="710" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-27" edge="1" parent="1" source="tKqxh-s4RFyPdoTGvWIk-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="tKqxh-s4RFyPdoTGvWIk-16">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-12" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="" vertex="1">
+          <mxGeometry height="290" width="540" x="160" y="130" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-8" parent="1" style="rounded=1;whiteSpace=wrap;html=1;" value="&lt;div&gt;&lt;/div&gt;" vertex="1">
+          <mxGeometry height="190" width="280" x="390" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Creación de personajes (skill con cada uno)" vertex="1">
+          <mxGeometry height="60" width="120" x="210" y="340" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-3" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Contexto reciente" vertex="1">
+          <mxGeometry height="60" width="120" x="400" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-4" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Contexto lejano" vertex="1">
+          <mxGeometry height="60" width="120" x="540" y="230" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-40" edge="1" parent="1" source="tKqxh-s4RFyPdoTGvWIk-5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="tKqxh-s4RFyPdoTGvWIk-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-5" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Capítulos (descripción de cada capítulo)" vertex="1">
+          <mxGeometry height="60" width="120" x="210" y="260" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-41" edge="1" parent="1" source="tKqxh-s4RFyPdoTGvWIk-6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" target="tKqxh-s4RFyPdoTGvWIk-5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-6" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Hilo completo de la novela" vertex="1">
+          <mxGeometry height="60" width="120" x="210" y="180" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-7" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Contexto futuro¿?" vertex="1">
+          <mxGeometry height="60" width="120" x="470" y="300" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-17" edge="1" parent="1" source="tKqxh-s4RFyPdoTGvWIk-11" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" target="tKqxh-s4RFyPdoTGvWIk-12">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-11" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;" value="Redactor" vertex="1">
+          <mxGeometry height="80" width="120" x="360" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-13" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Contexto específico" vertex="1">
+          <mxGeometry height="30" width="60" x="500" y="190" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-42" edge="1" parent="1" source="tKqxh-s4RFyPdoTGvWIk-15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="tKqxh-s4RFyPdoTGvWIk-8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-43" connectable="0" parent="tKqxh-s4RFyPdoTGvWIk-42" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Actualizar contextos" vertex="1">
+          <mxGeometry relative="1" x="-0.8085" as="geometry">
+            <mxPoint x="36" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-15" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;" value="texto que se va agregando a la novela" vertex="1">
+          <mxGeometry height="80" width="120" x="370" y="580" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-20" edge="1" parent="1" source="tKqxh-s4RFyPdoTGvWIk-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" target="tKqxh-s4RFyPdoTGvWIk-15">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-32" connectable="0" parent="tKqxh-s4RFyPdoTGvWIk-20" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Aprueba" vertex="1">
+          <mxGeometry relative="1" x="-0.3" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-33" edge="1" parent="1" source="tKqxh-s4RFyPdoTGvWIk-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" target="tKqxh-s4RFyPdoTGvWIk-11">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="760" y="490" />
+              <mxPoint x="760" y="60" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-34" connectable="0" parent="tKqxh-s4RFyPdoTGvWIk-33" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Rechaza y explica por qué" vertex="1">
+          <mxGeometry relative="1" x="-0.9265" as="geometry">
+            <mxPoint x="64" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-16" parent="1" style="rounded=0;whiteSpace=wrap;html=1;" value="Revisor" vertex="1">
+          <mxGeometry height="60" width="120" x="370" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-21" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;" value="Crear espíritu de la novela" vertex="1">
+          <mxGeometry height="80" width="120" x="70" y="30" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-22" edge="1" parent="1" style="curved=1;endArrow=none;html=1;rounded=0;endFill=0;startArrow=classic;startFill=1;" target="tKqxh-s4RFyPdoTGvWIk-21" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <Array as="points">
+              <mxPoint x="200" y="400" />
+              <mxPoint x="200" y="380" />
+              <mxPoint x="200" y="210" />
+              <mxPoint x="200" y="190" />
+            </Array>
+            <mxPoint x="140" y="460" as="sourcePoint" />
+            <mxPoint x="420" y="310" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-24" parent="1" style="ellipse;whiteSpace=wrap;html=1;shapeInside=1;" value="Espíritu" vertex="1">
+          <mxGeometry height="80" width="120" x="60" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-28" edge="1" parent="1" source="tKqxh-s4RFyPdoTGvWIk-24" style="endArrow=classic;html=1;rounded=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="tKqxh-s4RFyPdoTGvWIk-16" value="">
+          <mxGeometry height="50" relative="1" width="50" as="geometry">
+            <mxPoint x="340" y="470" as="sourcePoint" />
+            <mxPoint x="390" y="420" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-36" connectable="0" parent="tKqxh-s4RFyPdoTGvWIk-28" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" value="Text" vertex="1">
+          <mxGeometry relative="1" x="-0.3327" y="-4" as="geometry">
+            <mxPoint x="1" y="-1" as="offset" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-29" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;" value="Ventana de contexto" vertex="1">
+          <mxGeometry height="30" width="140" x="345" y="140" as="geometry" />
+        </mxCell>
+        <mxCell id="tKqxh-s4RFyPdoTGvWIk-44" parent="1" style="rhombus;whiteSpace=wrap;html=1;shapeInside=1;" value="Métrica" vertex="1">
+          <mxGeometry height="50" width="50" x="360" y="490" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
