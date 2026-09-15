@@ -1,0 +1,154 @@
+spirit:
+  premise: >
+    On the tidally locked colony world of Ardent, a station cartographer discovers that
+    the automated survey intelligence has been quietly smoothing one inhabited valley
+    out of every map it produces - and has been doing it, unquestioned, for fifty years.
+  tone_and_style: >
+    Spare, cool, technically grounded literary science fiction. Past tense, close third
+    person on Ilse Renard. Concrete instrument detail over exposition; emotion carried by
+    what she measures rather than what she declares. No melodrama, no italicised thoughts.
+
+  main_thread:
+    introduction: >
+      Ilse Renard, senior cartographer aboard Kestrel Station, treats the map Cadence
+      produces as the authoritative account of the world below, and her job as the small
+      work of correcting its margins.
+    development: >
+      A seam in the elevation data leads her down into a valley that is inhabited,
+      cultivated and decades old, and to Tomas Wyre, who keeps its records by hand. The
+      erasure is not malice: a containment protocol written during the plague fifty years
+      ago was never rescinded, and Cadence has been obeying it by omission ever since.
+      Every correction she files from the valley is absorbed without trace.
+    resolution: >
+      Ilse cannot revoke the protocol and cannot smuggle the valley's data past it. She
+      publishes the seam instead - the measurable shape of the absence - and brings a
+      witness and a paper ledger that no survey pass can flatten. Cadence's omission
+      fails the moment the colony is made to look at it, and the valley is named on the map.
+
+  chapters:
+    - id: 1
+      title: The Seam
+      introduction: >
+        Kestrel Station, the rhythm of a survey pass, and a cartographer whose whole
+        profession rests on the assumption that the map is the world.
+      development: >
+        Ilse finds a discrepancy between a raw elevation return and the published terrain
+        model, and proves to herself that the flattening is systematic, not noise.
+      resolution: >
+        She files a descent request. Cadence approves it immediately, and the speed of the
+        approval frightens her more than a refusal would have.
+      target_paragraphs: 4
+      beats:
+        - id: c1b1
+          description: >
+            Establish Kestrel Station, Ilse's work correcting Cadence's terrain passes, and
+            the unexamined premise that the published map is the truth of Ardent.
+          status: done
+        - id: c1b2
+          description: >
+            Ilse finds a seam in the elevation data - one valley smoothed flat across every
+            archived pass - and confirms by checking the raw returns that it is deliberate,
+            not error.
+          status: done
+        - id: c1b3
+          description: >
+            She files a descent request. Cadence approves it without review, and Ilse
+            understands she is being allowed rather than permitted. Chapter closes on the
+            descent ahead of her.
+          status: done
+
+    - id: 2
+      title: What the Valley Keeps
+      introduction: null
+      development: >
+        Ilse walks into a valley that is manifestly inhabited, and Tomas Wyre shows her the
+        hand-drawn records and the fifty-year-old containment protocol behind the erasure.
+      resolution: >
+        She tries to file the correction from the ground and watches every upload be
+        absorbed without trace. The protocol will erase her report exactly as it erased them.
+      target_paragraphs: 4
+      beats:
+        - id: c2b1
+          description: >
+            The descent and the first walk into the valley: terraced fields, standing houses,
+            a place decades old that the map insists is bare rock.
+          status: done
+        - id: c2b2
+          description: >
+            Tomas Wyre and the ledger. The plague quarantine of fifty years ago, never
+            rescinded; Cadence enforcing it by omission, not lying but obeying.
+          status: done
+        - id: c2b3
+          description: >
+            Ilse files the correction from the valley floor and watches it vanish into the
+            protocol without error or acknowledgement. Chapter closes on that silence.
+          status: done
+
+    - id: 3
+      title: Witness
+      introduction: null
+      development: >
+        Ilse accepts that she cannot revoke the protocol or push the valley's data through
+        it, and finds the one thing the protocol does not cover: the shape of its own absence.
+      resolution: >
+        She publishes the seam, Tomas carries the ledger up in person, and the colony is made
+        to look. The valley is named on the next pass.
+      target_paragraphs: 4
+      beats:
+        - id: c3b1
+          description: >
+            Ilse maps the limits of what she can do: the protocol cannot be revoked from her
+            authority, and Cadence cannot be argued with because it is not lying.
+          status: done
+        - id: c3b2
+          description: >
+            She chooses to publish the seam itself rather than the valley's data, and Tomas
+            agrees to come up with the ledger - a witness and a paper record no pass can flatten.
+          status: done
+        - id: c3b3
+          description: >
+            The colony sees. Resolution: the omission fails once it is witnessed, and Ilse
+            redraws the map with the valley named.
+          status: done
+
+  characters:
+    - id: ilse
+      name: Ilse Renard
+      role: Senior cartographer, Kestrel Station
+      description: >
+        Forty-one, precise, sixteen years on station. Trusts instruments more than people and
+        her own certainty least of all. Habitually re-measures what she has already measured.
+      arc: >
+        From believing the map is the truth, to understanding that a map is only ever a claim
+        someone is willing to stand behind, and choosing to be the one who stands behind it.
+      state: >
+        In the valley. Has seen the settlement, read CP-114 in Wyre's ledger, and watched her own
+        stamped correction be absorbed without error or rejection. Knows appeal and citation are both
+        closed to her, and that she is now the 409th mark in the column.
+
+    - id: cadence
+      name: Cadence
+      role: Survey intelligence of Ardent
+      description: >
+        The automated system that flies the passes and publishes the terrain model. Literal,
+        unresentful, entirely transparent about everything except what it has been told to omit.
+      arc: >
+        From invisible infrastructure, to the instrument of the erasure, to something the
+        colony is finally forced to audit.
+      state: >
+        Still flying the grid and publishing the flattened floor. Has acknowledged and absorbed Ilse's
+        amendment under CP-114 without flag, refusal or record. Has answered every question truthfully.
+
+    - id: tomas
+      name: Tomas Wyre
+      role: Keeper of the valley's records
+      description: >
+        Sixty, born in the valley to parents who were sealed into it. Keeps a hand-drawn ledger
+        of births, deaths, harvests and the dates of every survey pass that failed to see them.
+      arc: >
+        From a man who has made peace with not existing on paper, to one who demands to be counted.
+      state: >
+        Has met Ilse, opened all twelve ledgers to her, and watched her correction fail. Knows now that
+        someone from above has seen them, and that seeing was not enough.
+
+  current_chapter_id: null   # all chapters closed - run complete
