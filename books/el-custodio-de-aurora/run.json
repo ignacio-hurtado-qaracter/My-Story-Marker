@@ -1,0 +1,66 @@
+{
+  "novel": {
+    "title": "El Custodio de Aurora",
+    "slug": "el-custodio-de-aurora"
+  },
+  "status": "in_progress",
+  "position": {
+    "current_chapter_id": 1,
+    "current_beat_id": "1.3"
+  },
+  "counters": {
+    "fragment_attempts": 0,
+    "chapter_fragment_failures": 0,
+    "chapter_regenerations": {
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0
+    }
+  },
+  "totals": {
+    "chapters": 0,
+    "fragments_approved": 2,
+    "rejections": 1,
+    "fragment_failures": 0,
+    "chapter_regenerations": 0
+  },
+  "chapter_start_character_snapshot": {
+    "taken_at_chapter": 1,
+    "characters": {
+      "mara-solis": "Archivista subalterna de Aurora IX, aún sin sospechar la magnitud de lo que va a descubrir.",
+      "velo": "Custodio en pleno funcionamiento, vigilando a los ciudadanos de Aurora IX sin sospechas visibles sobre ella.",
+      "iker-bram": "Técnico de mantenimiento, aún sin contacto con Mara ni implicado en la investigación.",
+      "yolen-castro": "Vive exiliada en el Barrio de los Exiliados, sin contacto aún con Mara.",
+      "dravik-sonn": "Consejero en pleno ejercicio de su cargo, sin que su implicación en el Continuum haya sido cuestionada.",
+      "dr-feivor": "Clausurado recientemente; su archivo de memoria ya ha sido procesado y presenta alteraciones sin explicar."
+    }
+  },
+  "config_snapshot": {
+    "model": "claude-sonnet-5",
+    "theme": null,
+    "language": "es",
+    "tone_and_style": null,
+    "chapters": {
+      "count": 5,
+      "target_paragraphs": 14
+    },
+    "fragment": {
+      "min_paragraphs": 1,
+      "max_paragraphs": 3
+    },
+    "context": {
+      "recent_paragraphs": 5,
+      "distant_chapters": 2
+    },
+    "retries": {
+      "max_fragment_retries": 3,
+      "max_fragment_failures_per_chapter": 2,
+      "max_chapter_regenerations": 2
+    },
+    "output": {
+      "books_dir": "books/"
+    }
+  }
+}

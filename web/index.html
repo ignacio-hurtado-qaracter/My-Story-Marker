@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My-Story-Maker · Crear novela</title>
+  <link rel="icon" href="assets/Logo_Qaracter.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="inner">
+      <a class="brand" href="index.html">
+        <img src="assets/Logo_Qaracter.svg" alt="Qaracter" onerror="this.onerror=null;this.src='assets/qaracter-logo.svg'">
+        <span class="divider"></span>
+        <span class="product">My-Story-<span>Maker</span></span>
+      </a>
+      <nav class="nav">
+        <a href="index.html" class="active">Crear novela</a>
+        <a href="library.html">Biblioteca</a>
+        <a href="architecture.html">Arquitectura</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="hero">
+    <canvas id="hero-canvas" aria-hidden="true"></canvas>
+    <div class="content">
+      <span class="eyebrow">Story Creator Harness</span>
+      <h1>Escribe una novela de ciencia ficción<br>coherente de principio a fin.</h1>
+      <p class="lead">
+        Define la premisa, el tono y los límites del proceso. Un Spirit Creator planifica la obra,
+        un Writer la narra fragmento a fragmento y un Reviewer garantiza que nada entre en el
+        manuscrito sin respetar el plan.
+      </p>
+      <div class="cta">
+        <a href="#config" class="btn btn-primary">Configurar nueva novela</a>
+        <a href="architecture.html" class="btn btn-ghost">Ver cómo funciona</a>
+      </div>
+    </div>
+  </section>
+
+  <main class="container" id="config">
+    <div class="grid-2">
+      <div>
+        <span class="eyebrow">Paso 1 · Parámetros</span>
+        <h2>Configura tu novela</h2>
+        <p class="muted">
+          Todos los campos son opcionales salvo el número de capítulos. Un campo vacío usa el valor
+          por defecto del harness (se muestra como pista en cada campo).
+        </p>
+
+        <form id="config-form" novalidate>
+          <fieldset>
+            <legend>Historia</legend>
+            <div class="field">
+              <label for="theme">Tema o premisa</label>
+              <textarea id="theme" name="theme" placeholder="Ej.: Una estación bajo el hielo de Europa detecta una señal que el sistema clasifica como ruido…"></textarea>
+              <span class="hint">Vacío: el Spirit Creator inventa una premisa dentro de la ciencia ficción.</span>
+            </div>
+            <div class="field">
+              <label for="tone_and_style">Tono y estilo</label>
+              <textarea id="tone_and_style" name="tone_and_style" placeholder="Ej.: Prosa fría y precisa, tercera persona cercana, sin melodrama…"></textarea>
+              <span class="hint">Se pasa literalmente al Spirit Creator como restricción de voz.</span>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="language">Idioma</label>
+                <select id="language" name="language">
+                  <option value="">— Por defecto (en) —</option>
+                  <option value="es">Español (es)</option>
+                  <option value="en">English (en)</option>
+                  <option value="fr">Français (fr)</option>
+                  <option value="de">Deutsch (de)</option>
+                  <option value="pt">Português (pt)</option>
+                  <option value="it">Italiano (it)</option>
+                  <option value="ca">Català (ca)</option>
+                </select>
+                <span class="hint">Gobierna el manuscrito, el título, el Spirit y los resúmenes.</span>
+              </div>
+              <div class="field">
+                <label for="model">Modelo</label>
+                <select id="model" name="model">
+                  <option value="">— Por defecto (claude-fable-5-1) —</option>
+                  <option value="claude-fable-5-1">claude-fable-5-1</option>
+                  <option value="claude-opus-5">claude-opus-5</option>
+                  <option value="claude-sonnet-5">claude-sonnet-5</option>
+                  <option value="claude-haiku-4-5-20251001">claude-haiku-4-5</option>
+                </select>
+                <span class="hint">Lo usan todos los agentes. Writer y Reviewer siempre comparten modelo.</span>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Capítulos</legend>
+            <div class="field-row">
+              <div class="field">
+                <label for="chapters_count" class="required">Número de capítulos</label>
+                <input type="number" id="chapters_count" name="chapters.count" min="1" step="1" placeholder="Obligatorio" required>
+                <span class="hint">Único campo obligatorio.</span>
+              </div>
+              <div class="field">
+                <label for="chapters_target">Párrafos objetivo por capítulo</label>
+                <input type="number" id="chapters_target" name="chapters.target_paragraphs" min="1" step="1" placeholder="40">
+                <span class="hint">El Spirit Creator dimensiona los beats; el Reviewer penaliza desvíos fuertes.</span>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Fragmentos del Writer</legend>
+            <div class="field-row">
+              <div class="field">
+                <label for="fragment_min">Mínimo de párrafos</label>
+                <input type="number" id="fragment_min" name="fragment.min_paragraphs" min="1" step="1" placeholder="3">
+              </div>
+              <div class="field">
+                <label for="fragment_max">Máximo de párrafos</label>
+                <input type="number" id="fragment_max" name="fragment.max_paragraphs" min="1" step="1" placeholder="6">
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Ventana de contexto</legend>
+            <div class="field-row">
+              <div class="field">
+                <label for="ctx_recent">Párrafos recientes (N)</label>
+                <input type="number" id="ctx_recent" name="context.recent_paragraphs" min="0" step="1" placeholder="4">
+                <span class="hint">Últimos párrafos entregados literalmente al Writer.</span>
+              </div>
+              <div class="field">
+                <label for="ctx_distant">Capítulos distantes (M)</label>
+                <input type="number" id="ctx_distant" name="context.distant_chapters" min="0" step="1" placeholder="1">
+                <span class="hint">Capítulos previos cuyos resúmenes recibe el Writer.</span>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Reintentos</legend>
+            <div class="field">
+              <label for="retry_fragment">Rechazos por fragmento</label>
+              <input type="number" id="retry_fragment" name="retries.max_fragment_retries" min="1" step="1" placeholder="3">
+              <span class="hint">Antes de contar como fallo de fragmento.</span>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="retry_chapter">Fallos de fragmento por capítulo</label>
+                <input type="number" id="retry_chapter" name="retries.max_fragment_failures_per_chapter" min="1" step="1" placeholder="2">
+                <span class="hint">Antes de descartar y replanificar el capítulo.</span>
+              </div>
+              <div class="field">
+                <label for="retry_regen">Regeneraciones de capítulo</label>
+                <input type="number" id="retry_regen" name="retries.max_chapter_regenerations" min="0" step="1" placeholder="2">
+                <span class="hint">Antes de detener la ejecución con error.</span>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Salida</legend>
+            <div class="field">
+              <label for="books_dir">Directorio de libros</label>
+              <input type="text" id="books_dir" name="output.books_dir" placeholder="books/">
+              <span class="hint">Cada novela obtiene su carpeta <code>&lt;slug&gt;/</code> dentro.</span>
+            </div>
+          </fieldset>
+
+          <div class="form-actions">
+            <button type="button" class="btn btn-primary" id="btn-download">Descargar config.json</button>
+            <button type="button" class="btn btn-ghost" id="btn-copy">Copiar JSON</button>
+            <button type="reset" class="btn btn-ghost" id="btn-reset">Vaciar formulario</button>
+          </div>
+        </form>
+      </div>
+
+      <aside>
+        <div class="sticky">
+          <div class="card preview">
+            <div class="bar">
+              <span class="eyebrow" style="margin:0">Paso 2 · Vista previa</span>
+              <h3 style="text-align:right"><code>config.json</code></h3>
+            </div>
+            <pre><code id="json-preview">{}</code></pre>
+            <p class="small muted" style="margin:.8rem 0 0" id="preview-note"></p>
+          </div>
+
+          <div class="card">
+            <span class="eyebrow">Paso 3 · Ejecutar</span>
+            <h3>Lanza el harness</h3>
+            <ol class="steps">
+              <li>Guarda el fichero descargado como <code>Specs/config.json</code>.</li>
+              <li>Desde la raíz del repo, en Claude Code:
+                <pre style="margin-top:.5rem"><code>claude "Ejecuta Specs/Spec1.md con Specs/config.json"</code></pre>
+              </li>
+              <li>Cuando termine, regenera la biblioteca:
+                <pre style="margin-top:.5rem"><code>node web/scripts/build-data.mjs</code></pre>
+              </li>
+            </ol>
+            <a href="library.html" class="btn btn-ghost btn-sm">Ir a la biblioteca</a>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="inner">
+      <span>My-Story-Maker · Story Creator Harness · Spec v0.3</span>
+      <span>Qaracter</span>
+    </div>
+  </footer>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- Inlined from js/hero-scene.js so the page also works over file:// (local module files are blocked there; CDN imports are not). -->
+  <script type="module">
+// Hero background: an orange wireframe "planet" orbited by a particle field
+// and a few floating glyph-planes, rendered with three.js on a light canvas.
+import * as THREE from 'three';
+
+const canvas = document.getElementById('hero-canvas');
+if (canvas) init(canvas);
+
+function init(canvas) {
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  camera.position.set(0, 0.6, 9);
+
+  const ORANGE = new THREE.Color('#FF7A2F');
+  const ORANGE_DARK = new THREE.Color('#E5661F');
+  const INK = new THREE.Color('#1E2B37');
+
+  // Group everything so the whole composition sits at the right of the hero.
+  const group = new THREE.Group();
+  group.position.x = 3.2;
+  scene.add(group);
+
+  // Core planet: solid + wireframe shell.
+  const core = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(1.5, 2),
+    new THREE.MeshStandardMaterial({ color: ORANGE, roughness: 0.55, metalness: 0.05, flatShading: true })
+  );
+  group.add(core);
+
+  const shell = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(1.95, 1),
+    new THREE.MeshBasicMaterial({ color: ORANGE_DARK, wireframe: true, transparent: true, opacity: 0.35 })
+  );
+  group.add(shell);
+
+  // Orbit rings.
+  const rings = [];
+  const ringSpecs = [
+    { r: 2.9, tilt: 0.45, speed: 0.35 },
+    { r: 3.6, tilt: -0.7, speed: -0.22 },
+    { r: 4.4, tilt: 1.1, speed: 0.15 },
+  ];
+  for (const spec of ringSpecs) {
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(spec.r, 0.012, 8, 160),
+      new THREE.MeshBasicMaterial({ color: INK, transparent: true, opacity: 0.18 })
+    );
+    ring.rotation.x = Math.PI / 2 + spec.tilt;
+    ring.userData.speed = spec.speed;
+    group.add(ring);
+    rings.push(ring);
+
+    // A small satellite on each ring.
+    const sat = new THREE.Mesh(
+      new THREE.SphereGeometry(0.09, 16, 16),
+      new THREE.MeshStandardMaterial({ color: INK, roughness: 0.4 })
+    );
+    sat.userData = { r: spec.r, speed: spec.speed * 1.6, phase: Math.random() * Math.PI * 2, ring };
+    group.add(sat);
+    rings.push(sat);
+  }
+
+  // Particle field: "words" drifting around the planet.
+  const COUNT = 900;
+  const positions = new Float32Array(COUNT * 3);
+  const sizes = new Float32Array(COUNT);
+  for (let i = 0; i < COUNT; i++) {
+    const r = 2.4 + Math.random() * 5.5;
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+    positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta) * 0.55;
+    positions[i * 3 + 2] = r * Math.cos(phi);
+    sizes[i] = 0.5 + Math.random();
+  }
+  const pGeo = new THREE.BufferGeometry();
+  pGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const particles = new THREE.Points(
+    pGeo,
+    new THREE.PointsMaterial({ color: ORANGE_DARK, size: 0.045, transparent: true, opacity: 0.7, sizeAttenuation: true })
+  );
+  group.add(particles);
+
+  // Lights.
+  scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+  const key = new THREE.DirectionalLight(0xffffff, 1.4);
+  key.position.set(4, 5, 6);
+  scene.add(key);
+  const rim = new THREE.DirectionalLight(0xffd9c2, 0.6);
+  rim.position.set(-5, -2, -4);
+  scene.add(rim);
+
+  // Subtle pointer parallax.
+  const target = { x: 0, y: 0 };
+  window.addEventListener('pointermove', (e) => {
+    target.x = (e.clientX / window.innerWidth - 0.5) * 0.6;
+    target.y = (e.clientY / window.innerHeight - 0.5) * 0.4;
+  });
+
+  function resize() {
+    const { clientWidth: w, clientHeight: h } = canvas.parentElement;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    // On narrow screens, center the composition and push it back.
+    group.position.x = w < 900 ? 0 : 3.2;
+    camera.position.z = w < 900 ? 12 : 9;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  const clock = new THREE.Clock();
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function frame() {
+    const t = clock.getElapsedTime();
+    const dt = reduceMotion ? 0 : 1;
+
+    core.rotation.y = t * 0.12 * dt;
+    core.rotation.x = Math.sin(t * 0.1) * 0.15 * dt;
+    shell.rotation.y = -t * 0.08 * dt;
+    shell.rotation.z = t * 0.05 * dt;
+    particles.rotation.y = t * 0.03 * dt;
+
+    for (const obj of rings) {
+      if (obj.userData.ring) {
+        const { r, speed, phase, ring } = obj.userData;
+        const a = phase + t * speed * dt;
+        const local = new THREE.Vector3(Math.cos(a) * r, Math.sin(a) * r, 0);
+        local.applyEuler(ring.rotation);
+        obj.position.copy(local);
+      } else {
+        obj.rotation.z = t * obj.userData.speed * 0.2 * dt;
+      }
+    }
+
+    group.rotation.y += (target.x - group.rotation.y) * 0.04;
+    group.rotation.x += (target.y - group.rotation.x) * 0.04;
+
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+  frame();
+}
+
+  </script>
+  <script src="js/create.js"></script>
+</body>
+</html>

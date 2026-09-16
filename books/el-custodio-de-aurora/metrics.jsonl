@@ -1,0 +1,3 @@
+{"chapter_id":1,"fragment_attempt":1,"approved":false,"checks":{"main_thread":"pass","current_chapter":"pass","characters":"pass","pacing":"fail"},"reasons":["El fragmento entrega 4 párrafos cuando fragment.max_paragraphs es 3 (contrato de longitud)."],"beats_completed":["1.1"],"chapter_closable":false}
+{"chapter_id":1,"fragment_attempt":2,"approved":true,"checks":{"main_thread":"pass","current_chapter":"pass","characters":"pass","pacing":"pass"},"reasons":[],"beats_completed":["1.1"],"chapter_closable":false}
+{"chapter_id":1,"fragment_attempt":1,"approved":true,"checks":{"main_thread":"pass","current_chapter":"pass","characters":"pass","pacing":"pass"},"reasons":[],"beats_completed":["1.2"],"chapter_closable":false}

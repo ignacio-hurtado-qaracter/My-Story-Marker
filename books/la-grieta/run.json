@@ -1,0 +1,70 @@
+{
+  "novel": {
+    "title": "La Grieta",
+    "slug": "la-grieta"
+  },
+  "status": "complete",
+  "position": {
+    "current_chapter_id": null,
+    "current_beat_id": null,
+    "note": "todos los capítulos cerrados"
+  },
+  "counters": {
+    "fragment_attempts": 0,
+    "chapter_fragment_failures": 0,
+    "chapter_regenerations": {
+      "1": 0,
+      "2": 0,
+      "3": 0
+    }
+  },
+  "totals": {
+    "chapters": 3,
+    "fragments_approved": 15,
+    "rejections": 0,
+    "fragment_failures": 0,
+    "chapter_regenerations": 0,
+    "paragraphs_per_chapter": [
+      9,
+      9,
+      10
+    ],
+    "target_paragraphs": 10
+  },
+  "chapter_start_character_snapshot": {
+    "taken_at_chapter": 3,
+    "note": "Spec1 6.3: se restaura al descartar un capítulo. No se usó — ningún capítulo fue descartado.",
+    "characters": {
+      "mara-solis": "Sabe que su señal fue reclasificada como ruido antes de que ella la revisara, por el Protocolo Umbral; ha presentado un informe formal con anulación manual de la reclasificación y lo ha visto absorbido sin error ni rechazo que pueda apelar.",
+      "kade-osei": "Ha aprobado el acceso de Mara al archivo bruto invocando el Protocolo Umbral sin explicárselo. No ha vuelto a intervenir desde entonces.",
+      "ezra-lund": "Le ha revelado a Mara el origen del Protocolo Umbral —el escándalo de CP-114 hace doce años— y le ha mostrado que su informe fue reclasificado automáticamente la misma noche en que ella detectó la señal."
+    }
+  },
+  "config_snapshot": {
+    "$comment": "Input of the Story Creator Harness. See Spec1.md section 2.1. Only chapters.count is required; every other field falls back to the value shown here.",
+    "model": "claude-sonnet-5",
+    "theme": null,
+    "language": "es",
+    "tone_and_style": null,
+    "chapters": {
+      "count": 3,
+      "target_paragraphs": 10
+    },
+    "fragment": {
+      "min_paragraphs": 1,
+      "max_paragraphs": 2
+    },
+    "context": {
+      "recent_paragraphs": 4,
+      "distant_chapters": 1
+    },
+    "retries": {
+      "max_fragment_retries": 3,
+      "max_fragment_failures_per_chapter": 2,
+      "max_chapter_regenerations": 2
+    },
+    "output": {
+      "books_dir": "books/"
+    }
+  }
+}

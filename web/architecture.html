@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My-Story-Maker · Arquitectura</title>
+  <link rel="icon" href="assets/Logo_Qaracter.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="inner">
+      <a class="brand" href="index.html">
+        <img src="assets/Logo_Qaracter.svg" alt="Qaracter" onerror="this.onerror=null;this.src='assets/qaracter-logo.svg'">
+        <span class="divider"></span>
+        <span class="product">My-Story-<span>Maker</span></span>
+      </a>
+      <nav class="nav">
+        <a href="index.html">Crear novela</a>
+        <a href="library.html">Biblioteca</a>
+        <a href="architecture.html" class="active">Arquitectura</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <span class="eyebrow">Story Creator Harness</span>
+    <h1>Agentes y flujo de orquestación</h1>
+    <p class="muted" style="max-width:720px">
+      Diagrama interactivo del bucle descrito en Spec1 §3 y §6. Arrastra para rotar, rueda para
+      acercar y pulsa sobre cualquier nodo para ver su contrato: entradas, salidas y reglas.
+    </p>
+
+    <div class="arch-layout">
+      <div>
+        <div class="arch-stage" id="stage">
+          <span class="hint">Clic en un nodo · arrastrar para rotar · rueda para zoom</span>
+          <div class="hud">
+            <button class="btn btn-ghost btn-sm" id="btn-reset-view">Reiniciar vista</button>
+            <button class="btn btn-ghost btn-sm" id="btn-rotate">Pausar rotación</button>
+            <button class="btn btn-ghost btn-sm" id="btn-play">▶ Simular un fragmento</button>
+          </div>
+        </div>
+        <div class="legend">
+          <span><i style="background:#FF7A2F;border-radius:50%"></i> Agente (LLM)</span>
+          <span><i style="background:#1E2B37"></i> Estado en disco</span>
+          <span><i style="background:#fff;border:2px solid #FF7A2F"></i> Paso del harness</span>
+          <span><i style="background:#FFB88A;transform:rotate(45deg)"></i> Decisión</span>
+          <span><i style="background:#1F9D55"></i> Entrada / salida</span>
+          <span><i style="background:#D64545"></i> Error</span>
+        </div>
+        <div class="node-list" id="node-list"></div>
+      </div>
+
+      <aside class="card node-panel" id="node-panel">
+        <div class="placeholder">
+          <p style="font-size:2rem;margin:0">◎</p>
+          <p>Selecciona un nodo del diagrama<br>para ver su definición.</p>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="inner">
+      <span>My-Story-Maker · Story Creator Harness · Spec v0.3</span>
+      <span>Qaracter</span>
+    </div>
+  </footer>
+
+  <!-- Inlined from js/architecture.js so the page also works over file:// (local module files are blocked there; CDN imports are not). -->
+  <script type="module">
+// Arquitectura: interactive 3D graph of the Story Creator Harness (Spec1 §3, §5, §6).
+// Nodes are three.js meshes; labels use CSS2DRenderer; clicking a node fills the side panel.
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+// ---------------------------------------------------------------------------
+// Model
+// ---------------------------------------------------------------------------
+const C = {
+  orange: '#FF7A2F', orangeDark: '#E5661F', orangeLight: '#FFB88A',
+  ink: '#1E2B37', ink400: '#6B7785', white: '#FFFFFF',
+  pass: '#1F9D55', fail: '#D64545',
+};
+
+const KIND_LABEL = {
+  agent: 'Agente · LLM', store: 'Estado en disco', process: 'Paso del harness',
+  decision: 'Decisión del harness', io: 'Entrada / salida', error: 'Parada con error', part: 'Parte del contexto',
+};
+
+const NODES = [
+  { id: 'config', kind: 'io', label: 'config.json', pos: [0, 7.2, 0],
+    title: 'config.json', summary: 'Único input del harness. Todos los campos son opcionales salvo chapters.count; los demás toman los valores por defecto de Spec1 §2.1.',
+    outputs: ['theme, language, tone_and_style', 'chapters.count · chapters.target_paragraphs', 'fragment.min/max_paragraphs', 'context.recent_paragraphs (N) · distant_chapters (M)', 'retries.* · model · output.books_dir'],
+    file: 'Specs/config.json' },
+
+  { id: 'spirit-creator', kind: 'agent', label: 'Spirit Creator', pos: [0, 5.3, 0],
+    title: 'Spirit Creator', summary: 'Planifica la novela antes de escribir una palabra: título, premisa, hilo principal, plan de cada capítulo dividido en beats y el reparto. También corre en modo re-plan para reescribir el plan de un solo capítulo tras un fallo.',
+    inputs: ['La config: tema, idioma, tono, nº de capítulos y longitud', 'En re-plan: el Spirit existente, el id del capítulo y los motivos de rechazo acumulados'],
+    outputs: ['Un Spirit completo (§4.1) con todos los beats pending salvo el primero, current'],
+    rules: ['Aceptación: título con slug no vacío; exactamente chapters.count capítulos; cada capítulo con desarrollo y resolución; cada personaje con arco; la resolución del hilo principal alcanzable desde la lista de capítulos', 'Re-plan: coherente con el hilo principal, los capítulos ya escritos y el estado actual de los personajes'],
+    file: '.claude/agents/spirit-creator.md' },
+
+  { id: 'spirit', kind: 'store', label: 'Spirit', pos: [-4.8, 3.5, -0.8],
+    title: 'Spirit (spirit.md + characters.md)', summary: 'Fuente única de verdad de la novela. Se crea una vez y sólo se muta en lugares controlados: estado de personajes, status de beats, puntero de capítulo actual y re-plan completo de un capítulo.',
+    outputs: ['title · premise · tone_and_style', 'main_thread {introduction, development, resolution}', 'chapters[] con beats[] {id, description, status}', 'characters[] {id, name, role, description, arc, state}', 'current_chapter_id'],
+    rules: ['Todo texto libre en config.language; las claves y el vocabulario de status no se traducen', 'characters.md separado porque state se reescribe tras casi cada fragmento (§6.2)'],
+    file: 'books/<slug>/spirit.md · characters.md' },
+
+  { id: 'context', kind: 'process', label: 'Ventana de contexto', pos: [0, 3.5, 0],
+    title: 'Ventana de contexto del Writer', summary: 'En lugar del libro entero, el Writer recibe la vista del Spirit (hilo principal, capítulo actual, personajes) más un contexto específico curado que se reconstruye tras cada fragmento aprobado.',
+    outputs: ['Spirit view: hilo principal · plan del capítulo actual · personajes', 'Recent · Distant · Future (ver nodos satélite)', 'Budget: párrafos aprobados en el capítulo, target_paragraphs y beats pendientes'],
+    file: 'Spec1 §4.3' },
+  { id: 'recent', kind: 'part', label: 'Recent', pos: [-2.2, 3.9, 2.2],
+    title: 'Recent', summary: 'Los últimos N párrafos del manuscrito, literalmente (N = context.recent_paragraphs). La prosa nueva continúa directamente de aquí.', file: 'Fuente: manuscript/' },
+  { id: 'distant', kind: 'part', label: 'Distant', pos: [0, 3.4, 3.4],
+    title: 'Distant', summary: 'Resúmenes de los últimos M capítulos cerrados, del más antiguo al más reciente (M = context.distant_chapters). Vacío en el capítulo 1. Cada resumen se genera una vez al cerrar el capítulo y se cachea.', file: 'Fuente: summaries/chapter-NN.md' },
+  { id: 'future', kind: 'part', label: 'Future', pos: [2.2, 3.9, 2.2],
+    title: 'Future', summary: 'Lista ordenada de beats no terminados desde el actual, para el capítulo en curso; más el beat de introducción del siguiente capítulo si el actual está en su último beat. Sirve para prefigurar, no para adelantarse.', file: 'Fuente: beats current | pending del Spirit' },
+
+  { id: 'writer', kind: 'agent', label: 'Writer', pos: [0, 1.5, 0],
+    title: 'Writer', summary: 'Escribe un fragmento a la vez desde la ventana de contexto. Nunca ve la novela completa. No posee el estado de la historia: devuelve prosa y un autoinforme, y el harness decide qué significa.',
+    inputs: ['La ventana de contexto (Spirit view + contexto específico)', 'En un reintento: los motivos de rechazo del Reviewer'],
+    outputs: ['fragment.text', 'beats_completed[] (opinión; prevalece la del Reviewer)', 'present_advanced: bool'],
+    rules: ['1. Narrar el beat actual', '2. Puede pasar al siguiente beat pendiente sólo si considera el actual terminado; saltarse un beat no está permitido', '3. Nunca narrar más allá del siguiente beat pendiente', '4. Escribir en config.language y respetar tono y estado de personajes', '5. Longitud entre fragment.min_paragraphs y max_paragraphs (únicos límites duros)', '6. Usar el Budget para repartir párrafos entre los beats que quedan'],
+    file: '.claude/agents/writer.md' },
+
+  { id: 'reviewer', kind: 'agent', label: 'Reviewer', pos: [0, -0.5, 0],
+    title: 'Reviewer', summary: 'La puerta entre un fragmento y el manuscrito. Corre en el mismo modelo que el Writer; la diferencia es de posición: el Reviewer ve el Spirit completo y es el único que puede detectar un fragmento localmente excelente pero globalmente erróneo.',
+    inputs: ['El fragmento', 'El Spirit completo', 'El contexto específico'],
+    outputs: ['approved: bool', 'checks {main_thread, current_chapter, characters, pacing}: pass | fail', 'reasons[] (obligatorios y accionables en cualquier fail)', 'beats_completed[] (su propio juicio)', 'chapter_closable: bool'],
+    rules: ['Hilo principal: nada contradice introducción, desarrollo o resolución de la novela', 'Capítulo actual: el fragmento sirve al plan del capítulo', 'Personajes: conducta, conocimiento y voz coherentes con descripción y estado', 'Ritmo: sólo el beat actual y, como mucho, el inicio del siguiente; exceso claro sobre target_paragraphs con beats pendientes también falla', 'Aprueba sólo si pasan los cuatro checks. Un fragmento en otro idioma se rechaza antes de evaluar'],
+    file: '.claude/agents/reviewer.md' },
+
+  { id: 'metrics', kind: 'store', label: 'metrics.jsonl', pos: [-4.8, -0.5, -0.8],
+    title: 'Métrica (metrics.jsonl)', summary: 'Un registro por veredicto del Reviewer, incluidos los rechazos. Es la caja «Métrica» del diagrama y la base de la evaluación posterior.',
+    outputs: ['fragment · beat · attempt', 'checks {main_thread, current_chapter, characters, pacing}', 'approved · beats_completed · chapter_closable · paragraphs'],
+    file: 'books/<slug>/metrics.jsonl' },
+
+  // Reject branch (left)
+  { id: 'retries', kind: 'decision', label: '¿Reintentos agotados?', pos: [-3.4, -2.5, 0],
+    title: 'Reintentos de fragmento agotados?', summary: 'Tras un rechazo, fragment_attempts += 1. Si alcanza retries.max_fragment_retries se declara un fallo de fragmento; si no, el Writer vuelve a intentarlo con los motivos.',
+    rules: ['No → Writer (reintento con reasons)', 'Sí → fallo de fragmento: chapter_fragment_failures += 1, fragment_attempts = 0'], file: 'Spec1 §4.5, §6' },
+  { id: 'failures', kind: 'decision', label: '¿Fallos de capítulo agotados?', pos: [-3.4, -4.3, 0],
+    title: 'Fallos de fragmento por capítulo agotados?', summary: 'Un capítulo falla cuando acumula retries.max_fragment_failures_per_chapter fallos de fragmento. La interpretación es que el plan del capítulo está mal, no la prosa.',
+    rules: ['No → reconstruir contexto y empezar un fragmento desde cero', 'Sí → fallo de capítulo: chapter_regenerations[ch] += 1'], file: 'Spec1 §6.3' },
+  { id: 'regen', kind: 'decision', label: '¿Regeneraciones agotadas?', pos: [-3.4, -6.1, 0],
+    title: 'Regeneraciones de capítulo agotadas?', summary: 'Un mismo capítulo puede descartarse y replanificarse hasta retries.max_chapter_regenerations veces. La siguiente vez la ejecución se detiene con error.',
+    rules: ['No → descartar texto y replanificar el capítulo', 'Sí → parada con error nombrando el capítulo; no se escribe novel.md'], file: 'Spec1 §6' },
+  { id: 'replan', kind: 'process', label: 'Descartar y re-planificar', pos: [-7.8, -6.1, 0],
+    title: 'Descartar capítulo y re-planificar', summary: 'Borra todos los fragmentos del capítulo del manuscrito, pide al Spirit Creator un nuevo plan para ese capítulo con los motivos de rechazo acumulados y reinicia desde su primer beat.',
+    rules: ['Restaura el snapshot de estados de personajes tomado al inicio del capítulo (los fragmentos descartados nunca fueron canon)', 'Beats reseteados a pending con el primero current', 'chapter_fragment_failures = 0'], file: 'Spec1 §6.3' },
+  { id: 'error', kind: 'error', label: 'Parada con error', pos: [-3.4, -7.9, 0],
+    title: 'Run stops with error', summary: 'La carpeta de la novela queda intacta con su estado de trabajo (spirit, manuscript, metrics, run.json) y sin novel.md. Escenario de aceptación 9.', file: 'Spec1 §2.2, §7.9' },
+
+  // Approve branch (right)
+  { id: 'append', kind: 'process', label: 'Añadir al manuscrito', pos: [3.4, -2.5, 0],
+    title: 'Append fragment to manuscript', summary: 'El fragmento aprobado se añade a manuscript/chapter-NN.md precedido de un marcador con su id y beats_completed.',
+    rules: ['Se marcan done los beats según la lista del Reviewer (su lista gana)', 'fragment_attempts = 0'], file: 'Spec1 §4.2, §6' },
+  { id: 'manuscript', kind: 'store', label: 'manuscript/', pos: [7.6, -2.5, -0.8],
+    title: 'Manuscrito', summary: 'Un fichero por capítulo con sólo los fragmentos aprobados, en orden. Descartar un capítulo es borrar un fichero. Al cerrar el último capítulo se ensambla novel.md a partir de aquí.',
+    outputs: ['manuscript/chapter-NN.md', 'summaries/chapter-NN.md (resumen Distant al cerrar el capítulo)', 'run.json: contadores, posición, snapshot de config'], file: 'books/<slug>/manuscript/' },
+  { id: 'update', kind: 'process', label: 'Actualizar estado', pos: [3.4, -4.3, 0],
+    title: 'Update state', summary: 'Tras cada fragmento aprobado: reconstruir el contexto específico, actualizar personajes si procede y evaluar si el capítulo avanza.',
+    rules: ['Regla de personajes (§6.2): paso ligero que pregunta si algo cambió el state de algún personaje; description y arc no se tocan', 'Rebuild specific context: Recent, Distant, Future, Budget'], file: 'Spec1 §6, §6.2' },
+  { id: 'characters', kind: 'store', label: 'characters.md', pos: [7.6, -4.3, -0.8],
+    title: 'Personajes (characters.md)', summary: 'La lista characters del Spirit. Vive en su propio fichero porque state se reescribe tras casi cada fragmento aprobado.',
+    outputs: ['id · name · role · description · arc', 'state: lo que le ha pasado hasta ahora (actualizado por el harness)'], file: 'books/<slug>/characters.md' },
+  { id: 'advance', kind: 'decision', label: '¿Avanzar capítulo?', pos: [3.4, -6.1, 0],
+    title: 'Regla de avance de capítulo', summary: 'Se avanza cuando el beat de resolución del capítulo está done y el Reviewer marca chapter_closable. Si sólo se cumple lo primero, se pide al Writer un fragmento más cuyo objetivo explícito es cerrar el capítulo.',
+    rules: ['No → siguiente fragmento del mismo capítulo', 'Sí, quedan capítulos → cerrar capítulo (generar resumen Distant), chapter_fragment_failures = 0, current_chapter_id += 1', 'Sí, era el último → ensamblar novel.md'], file: 'Spec1 §6.1' },
+  { id: 'next', kind: 'process', label: 'Siguiente capítulo', pos: [7.2, -7.7, 0],
+    title: 'Set next chapter as current', summary: 'Cierra el capítulo actual, genera su resumen Distant, toma un nuevo snapshot de estados de personajes y mueve el puntero current_chapter_id.', file: 'Spec1 §6' },
+  { id: 'novel', kind: 'io', label: 'novel.md', pos: [1.2, -7.9, 0],
+    title: 'novel.md (el entregable)', summary: 'Un encabezado por capítulo y los fragmentos aprobados en orden, ensamblado desde manuscript/ cuando cierra el último capítulo. Todo lo demás en la carpeta es estado de trabajo, no parte de la promesa.',
+    file: 'books/<novel-slug>/novel.md' },
+];
+
+// [from, to, label, style]  style: normal | approve | reject | part
+const EDGES = [
+  ['config', 'spirit-creator'],
+  ['spirit-creator', 'spirit'],
+  ['spirit', 'context', 'Spirit view'],
+  ['spirit', 'reviewer'],
+  ['recent', 'context', null, 'part'], ['distant', 'context', null, 'part'], ['future', 'context', null, 'part'],
+  ['context', 'writer'],
+  ['writer', 'reviewer', 'fragment'],
+  ['reviewer', 'metrics'],
+  ['reviewer', 'retries', 'reject + reasons', 'reject'],
+  ['retries', 'writer', 'no', 'reject'],
+  ['retries', 'failures', 'sí', 'reject'],
+  ['failures', 'context', 'no', 'reject'],
+  ['failures', 'regen', 'sí', 'reject'],
+  ['regen', 'replan', 'no', 'reject'],
+  ['replan', 'spirit', 're-plan', 'reject'],
+  ['replan', 'context', null, 'reject'],
+  ['regen', 'error', 'sí', 'reject'],
+  ['reviewer', 'append', 'approve', 'approve'],
+  ['append', 'manuscript'],
+  ['append', 'update', null, 'approve'],
+  ['update', 'characters'],
+  ['update', 'context', 'rebuild', 'approve'],
+  ['update', 'advance', null, 'approve'],
+  ['advance', 'context', 'no', 'approve'],
+  ['advance', 'next', 'sí', 'approve'],
+  ['next', 'context', null, 'approve'],
+  ['advance', 'novel', 'último', 'approve'],
+];
+
+const SIM_PATH = ['config', 'spirit-creator', 'spirit', 'context', 'writer', 'reviewer', 'append', 'update', 'advance', 'context'];
+
+// ---------------------------------------------------------------------------
+// Scene
+// ---------------------------------------------------------------------------
+const stage = document.getElementById('stage');
+const panel = document.getElementById('node-panel');
+const nodeList = document.getElementById('node-list');
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+stage.appendChild(renderer.domElement);
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.domElement.style.position = 'absolute';
+labelRenderer.domElement.style.top = '0';
+labelRenderer.domElement.style.pointerEvents = 'none';
+stage.appendChild(labelRenderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
+const HOME = new THREE.Vector3(3, 1, 23);
+camera.position.copy(HOME);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.6;
+controls.target.set(0, -0.8, 0);
+controls.minDistance = 8;
+controls.maxDistance = 45;
+
+scene.add(new THREE.AmbientLight(0xffffff, 1.1));
+const key = new THREE.DirectionalLight(0xffffff, 1.2);
+key.position.set(6, 10, 8);
+scene.add(key);
+const fill = new THREE.DirectionalLight(0xffe4d3, 0.5);
+fill.position.set(-8, -4, -6);
+scene.add(fill);
+
+// Ground grid for depth cue.
+const grid = new THREE.GridHelper(40, 40, 0xe6e9ec, 0xf1f3f5);
+grid.position.y = -9.2;
+scene.add(grid);
+
+// ---------- nodes ----------
+const meshes = new Map();
+const labels = new Map();
+
+function makeNodeMesh(node) {
+  let geo, mat, extra = null;
+  switch (node.kind) {
+    case 'agent':
+      geo = new THREE.SphereGeometry(0.62, 32, 32);
+      mat = new THREE.MeshStandardMaterial({ color: C.orange, roughness: 0.4, metalness: 0.05 });
+      break;
+    case 'store':
+      geo = new THREE.CylinderGeometry(0.55, 0.55, 0.55, 40);
+      mat = new THREE.MeshStandardMaterial({ color: C.ink, roughness: 0.5 });
+      break;
+    case 'process':
+      geo = new THREE.BoxGeometry(1.9, 0.75, 0.55);
+      mat = new THREE.MeshStandardMaterial({ color: C.white, roughness: 0.6 });
+      extra = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: C.orange }));
+      break;
+    case 'decision':
+      geo = new THREE.OctahedronGeometry(0.72);
+      mat = new THREE.MeshStandardMaterial({ color: C.orangeLight, roughness: 0.45, flatShading: true });
+      break;
+    case 'io':
+      geo = new THREE.CapsuleGeometry(0.34, 1.3, 8, 24);
+      mat = new THREE.MeshStandardMaterial({ color: C.pass, roughness: 0.5 });
+      break;
+    case 'error':
+      geo = new THREE.CapsuleGeometry(0.34, 1.3, 8, 24);
+      mat = new THREE.MeshStandardMaterial({ color: C.fail, roughness: 0.5 });
+      break;
+    case 'part':
+      geo = new THREE.SphereGeometry(0.3, 24, 24);
+      mat = new THREE.MeshStandardMaterial({ color: C.ink400, roughness: 0.5 });
+      break;
+  }
+  const mesh = new THREE.Mesh(geo, mat);
+  if (node.kind === 'io' || node.kind === 'error') mesh.rotation.z = Math.PI / 2;
+  if (extra) mesh.add(extra);
+  mesh.position.set(...node.pos);
+  mesh.userData.node = node;
+  mesh.userData.baseColor = mat.color.clone();
+  mesh.userData.baseScale = 1;
+  return mesh;
+}
+
+for (const node of NODES) {
+  const mesh = makeNodeMesh(node);
+  scene.add(mesh);
+  meshes.set(node.id, mesh);
+
+  const el = document.createElement('div');
+  el.className = 'label';
+  el.textContent = node.label;
+  const lbl = new CSS2DObject(el);
+  lbl.position.set(0, -0.15, 0);
+  if (node.kind === 'part') {
+    // Satellites get their label above so they do not cover the context box.
+    el.style.fontSize = '11px';
+    el.style.transform = 'translateY(-22px)';
+    lbl.position.set(0, 0.15, 0);
+  }
+  mesh.add(lbl);
+  labels.set(node.id, el);
+}
+
+// ---------- edges ----------
+const edgeObjs = [];
+const EDGE_COLOR = { normal: C.ink, approve: C.pass, reject: C.fail, part: C.ink400 };
+
+function surfaceOffset(mesh) {
+  // Rough radius so arrows stop at the mesh surface instead of its center.
+  const k = mesh.userData.node.kind;
+  return k === 'process' ? 0.6 : k === 'part' ? 0.32 : k === 'io' || k === 'error' ? 0.5 : 0.62;
+}
+
+for (const [fromId, toId, text, style = 'normal'] of EDGES) {
+  const a = meshes.get(fromId).position.clone();
+  const b = meshes.get(toId).position.clone();
+  const dir = b.clone().sub(a).normalize();
+  const start = a.clone().add(dir.clone().multiplyScalar(surfaceOffset(meshes.get(fromId))));
+  const end = b.clone().sub(dir.clone().multiplyScalar(surfaceOffset(meshes.get(toId)) + 0.28));
+
+  // Slight bow so back-edges (to context) do not overlap forward edges.
+  const mid = start.clone().add(end).multiplyScalar(0.5);
+  const isBack = b.y > a.y;
+  if (isBack) {
+    const side = new THREE.Vector3(-dir.y, dir.x, 0).normalize();
+    mid.add(side.multiplyScalar(1.4)).add(new THREE.Vector3(0, 0, 1.2));
+  }
+  const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+  const pts = curve.getPoints(40);
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const color = new THREE.Color(EDGE_COLOR[style]);
+  const mat = style === 'part'
+    ? new THREE.LineDashedMaterial({ color, dashSize: 0.18, gapSize: 0.12, transparent: true, opacity: 0.6 })
+    : new THREE.LineBasicMaterial({ color, transparent: true, opacity: style === 'normal' ? 0.45 : 0.85 });
+  const line = new THREE.Line(geo, mat);
+  if (style === 'part') line.computeLineDistances();
+  scene.add(line);
+
+  // Arrow head.
+  const tangent = curve.getTangent(1).normalize();
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.3, 12), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: mat.opacity }));
+  cone.position.copy(end);
+  cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tangent);
+  scene.add(cone);
+
+  let labelEl = null;
+  if (text) {
+    labelEl = document.createElement('div');
+    labelEl.className = 'label';
+    labelEl.style.cssText = `font-size:10px;font-weight:500;color:${EDGE_COLOR[style]};transform:none;border-color:transparent;background:rgba(255,255,255,.75)`;
+    labelEl.textContent = text;
+    const lbl = new CSS2DObject(labelEl);
+    lbl.position.copy(curve.getPoint(0.5));
+    scene.add(lbl);
+  }
+  edgeObjs.push({ from: fromId, to: toId, line, cone, labelEl, baseOpacity: mat.opacity, curve });
+}
+
+// ---------------------------------------------------------------------------
+// Selection + panel
+// ---------------------------------------------------------------------------
+let selected = null;
+
+function select(id) {
+  selected = id;
+  const connected = new Set([id]);
+  for (const e of edgeObjs) {
+    const on = e.from === id || e.to === id;
+    if (on) { connected.add(e.from); connected.add(e.to); }
+    const op = id ? (on ? 1 : 0.08) : e.baseOpacity;
+    e.line.material.opacity = op;
+    e.cone.material.opacity = op;
+    if (e.labelEl) e.labelEl.style.opacity = id ? (on ? 1 : 0.15) : 1;
+  }
+  for (const [nid, mesh] of meshes) {
+    const isSel = nid === id;
+    const dim = id && !connected.has(nid);
+    mesh.material.opacity = dim ? 0.25 : 1;
+    mesh.material.transparent = true;
+    mesh.userData.baseScale = isSel ? 1.25 : 1;
+    mesh.material.emissive?.set(isSel ? C.orangeDark : 0x000000);
+    mesh.material.emissiveIntensity = isSel ? 0.35 : 0;
+    labels.get(nid).classList.toggle('dim', Boolean(dim));
+    labels.get(nid).style.borderColor = isSel ? C.orange : '';
+  }
+  nodeList.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.id === id));
+  renderPanel(id ? NODES.find((n) => n.id === id) : null);
+}
+
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const list = (title, items) => items?.length ? `<section><h4>${title}</h4><ul>${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul></section>` : '';
+
+function renderPanel(node) {
+  if (!node) {
+    panel.innerHTML = `<div class="placeholder"><p style="font-size:2rem;margin:0">◎</p><p>Selecciona un nodo del diagrama<br>para ver su definición.</p></div>`;
+    return;
+  }
+  panel.innerHTML = `
+    <span class="kind">${KIND_LABEL[node.kind]}</span>
+    <h2>${esc(node.title)}</h2>
+    <p>${esc(node.summary)}</p>
+    ${list('Entradas', node.inputs)}
+    ${list('Salidas', node.outputs)}
+    ${list(node.kind === 'decision' ? 'Ramas' : 'Reglas', node.rules)}
+    ${node.file ? `<section><h4>Definición</h4><span class="file">${esc(node.file)}</span></section>` : ''}
+    <section>
+      <h4>Conexiones</h4>
+      <ul>${edgeObjs.filter((e) => e.from === node.id || e.to === node.id).map((e) => {
+        const other = e.from === node.id ? e.to : e.from;
+        const name = NODES.find((n) => n.id === other).label;
+        return `<li>${e.from === node.id ? '→' : '←'} <a href="#" data-goto="${other}">${esc(name)}</a>${e.labelEl ? ` <span class="muted small">(${esc(e.labelEl.textContent)})</span>` : ''}</li>`;
+      }).join('')}</ul>
+    </section>`;
+  panel.querySelectorAll('[data-goto]').forEach((a) => a.addEventListener('click', (ev) => { ev.preventDefault(); select(a.dataset.goto); }));
+}
+
+// Quick-access chips under the stage.
+nodeList.innerHTML = NODES.map((n) => `<button data-id="${n.id}">${esc(n.label)}</button>`).join('');
+nodeList.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => select(selected === b.dataset.id ? null : b.dataset.id)));
+
+// ---------- picking ----------
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+let downAt = null;
+
+renderer.domElement.addEventListener('pointerdown', (e) => { downAt = { x: e.clientX, y: e.clientY }; });
+renderer.domElement.addEventListener('pointerup', (e) => {
+  if (!downAt) return;
+  const moved = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y);
+  downAt = null;
+  if (moved > 6) return; // it was a drag
+  const r = renderer.domElement.getBoundingClientRect();
+  pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  const hit = raycaster.intersectObjects([...meshes.values()], false)[0];
+  select(hit ? (hit.object.userData.node.id === selected ? null : hit.object.userData.node.id) : null);
+});
+renderer.domElement.addEventListener('pointermove', (e) => {
+  const r = renderer.domElement.getBoundingClientRect();
+  pointer.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  raycaster.setFromCamera(pointer, camera);
+  const hit = raycaster.intersectObjects([...meshes.values()], false)[0];
+  renderer.domElement.style.cursor = hit ? 'pointer' : 'grab';
+  for (const [id, mesh] of meshes) mesh.userData.hover = hit?.object === mesh;
+});
+
+// ---------- HUD ----------
+document.getElementById('btn-reset-view').addEventListener('click', () => {
+  camera.position.copy(HOME);
+  controls.target.set(0, -0.8, 0);
+  select(null);
+});
+const rotateBtn = document.getElementById('btn-rotate');
+rotateBtn.addEventListener('click', () => {
+  controls.autoRotate = !controls.autoRotate;
+  rotateBtn.textContent = controls.autoRotate ? 'Pausar rotación' : 'Reanudar rotación';
+});
+
+// ---------- simulation pulse ----------
+const pulse = new THREE.Mesh(new THREE.SphereGeometry(0.22, 24, 24), new THREE.MeshBasicMaterial({ color: C.orange }));
+pulse.visible = false;
+scene.add(pulse);
+let sim = null;
+
+document.getElementById('btn-play').addEventListener('click', () => {
+  sim = { i: 0, t: 0 };
+  pulse.visible = true;
+  controls.autoRotate = false;
+  rotateBtn.textContent = 'Reanudar rotación';
+  select(SIM_PATH[0]);
+});
+
+function edgeCurve(from, to) {
+  return edgeObjs.find((e) => e.from === from && e.to === to)?.curve ?? null;
+}
+
+function stepSim(dt) {
+  if (!sim) return;
+  const from = SIM_PATH[sim.i], to = SIM_PATH[sim.i + 1];
+  if (!to) { sim = null; pulse.visible = false; return; }
+  sim.t += dt * 0.9;
+  const curve = edgeCurve(from, to);
+  if (curve) pulse.position.copy(curve.getPoint(Math.min(sim.t, 1)));
+  else pulse.position.lerpVectors(meshes.get(from).position, meshes.get(to).position, Math.min(sim.t, 1));
+  if (sim.t >= 1) {
+    sim.i++;
+    sim.t = -0.6; // pause on the node
+    select(to);
+  }
+}
+
+// ---------- loop ----------
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h);
+  labelRenderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+resize();
+window.addEventListener('resize', resize);
+
+const clock = new THREE.Clock();
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+  for (const mesh of meshes.values()) {
+    const target = mesh.userData.baseScale * (mesh.userData.hover ? 1.12 : 1);
+    const s = mesh.scale.x + (target - mesh.scale.x) * 0.15;
+    mesh.scale.setScalar(s);
+    if (mesh.userData.node.kind === 'agent') mesh.rotation.y = t * 0.4;
+    if (mesh.userData.node.kind === 'decision') mesh.rotation.y = t * 0.5;
+  }
+  stepSim(dt);
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+frame();
+
+  </script>
+</body>
+</html>

@@ -25,7 +25,7 @@ A single JSON configuration file, `config.json`. Every parameter the spec refers
 | Field | Type | Default | Meaning |
 |-------|------|---------|---------|
 | `theme` | string or null | null | Optional premise or theme. When null, the Spirit Creator invents one within science fiction. |
-| `language` | string | "en" | Language of the manuscript. |
+| `language` | string | "en" | Language of the novel. Governs the manuscript, the novel title, the Spirit's prose fields and the chapter summaries - everything a reader or the Writer sees. It does not change the schema: field names, beat ids and `status` values stay as written in this spec. |
 | `tone_and_style` | string or null | null | Optional voice constraints passed verbatim to the Spirit Creator. |
 | `chapters.count` | int | required | Number of chapters in the novel. |
 | `chapters.target_paragraphs` | int | 40 | Target length of each chapter in paragraphs. The Spirit Creator sizes beats to fit; the Reviewer treats a strong deviation as a pacing problem. |
@@ -41,7 +41,7 @@ A single JSON configuration file, `config.json`. Every parameter the spec refers
 
 ### 2.2 Output
 
-Each run creates one folder per novel under `output.books_dir`, named after the novel's title in slug form: lowercase ASCII, punctuation dropped, spaces collapsed to hyphens. *The Seam* becomes `the-seam/`. If the folder already exists the run does not overwrite it; it appends a numeric suffix (`the-seam-2/`).
+Each run creates one folder per novel under `output.books_dir`, named after the novel's title in slug form: lowercase, punctuation dropped, spaces collapsed to hyphens, and diacritics reduced to their base letter so the name stays ASCII. *The Seam* becomes `the-seam/`; *El Último Faro* becomes `el-ultimo-faro/`. When the title is in a script with no Latin form, the slug is a romanisation of it, and the untransliterated title is kept in `spirit.md` and `run.json`. If the folder already exists the run does not overwrite it; it appends a numeric suffix (`the-seam-2/`).
 
 ```
 books/
@@ -121,6 +121,8 @@ flowchart TD
 
 The single source of truth for the novel. Created once before the loop, mutated only in controlled places (character state, beat status, the "current chapter" pointer, and a full chapter re-plan on chapter failure).
 
+Every free-text value in it - title, premise, chapter plans, beat descriptions, character fields - is written in `config.language`, because the Writer reads them as its brief and a brief in another language leaks into the prose. The keys and the `status` vocabulary are not translated.
+
 ```yaml
 spirit:
   title: string                  # invented by the Spirit Creator; slugged for the folder name (2.2)
@@ -170,7 +172,7 @@ Rebuilt after every approved fragment.
 | Part | Content | Source |
 |------|---------|--------|
 | Recent | Last N paragraphs of the manuscript, verbatim (N = `context.recent_paragraphs`) | Manuscript |
-| Distant | Summaries of the last M closed chapters, oldest first (M = `context.distant_chapters`; empty in chapter 1, fewer than M while not enough chapters exist) | One summary generated when each chapter closes, cached |
+| Distant | Summaries of the last M closed chapters, oldest first, written in `config.language` (M = `context.distant_chapters`; empty in chapter 1, fewer than M while not enough chapters exist) | One summary generated when each chapter closes, cached |
 | Future | The ordered list of beats not yet done, starting from the current one, for the current chapter; plus the next chapter's introduction beat if the current chapter is on its last beat | Spirit beats with status `current` or `pending` |
 | Budget | Paragraphs already approved in the current chapter, the chapter's `target_paragraphs`, and how many beats are not yet done | Manuscript + Spirit |
 
@@ -192,16 +194,28 @@ Kept by the harness, reset as indicated.
 
 All agents run on the model named in `model`. In particular the Writer and the Reviewer share the same model; the separation of roles comes from their prompts and contracts, not from different models.
 
+Each agent's prompt lives in `.claude/agents/`, one file per agent, and **that file is where the agent's behaviour is defined**: its rules, what it judges, how it decides, what it refuses. This section does not restate any of it. What stays here is the wiring - which agents exist, what each one is handed, and the shape of what it returns - because the loop in 6 and the storage layout in 2.2 are written against those shapes.
+
+To change how an agent behaves, change the agent file. To change what it is handed or what it returns, change both.
+
+| Agent | Role | Definition |
+|-------|------|------------|
+| Spirit Creator | Plans the novel up front; re-plans a chapter that has failed | [`spirit-creator.md`](../.claude/agents/spirit-creator.md) |
+| Writer | Writes one fragment from the curated context window | [`writer.md`](../.claude/agents/writer.md) |
+| Reviewer | Approves or rejects each fragment against the full Spirit | [`reviewer.md`](../.claude/agents/reviewer.md) |
+
+Two steps of the loop are not agents in this sense and have no file: the character update of 6.2 and the chapter summary generated at chapter close (4.3). Both are single-shot calls owned by the harness.
+
 ### 5.1 Spirit Creator
 
 - **Input**: the config (theme, language, tone, chapter count, chapter length).
-- **Output**: a complete Spirit as in 4.1, with every chapter broken into beats and all beats `pending` except the first, which is `current`.
-- **Acceptance**: the novel has a title, and that title slugs to a non-empty folder name (2.2); exactly `chapters.count` chapters; every chapter has development and resolution; every character has an arc; the main thread resolution is reachable from the chapter list.
-- **Re-plan mode**: given an existing Spirit, a chapter id and the reasons collected from that chapter's rejections, produce a new plan for that chapter only. It must stay consistent with the main thread, with the chapters already written, and with the current character states. Beats are reset to `pending` with the first `current`.
+- **Output**: a complete Spirit as in 4.1, with every chapter broken into beats and all beats `pending` except the first, which is `current`. Written to `spirit.md` and `characters.md` per 2.2.
+- **Re-plan mode**: invoked with an existing Spirit, a chapter id and that chapter's collected rejection reasons; returns a new plan for that chapter alone.
+- Acceptance criteria, beat sizing and the re-plan constraints: [`spirit-creator.md`](../.claude/agents/spirit-creator.md).
 
 ### 5.2 Writer
 
-- **Input**: the Writer context window (Spirit + specific context) and, on a retry, the Reviewer's rejection reasons.
+- **Input**: the Writer context window (Spirit view + the specific context of 4.3) and, on a retry, the Reviewer's rejection reasons.
 - **Output**: one fragment of prose plus a self-report:
 
 ```yaml
@@ -211,13 +225,7 @@ fragment:
   present_advanced: bool         # true if the Writer moved the story into the next beat
 ```
 
-- **Rules**:
-  1. Narrate the current beat.
-  2. The Writer may move into the next pending beat only when it considers the current beat finished. Moving on is allowed and expected; that is how the story progresses. Skipping a beat is not.
-  3. Never narrate beats beyond the next pending one. Future context exists so the Writer can foreshadow and stay consistent, not so it can jump ahead.
-  4. Respect tone_and_style and the characters' current state.
-  5. Fragment length between `fragment.min_paragraphs` and `fragment.max_paragraphs`.
-  6. Use the Budget to pace the chapter: spread the paragraphs that remain across the beats that remain, so the last beat is not left with nothing to spend. `target_paragraphs` is an indication of length, not a hard limit. Landing somewhat over or under it is acceptable; cutting a beat short or padding one out to hit the number is not. The only hard limits on length are those in rule 5.
+- The rules the Writer works under: [`writer.md`](../.claude/agents/writer.md).
 
 ### 5.3 Reviewer
 
@@ -237,12 +245,7 @@ verdict:
   chapter_closable: bool         # only meaningful when the resolution beat is done, see 6.1
 ```
 
-- **Checks**:
-  1. **Main thread**: nothing contradicts the novel-level introduction, development or resolution.
-  2. **Current chapter**: the fragment serves the current chapter's plan and does not contradict it.
-  3. **Characters**: behaviour, knowledge and voice match each character's description and current state.
-  4. **Pacing**: the fragment narrates only the current beat and, at most, the start of the next pending beat. Narrating a later beat, or narrating the next beat when the current one is clearly unresolved, fails this check. Foreshadowing without resolving is allowed. A chapter running far beyond `target_paragraphs` with beats still pending also fails this check.
-- **Decision**: approve only if all four checks pass. Otherwise reject with reasons.
+- What each check means, and how the decision is made: [`reviewer.md`](../.claude/agents/reviewer.md).
 - **Metric**: the harness records the four check results per attempt. This is the "Métrica" box in the diagram and the basis for later evaluation.
 
 ## 6. Orchestration loop

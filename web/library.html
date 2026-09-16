@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My-Story-Maker · Biblioteca</title>
+  <link rel="icon" href="assets/Logo_Qaracter.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="inner">
+      <a class="brand" href="index.html">
+        <img src="assets/Logo_Qaracter.svg" alt="Qaracter" onerror="this.onerror=null;this.src='assets/qaracter-logo.svg'">
+        <span class="divider"></span>
+        <span class="product">My-Story-<span>Maker</span></span>
+      </a>
+      <nav class="nav">
+        <a href="index.html">Crear novela</a>
+        <a href="library.html" class="active">Biblioteca</a>
+        <a href="architecture.html">Arquitectura</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section id="list-view">
+      <span class="eyebrow">Novelas generadas</span>
+      <h1>Biblioteca</h1>
+      <p class="muted" id="list-note">Cargando…</p>
+      <div class="books-grid" id="books-grid"></div>
+    </section>
+
+    <section id="detail-view" class="book-detail">
+      <p><a href="#" id="back-link">← Volver a la biblioteca</a></p>
+      <div class="detail-head">
+        <div class="cover"></div>
+        <div class="meta">
+          <span class="eyebrow" id="d-status"></span>
+          <h1 id="d-title"></h1>
+          <p class="muted" id="d-premise"></p>
+          <div class="pills" id="d-pills"></div>
+        </div>
+      </div>
+
+      <div class="tabs" id="tabs">
+        <button data-tab="overview" class="active">Resumen</button>
+        <button data-tab="params">Parámetros</button>
+        <button data-tab="spirit">Spirit</button>
+        <button data-tab="characters">Personajes</button>
+        <button data-tab="summaries">Resúmenes</button>
+        <button data-tab="metrics">Métricas</button>
+        <button data-tab="novel">Novela</button>
+      </div>
+
+      <div class="tab-panel active" data-panel="overview"></div>
+      <div class="tab-panel" data-panel="params"></div>
+      <div class="tab-panel" data-panel="spirit"></div>
+      <div class="tab-panel" data-panel="characters"></div>
+      <div class="tab-panel" data-panel="summaries"></div>
+      <div class="tab-panel" data-panel="metrics"></div>
+      <div class="tab-panel" data-panel="novel"></div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="inner">
+      <span>My-Story-Maker · Story Creator Harness · Spec v0.3</span>
+      <span>Qaracter</span>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+  <script src="data/books.js"></script>
+  <script src="js/library.js"></script>
+</body>
+</html>
