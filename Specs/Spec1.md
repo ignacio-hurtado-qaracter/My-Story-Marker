@@ -37,11 +37,43 @@ A single JSON configuration file, `config.json`. Every parameter the spec refers
 | `retries.max_fragment_retries` | int | 3 | Rejections allowed for one fragment before it counts as a fragment failure. |
 | `retries.max_fragment_failures_per_chapter` | int | 2 | Fragment failures allowed inside one chapter before the chapter is discarded and re-planned. |
 | `retries.max_chapter_regenerations` | int | 2 | Times a single chapter may be discarded and re-planned before the run stops with an error. |
-| `output.path` | string | "output/novel.md" | Where the manuscript is written. |
+| `output.books_dir` | string | "books/" | Directory under which each novel gets its own folder. See 2.2. |
 
 ### 2.2 Output
 
-The novel only: one Markdown file at `output.path`, with one heading per chapter and the approved fragments in order. Nothing else is part of the deliverable. Internal state (Spirit, metrics, rejected attempts) may be persisted for debugging but is not an output of the process.
+Each run creates one folder per novel under `output.books_dir`, named after the novel's title in slug form: lowercase ASCII, punctuation dropped, spaces collapsed to hyphens. *The Seam* becomes `the-seam/`. If the folder already exists the run does not overwrite it; it appends a numeric suffix (`the-seam-2/`).
+
+```
+books/
+  <novel-slug>/
+    novel.md              # the deliverable
+    spirit.md             # premise, tone, main thread, chapter plans, beats
+    characters.md         # the cast: role, description, arc, current state
+    manuscript/
+      chapter-01.md       # approved fragments of that chapter, in order
+      chapter-02.md
+      ...
+    summaries/
+      chapter-01.md       # Distant summary, written when the chapter closes
+      ...
+    metrics.jsonl         # one record per Reviewer verdict
+    run.json              # counters, current position, config snapshot
+    rejected/             # optional; rejected attempts with their reasons
+```
+
+**The deliverable is `novel.md` alone**: one heading per chapter, the approved fragments in order, assembled from `manuscript/` when the last chapter closes. Everything beside it is working state, kept on disk so a run can be inspected, audited or resumed, and not part of what the process promises to produce.
+
+The rest of the folder follows from how the loop mutates state:
+
+| File | Why it is separate |
+|------|--------------------|
+| `spirit.md` + `characters.md` | Together they are the Spirit of 4.1. The `characters` list lives in `characters.md`; everything else lives in `spirit.md`. They are split because character `state` is rewritten after almost every approved fragment (6.2), while the rest of the Spirit changes only on chapter advance or re-plan. |
+| `manuscript/chapter-NN.md` | One file per chapter, each fragment preceded by a marker comment carrying its id and `beats_completed`. Discarding a chapter (6.3) is then deleting one file, not editing a shared one. |
+| `summaries/chapter-NN.md` | The cached Distant summaries 4.3 requires. Generated once at chapter close, read on every later context rebuild. |
+| `metrics.jsonl` | The per-attempt record of the four checks required by 5.3, appended on every verdict including rejections. |
+| `run.json` | The counters of 4.5, the current chapter and beat, the run status, the config as it was loaded, and the snapshot of character states taken at chapter start that 6.3 needs in order to roll back a discarded chapter. |
+
+`novel.md` is written only when the run completes. A run that stops with an error (6.3) leaves the folder in place with its working state intact and no `novel.md`, which is what scenario 9 of section 7 asserts.
 
 ## 3. Flow
 
@@ -80,7 +112,7 @@ flowchart TD
     UPD --> ADV{Advance chapter?}
     ADV -->|no| CW
     ADV -->|yes, more chapters| NEXT[Set next chapter as current] --> CW
-    ADV -->|yes, last chapter done| END([Novel written to output.path])
+    ADV -->|yes, last chapter done| END([Assemble novel.md<br/>in books/novel-slug/])
 ```
 
 ## 4. Domain model
@@ -91,6 +123,7 @@ The single source of truth for the novel. Created once before the loop, mutated 
 
 ```yaml
 spirit:
+  title: string                  # invented by the Spirit Creator; slugged for the folder name (2.2)
   premise: string                # from config.theme, or invented
   tone_and_style: string         # from config, or chosen by the Spirit Creator
   main_thread:
@@ -139,6 +172,7 @@ Rebuilt after every approved fragment.
 | Recent | Last N paragraphs of the manuscript, verbatim (N = `context.recent_paragraphs`) | Manuscript |
 | Distant | Summaries of the last M closed chapters, oldest first (M = `context.distant_chapters`; empty in chapter 1, fewer than M while not enough chapters exist) | One summary generated when each chapter closes, cached |
 | Future | The ordered list of beats not yet done, starting from the current one, for the current chapter; plus the next chapter's introduction beat if the current chapter is on its last beat | Spirit beats with status `current` or `pending` |
+| Budget | Paragraphs already approved in the current chapter, the chapter's `target_paragraphs`, and how many beats are not yet done | Manuscript + Spirit |
 
 ### 4.4 The "present"
 
@@ -162,12 +196,12 @@ All agents run on the model named in `model`. In particular the Writer and the R
 
 - **Input**: the config (theme, language, tone, chapter count, chapter length).
 - **Output**: a complete Spirit as in 4.1, with every chapter broken into beats and all beats `pending` except the first, which is `current`.
-- **Acceptance**: exactly `chapters.count` chapters; every chapter has development and resolution; every character has an arc; the main thread resolution is reachable from the chapter list.
+- **Acceptance**: the novel has a title, and that title slugs to a non-empty folder name (2.2); exactly `chapters.count` chapters; every chapter has development and resolution; every character has an arc; the main thread resolution is reachable from the chapter list.
 - **Re-plan mode**: given an existing Spirit, a chapter id and the reasons collected from that chapter's rejections, produce a new plan for that chapter only. It must stay consistent with the main thread, with the chapters already written, and with the current character states. Beats are reset to `pending` with the first `current`.
 
 ### 5.2 Writer
 
-- **Input**: the Writer context window (Spirit view + specific context) and, on a retry, the Reviewer's rejection reasons.
+- **Input**: the Writer context window (Spirit + specific context) and, on a retry, the Reviewer's rejection reasons.
 - **Output**: one fragment of prose plus a self-report:
 
 ```yaml
@@ -183,6 +217,7 @@ fragment:
   3. Never narrate beats beyond the next pending one. Future context exists so the Writer can foreshadow and stay consistent, not so it can jump ahead.
   4. Respect tone_and_style and the characters' current state.
   5. Fragment length between `fragment.min_paragraphs` and `fragment.max_paragraphs`.
+  6. Use the Budget to pace the chapter: spread the paragraphs that remain across the beats that remain, so the last beat is not left with nothing to spend. `target_paragraphs` is an indication of length, not a hard limit. Landing somewhat over or under it is acceptable; cutting a beat short or padding one out to hit the number is not. The only hard limits on length are those in rule 5.
 
 ### 5.3 Reviewer
 
@@ -248,7 +283,7 @@ while spirit.current_chapter exists:
         close_chapter(spirit, manuscript)               # generate Distant summary
         chapter_fragment_failures = 0
         spirit.current_chapter_id += 1, or finish if it was the last chapter
-write(manuscript, config.output.path)
+assemble(manuscript, books_dir/novel_slug/"novel.md")
 ```
 
 ### 6.1 Chapter advance rule
@@ -274,11 +309,7 @@ A chapter fails when it accumulates `max_fragment_failures_per_chapter` fragment
 
 Character `state` is not rolled back automatically. Because the discarded fragments never became canon, the re-plan step must also revert any state changes that came from them. Implementation note: keep a snapshot of character states at chapter start and restore it on discard.
 
-## 7. Open decisions
-
-None at the moment. Resolved decisions are recorded in the change log.
-
-## 8. Acceptance scenarios
+## 7. Acceptance scenarios
 
 1. **Happy path**: given a config with `chapters.count` = 3 and no theme, the loop produces a Markdown file with 3 chapters, every beat marked `done`, and ends with "Novel complete".
 2. **Character consistency**: given a character whose state says "does not know about the signal", when a fragment shows them acting on the signal, then the Reviewer fails `characters` and the reasons mention the character.

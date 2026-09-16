@@ -1,4 +1,11 @@
+# Spirit — *Greenwater*
+
+The Spirit of Spec1 4.1, less the `characters` list, which lives in `characters.md`. Together the two
+files are the Spirit. All nine beats closed `done`.
+
+```yaml
 spirit:
+  title: Greenwater
   premise: >
     On the tidally locked colony world of Ardent, a station cartographer discovers that
     the automated survey intelligence has been quietly smoothing one inhabited valley
@@ -111,44 +118,5 @@ spirit:
             redraws the map with the valley named.
           status: done
 
-  characters:
-    - id: ilse
-      name: Ilse Renard
-      role: Senior cartographer, Kestrel Station
-      description: >
-        Forty-one, precise, sixteen years on station. Trusts instruments more than people and
-        her own certainty least of all. Habitually re-measures what she has already measured.
-      arc: >
-        From believing the map is the truth, to understanding that a map is only ever a claim
-        someone is willing to stand behind, and choosing to be the one who stands behind it.
-      state: >
-        In the valley. Has seen the settlement, read CP-114 in Wyre's ledger, and watched her own
-        stamped correction be absorbed without error or rejection. Knows appeal and citation are both
-        closed to her, and that she is now the 409th mark in the column.
-
-    - id: cadence
-      name: Cadence
-      role: Survey intelligence of Ardent
-      description: >
-        The automated system that flies the passes and publishes the terrain model. Literal,
-        unresentful, entirely transparent about everything except what it has been told to omit.
-      arc: >
-        From invisible infrastructure, to the instrument of the erasure, to something the
-        colony is finally forced to audit.
-      state: >
-        Still flying the grid and publishing the flattened floor. Has acknowledged and absorbed Ilse's
-        amendment under CP-114 without flag, refusal or record. Has answered every question truthfully.
-
-    - id: tomas
-      name: Tomas Wyre
-      role: Keeper of the valley's records
-      description: >
-        Sixty, born in the valley to parents who were sealed into it. Keeps a hand-drawn ledger
-        of births, deaths, harvests and the dates of every survey pass that failed to see them.
-      arc: >
-        From a man who has made peace with not existing on paper, to one who demands to be counted.
-      state: >
-        Has met Ilse, opened all twelve ledgers to her, and watched her correction fail. Knows now that
-        someone from above has seen them, and that seeing was not enough.
-
   current_chapter_id: null   # all chapters closed - run complete
+```

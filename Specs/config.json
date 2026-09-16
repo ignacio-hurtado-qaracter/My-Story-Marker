@@ -6,7 +6,7 @@
   "tone_and_style": null,
   "chapters": {
     "count": 3,
-    "target_paragraphs": 4
+    "target_paragraphs": 10
   },
   "fragment": {
     "min_paragraphs": 1,
@@ -22,6 +22,6 @@
     "max_chapter_regenerations": 2
   },
   "output": {
-    "path": "output/novel.md"
+    "books_dir": "books/"
   }
 }
