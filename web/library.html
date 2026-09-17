@@ -30,6 +30,11 @@
       <span class="eyebrow">Novelas generadas</span>
       <h1>Biblioteca</h1>
       <p class="muted" id="list-note">Cargando…</p>
+      <p class="small muted" id="live-status" style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+        <span class="live-dot" aria-hidden="true"></span>
+        <span id="live-text">Actualización automática activa</span>
+        <button type="button" class="btn btn-ghost btn-sm" id="btn-refresh">Actualizar ahora</button>
+      </p>
       <div class="books-grid" id="books-grid"></div>
     </section>
 
@@ -71,6 +76,8 @@
       <span>Qaracter</span>
     </div>
   </footer>
+
+  <div class="toast" id="toast"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
   <script src="data/books.js"></script>

@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node web/scripts/build-data.mjs --quiet 2>/dev/null || true",
+            "timeout": 20,
+            "statusMessage": "Actualizando biblioteca web…"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node web/scripts/build-data.mjs --quiet 2>/dev/null || true",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}

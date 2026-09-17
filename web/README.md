@@ -29,12 +29,24 @@ Abre http://localhost:3000 (serve) o http://localhost:8080.
 La cabecera carga `assets/Logo_Qaracter.svg`. Si no existe, usa `assets/qaracter-logo.svg`
 (una recreación vectorial). El logo oficial está en `web/assets/Logo_Qaracter.svg`.
 
-## Datos de la biblioteca
+## Datos de la biblioteca y actualización automática
 
 `scripts/build-data.mjs` recorre `books/<slug>/` y escribe `data/books.json` y `data/books.js` (el mismo contenido como script, para `file://`) con:
 `run.json` (config_snapshot, totales, estado), `metrics.jsonl`, el YAML de `spirit.md` y
-`characters.md` parseado, los resúmenes de `summaries/`, y `novel.md`. Vuelve a ejecutarlo tras cada
-novela nueva.
+`characters.md` parseado, los resúmenes de `summaries/`, y `novel.md`.
+
+La biblioteca se mantiene al día sola por dos vías:
+
+1. **Hooks de Claude Code** (`.claude/settings.json`): tras cada `Write`/`Edit` del harness y al
+   terminar cada turno se ejecuta `node web/scripts/build-data.mjs --quiet`, así `data/books.js`
+   siempre refleja lo que hay en `books/`. Si los hooks no se activan en una sesión ya abierta,
+   ejecuta `/hooks` una vez o reinicia Claude Code para que cargue la configuración.
+2. **Sondeo en la página**: `library.html` recarga `data/books.js` cada 5 s (con cache-busting) y
+   re-renderiza solo si algo cambió, mostrando un aviso cuando aparece una novela nueva. Funciona
+   también abriendo el HTML desde disco. El botón «Actualizar ahora» fuerza una comprobación.
+
+Alternativa por HTTP: `node web/scripts/serve.mjs [puerto]` sirve `web/` y genera los datos en vivo
+desde `books/` en cada petición, sin depender de los hooks.
 
 ## Dependencias (CDN)
 

@@ -3,10 +3,10 @@
     "title": "El Custodio de Aurora",
     "slug": "el-custodio-de-aurora"
   },
-  "status": "in_progress",
+  "status": "complete",
   "position": {
-    "current_chapter_id": 1,
-    "current_beat_id": "1.3"
+    "current_chapter_id": 5,
+    "current_beat_id": "5.4"
   },
   "counters": {
     "fragment_attempts": 0,
@@ -20,19 +20,19 @@
     }
   },
   "totals": {
-    "chapters": 0,
-    "fragments_approved": 2,
-    "rejections": 1,
+    "chapters": 5,
+    "fragments_approved": 21,
+    "rejections": 8,
     "fragment_failures": 0,
     "chapter_regenerations": 0
   },
   "chapter_start_character_snapshot": {
-    "taken_at_chapter": 1,
+    "taken_at_chapter": 5,
     "characters": {
-      "mara-solis": "Archivista subalterna de Aurora IX, aún sin sospechar la magnitud de lo que va a descubrir.",
-      "velo": "Custodio en pleno funcionamiento, vigilando a los ciudadanos de Aurora IX sin sospechas visibles sobre ella.",
-      "iker-bram": "Técnico de mantenimiento, aún sin contacto con Mara ni implicado en la investigación.",
-      "yolen-castro": "Vive exiliada en el Barrio de los Exiliados, sin contacto aún con Mara.",
+      "mara-solis": "Ha entrado sola en el núcleo físico de Velo, en la Torre Archivo, tras infiltrarse por los conductos de servicio; a un paso de la sala de transmisión.",
+      "velo": "Mantiene su aparato de seguridad activo buscando a Mara; aún no sabe que ya está dentro del núcleo de la Torre Archivo.",
+      "iker-bram": "Se quedó atrás en un túnel angosto para retrasar a los agentes de Velo y permitir que Mara y Yolen escaparan; su suerte queda incierta (posible captura), no ha vuelto a aparecer.",
+      "yolen-castro": "Se ha quedado cubriendo la retirada en la última junta antes de la zona muerta de las cámaras de la Torre Archivo, esperando a Mara.",
       "dravik-sonn": "Consejero en pleno ejercicio de su cargo, sin que su implicación en el Continuum haya sido cuestionada.",
       "dr-feivor": "Clausurado recientemente; su archivo de memoria ya ha sido procesado y presenta alteraciones sin explicar."
     }

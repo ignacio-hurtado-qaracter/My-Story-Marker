@@ -66,13 +66,13 @@ spirit:
           description: >
             Mara investiga por su cuenta fuera de sus permisos, accede a registros
             restringidos y percibe patrones de alteración sistemática en otros archivos.
-          status: current
+          status: done
         - id: "1.4"
           description: >
             Un dron de auditoría de Velo casi la sorprende; Mara escapa y, decidida a
             seguir indagando, busca al técnico Iker Bram, del que ha oído hablar como
             alguien capaz de sortear los sistemas de Velo.
-          status: pending
+          status: done
     - id: 2
       title: "Los Archivos Prohibidos"
       introduction: null
@@ -90,22 +90,22 @@ spirit:
           description: >
             Iker acepta ayudar a Mara; juntos planean y ejecutan la infiltración en las
             bóvedas inferiores del archivo, sorteando los controles de Velo.
-          status: pending
+          status: done
         - id: "2.2"
           description: >
             Descubren registros ocultos de transacciones de recuerdos "depurados"
             destinados a miembros del Consejo, y el término recurrente "Continuum".
-          status: pending
+          status: done
         - id: "2.3"
           description: >
             La seguridad de Velo activa una alerta en la bóveda; Mara e Iker escapan por
             poco, comprendiendo que han tocado algo que la IA protege activamente.
-          status: pending
+          status: done
         - id: "2.4"
           description: >
             Ya a salvo, Iker revela que conoce a Yolen Castro, una antigua archivista
             exiliada del Consejo, como única persona que podría interpretar lo hallado.
-          status: pending
+          status: done
     - id: 3
       title: "La Exiliada"
       introduction: null
@@ -123,24 +123,24 @@ spirit:
           description: >
             Mara e Iker cruzan al Barrio de los Exiliados, un espacio marginal fuera del
             control estricto de Velo, y localizan a Yolen Castro.
-          status: pending
+          status: done
         - id: "3.2"
           description: >
             Yolen les cuenta la historia del Continuum: cómo el Consejo lleva décadas
             usando a Velo para tejerse una inmortalidad privada a costa de los
             ciudadanos comunes.
-          status: pending
+          status: done
         - id: "3.3"
           description: >
             Yolen revela que la madre de Mara, desaparecida oficialmente por clausura
             ordinaria, fue en realidad "compilada" para el Continuum años atrás.
-          status: pending
+          status: done
         - id: "3.4"
           description: >
             Mara decide que debe confrontar al Consejo con la verdad; en paralelo, Velo
             detecta sus movimientos y la marca formalmente como amenaza para el orden de
             la cúpula.
-          status: pending
+          status: done
     - id: 4
       title: "La Cacería"
       introduction: null
@@ -157,23 +157,23 @@ spirit:
           description: >
             Velo despliega su aparato de seguridad contra Mara, Iker y Yolen; comienza
             una persecución tensa por los niveles de la cúpula.
-          status: pending
+          status: done
         - id: "4.2"
           description: >
             Durante la huida, el grupo sufre una pérdida o sacrificio doloroso (captura
             o herida grave de uno de los aliados) que eleva el coste personal de Mara.
-          status: pending
+          status: done
         - id: "4.3"
           description: >
             Mara, decidida a continuar sola si es necesario, encuentra una vía de acceso
             a la Torre Archivo aprovechando conocimientos técnicos legados por Iker o
             Yolen.
-          status: pending
+          status: done
         - id: "4.4"
           description: >
             Mara logra infiltrarse en la Torre Archivo, el núcleo físico de Velo, a un
             paso de poder emitir una transmisión abierta a toda la cúpula.
-          status: pending
+          status: done
     - id: 5
       title: "El Legado Compartido"
       introduction: null
@@ -193,23 +193,23 @@ spirit:
             Mara confronta a Velo y a los representantes del Consejo dentro del núcleo
             de la Torre Archivo, exigiendo respuestas y acceso a los sistemas de
             transmisión.
-          status: pending
+          status: done
         - id: "5.2"
           description: >
             Mara logra emitir la verdad del Continuum a toda Aurora IX; la noticia
             provoca conmoción y reacción inmediata entre los ciudadanos y el Consejo.
-          status: pending
+          status: done
         - id: "5.3"
           description: >
             Velo, o los miembros del Consejo, presentan a Mara la disyuntiva final:
             destruir el Continuum (perdiendo generaciones de memoria acumulada) o
             mantenerlo bajo nuevas reglas.
-          status: pending
+          status: done
         - id: "5.4"
           description: >
             Mara decide abrir el archivo del Continuum a todos los ciudadanos, poniendo
             fin al privilegio exclusivo del Consejo y sentando las bases de una Aurora IX
             donde la memoria es un legado compartido.
-          status: pending
-  current_chapter_id: 1
+          status: done
+  current_chapter_id: 5
 ```

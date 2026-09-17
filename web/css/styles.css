@@ -197,6 +197,12 @@ form legend {
 .pill.pass { background: #E4F5EA; color: var(--pass); }
 .pill.fail { background: #FBE5E5; color: var(--fail); }
 
+.live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--pass); display: inline-block; box-shadow: 0 0 0 0 rgba(31,157,85,.5); animation: live-pulse 2s infinite; }
+.live-dot.stale { background: var(--ink-400); animation: none; }
+@keyframes live-pulse { 0% { box-shadow: 0 0 0 0 rgba(31,157,85,.5); } 70% { box-shadow: 0 0 0 6px rgba(31,157,85,0); } 100% { box-shadow: 0 0 0 0 rgba(31,157,85,0); } }
+.toast { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--ink); color: var(--white); padding: .7rem 1.2rem; border-radius: 999px; opacity: 0; pointer-events: none; transition: all .2s; z-index: 100; font-size: .9rem; }
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
 .book-detail { display: none; }
 .book-detail.open { display: block; }
 .detail-head { display: flex; align-items: flex-start; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }

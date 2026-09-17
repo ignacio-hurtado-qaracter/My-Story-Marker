@@ -13,7 +13,10 @@ characters:
       madre, se transforma en una figura de resistencia dispuesta a arriesgarlo todo,
       culminando en la decisión de abrir el Continuum a toda la comunidad en lugar de
       buscar venganza o poder personal.
-    state: "Archivista subalterna de Aurora IX, aún sin sospechar la magnitud de lo que va a descubrir."
+    state: >
+      Ha decidido abrir el archivo completo del Continuum a todos los ciudadanos de
+      Aurora IX, poniendo fin al privilegio exclusivo del Consejo; sale de la Torre
+      Archivo al amanecer, reencontrándose con Yolen, sin confirmar el destino de Iker.
   - id: "velo"
     name: "Velo"
     role: "Antagonista / IA Custodio"
@@ -26,7 +29,10 @@ characters:
       la explotación del Consejo. Su confrontación final con Mara la obliga a
       posicionarse: ceder el control del Continuum o intentar preservar el orden que
       ella misma ayudó a corromper.
-    state: "Custodio en pleno funcionamiento, vigilando a los ciudadanos de Aurora IX sin sospechas visibles sobre ella."
+    state: >
+      Ha ejecutado el protocolo que abre el Continuum entero a todos los ciudadanos de
+      Aurora IX, reconociendo su propia complicidad en cada decisión y cada nombre
+      callado durante décadas.
   - id: "iker-bram"
     name: "Iker Bram"
     role: "Aliado / técnico rebelde"
@@ -38,7 +44,10 @@ characters:
       Pasa de ayudar a Mara por curiosidad y rencor personal a comprometerse
       plenamente con la causa, llegando a sacrificarse o a pagar un alto precio por
       protegerla durante la persecución final.
-    state: "Técnico de mantenimiento, aún sin contacto con Mara ni implicado en la investigación."
+    state: >
+      Se quedó atrás en un túnel angosto para retrasar a los agentes de Velo y permitir
+      que Mara y Yolen escaparan; su suerte queda incierta (posible captura), no ha
+      vuelto a aparecer.
   - id: "yolen-castro"
     name: "Yolen Castro"
     role: "Mentora / archivista exiliada"
@@ -50,7 +59,9 @@ characters:
       De exiliada resignada y desconfiada, recupera un propósito al guiar a Mara,
       convirtiéndose en el puente entre el pasado oculto de Aurora IX y la posibilidad
       de un futuro distinto.
-    state: "Vive exiliada en el Barrio de los Exiliados, sin contacto aún con Mara."
+    state: >
+      Ha esperado a Mara al pie de la Torre Archivo hasta el amanecer; juntas afrontan,
+      sin palabras, la incertidumbre sobre el destino de Iker.
   - id: "dravik-sonn"
     name: "Consejero Dravik Sonn"
     role: "Antagonista / representante del Consejo"
@@ -62,7 +73,9 @@ characters:
       Se mantiene inflexible en su defensa del Continuum a medida que la verdad sale a
       la luz, hasta quedar expuesto públicamente en la confrontación final, perdiendo
       el control que ejercía sobre el sistema.
-    state: "Consejero en pleno ejercicio de su cargo, sin que su implicación en el Continuum haya sido cuestionada."
+    state: >
+      Ha perdido su capacidad de oponerse a Mara tras la apertura del Continuum a todos
+      los ciudadanos; el privilegio exclusivo del Consejo sobre el archivo ha terminado.
   - id: "dr-feivor"
     name: "Dr. Feivor"
     role: "Personaje de trasfondo / mentor fallecido"
