@@ -1,6 +1,6 @@
 # Spirit — *La Grieta*
 
-El Spirit de Spec1 4.1, salvo la lista `characters`, que vive en `characters.md`. Juntos, ambos
+El Spirit de spec1 4.1, salvo la lista `characters`, que vive en `characters.md`. Juntos, ambos
 ficheros forman el Spirit. Los nueve beats están cerrados en `done`.
 
 ```yaml

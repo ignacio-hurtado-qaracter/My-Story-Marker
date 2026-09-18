@@ -37,7 +37,7 @@
     <span class="eyebrow">Story Creator Harness</span>
     <h1>Agentes y flujo de orquestación</h1>
     <p class="muted" style="max-width:720px">
-      Diagrama interactivo del bucle descrito en Spec1 §3 y §6. Arrastra para rotar, rueda para
+      Diagrama interactivo del bucle descrito en spec1 §3 y §6. Arrastra para rotar, rueda para
       acercar y pulsa sobre cualquier nodo para ver su contrato: entradas, salidas y reglas.
     </p>
 
@@ -80,7 +80,7 @@
 
   <!-- Inlined from js/architecture.js so the page also works over file:// (local module files are blocked there; CDN imports are not). -->
   <script type="module">
-// Arquitectura: interactive 3D graph of the Story Creator Harness (Spec1 §3, §5, §6).
+// Arquitectura: interactive 3D graph of the Story Creator Harness (spec1 §3, §5, §6).
 // Nodes are three.js meshes; labels use CSS2DRenderer; clicking a node fills the side panel.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -102,9 +102,9 @@ const KIND_LABEL = {
 
 const NODES = [
   { id: 'config', kind: 'io', label: 'config.json', pos: [0, 7.2, 0],
-    title: 'config.json', summary: 'Único input del harness. Todos los campos son opcionales salvo chapters.count; los demás toman los valores por defecto de Spec1 §2.1.',
+    title: 'config.json', summary: 'Único input del harness. Todos los campos son opcionales salvo chapters.count; los demás toman los valores por defecto de spec1 §2.1.',
     outputs: ['theme, language, tone_and_style', 'chapters.count · chapters.target_paragraphs', 'fragment.min/max_paragraphs', 'context.recent_paragraphs (N) · distant_chapters (M)', 'retries.* · model · output.books_dir'],
-    file: 'Specs/config.json' },
+    file: 'specs/config.json' },
 
   { id: 'spirit-creator', kind: 'agent', label: 'Spirit Creator', pos: [0, 5.3, 0],
     title: 'Spirit Creator', summary: 'Planifica la novela antes de escribir una palabra: título, premisa, hilo principal, plan de cada capítulo dividido en beats y el reparto. También corre en modo re-plan para reescribir el plan de un solo capítulo tras un fallo.',
@@ -122,7 +122,7 @@ const NODES = [
   { id: 'context', kind: 'process', label: 'Ventana de contexto', pos: [0, 3.5, 0],
     title: 'Ventana de contexto del Writer', summary: 'En lugar del libro entero, el Writer recibe la vista del Spirit (hilo principal, capítulo actual, personajes) más un contexto específico curado que se reconstruye tras cada fragmento aprobado.',
     outputs: ['Spirit view: hilo principal · plan del capítulo actual · personajes', 'Recent · Distant · Future (ver nodos satélite)', 'Budget: párrafos aprobados en el capítulo, target_paragraphs y beats pendientes'],
-    file: 'Spec1 §4.3' },
+    file: 'spec1 §4.3' },
   { id: 'recent', kind: 'part', label: 'Recent', pos: [-2.2, 3.9, 2.2],
     title: 'Recent', summary: 'Los últimos N párrafos del manuscrito, literalmente (N = context.recent_paragraphs). La prosa nueva continúa directamente de aquí.', file: 'Fuente: manuscript/' },
   { id: 'distant', kind: 'part', label: 'Distant', pos: [0, 3.4, 3.4],
@@ -152,37 +152,37 @@ const NODES = [
   // Reject branch (left)
   { id: 'retries', kind: 'decision', label: '¿Reintentos agotados?', pos: [-3.4, -2.5, 0],
     title: 'Reintentos de fragmento agotados?', summary: 'Tras un rechazo, fragment_attempts += 1. Si alcanza retries.max_fragment_retries se declara un fallo de fragmento; si no, el Writer vuelve a intentarlo con los motivos.',
-    rules: ['No → Writer (reintento con reasons)', 'Sí → fallo de fragmento: chapter_fragment_failures += 1, fragment_attempts = 0'], file: 'Spec1 §4.5, §6' },
+    rules: ['No → Writer (reintento con reasons)', 'Sí → fallo de fragmento: chapter_fragment_failures += 1, fragment_attempts = 0'], file: 'spec1 §4.5, §6' },
   { id: 'failures', kind: 'decision', label: '¿Fallos de capítulo agotados?', pos: [-3.4, -4.3, 0],
     title: 'Fallos de fragmento por capítulo agotados?', summary: 'Un capítulo falla cuando acumula retries.max_fragment_failures_per_chapter fallos de fragmento. La interpretación es que el plan del capítulo está mal, no la prosa.',
-    rules: ['No → reconstruir contexto y empezar un fragmento desde cero', 'Sí → fallo de capítulo: chapter_regenerations[ch] += 1'], file: 'Spec1 §6.3' },
+    rules: ['No → reconstruir contexto y empezar un fragmento desde cero', 'Sí → fallo de capítulo: chapter_regenerations[ch] += 1'], file: 'spec1 §6.3' },
   { id: 'regen', kind: 'decision', label: '¿Regeneraciones agotadas?', pos: [-3.4, -6.1, 0],
     title: 'Regeneraciones de capítulo agotadas?', summary: 'Un mismo capítulo puede descartarse y replanificarse hasta retries.max_chapter_regenerations veces. La siguiente vez la ejecución se detiene con error.',
-    rules: ['No → descartar texto y replanificar el capítulo', 'Sí → parada con error nombrando el capítulo; no se escribe novel.md'], file: 'Spec1 §6' },
+    rules: ['No → descartar texto y replanificar el capítulo', 'Sí → parada con error nombrando el capítulo; no se escribe novel.md'], file: 'spec1 §6' },
   { id: 'replan', kind: 'process', label: 'Descartar y re-planificar', pos: [-7.8, -6.1, 0],
     title: 'Descartar capítulo y re-planificar', summary: 'Borra todos los fragmentos del capítulo del manuscrito, pide al Spirit Creator un nuevo plan para ese capítulo con los motivos de rechazo acumulados y reinicia desde su primer beat.',
-    rules: ['Restaura el snapshot de estados de personajes tomado al inicio del capítulo (los fragmentos descartados nunca fueron canon)', 'Beats reseteados a pending con el primero current', 'chapter_fragment_failures = 0'], file: 'Spec1 §6.3' },
+    rules: ['Restaura el snapshot de estados de personajes tomado al inicio del capítulo (los fragmentos descartados nunca fueron canon)', 'Beats reseteados a pending con el primero current', 'chapter_fragment_failures = 0'], file: 'spec1 §6.3' },
   { id: 'error', kind: 'error', label: 'Parada con error', pos: [-3.4, -7.9, 0],
-    title: 'Run stops with error', summary: 'La carpeta de la novela queda intacta con su estado de trabajo (spirit, manuscript, metrics, run.json) y sin novel.md. Escenario de aceptación 9.', file: 'Spec1 §2.2, §7.9' },
+    title: 'Run stops with error', summary: 'La carpeta de la novela queda intacta con su estado de trabajo (spirit, manuscript, metrics, run.json) y sin novel.md. Escenario de aceptación 9.', file: 'spec1 §2.2, §7.9' },
 
   // Approve branch (right)
   { id: 'append', kind: 'process', label: 'Añadir al manuscrito', pos: [3.4, -2.5, 0],
     title: 'Append fragment to manuscript', summary: 'El fragmento aprobado se añade a manuscript/chapter-NN.md precedido de un marcador con su id y beats_completed.',
-    rules: ['Se marcan done los beats según la lista del Reviewer (su lista gana)', 'fragment_attempts = 0'], file: 'Spec1 §4.2, §6' },
+    rules: ['Se marcan done los beats según la lista del Reviewer (su lista gana)', 'fragment_attempts = 0'], file: 'spec1 §4.2, §6' },
   { id: 'manuscript', kind: 'store', label: 'manuscript/', pos: [7.6, -2.5, -0.8],
     title: 'Manuscrito', summary: 'Un fichero por capítulo con sólo los fragmentos aprobados, en orden. Descartar un capítulo es borrar un fichero. Al cerrar el último capítulo se ensambla novel.md a partir de aquí.',
     outputs: ['manuscript/chapter-NN.md', 'summaries/chapter-NN.md (resumen Distant al cerrar el capítulo)', 'run.json: contadores, posición, snapshot de config'], file: 'books/<slug>/manuscript/' },
   { id: 'update', kind: 'process', label: 'Actualizar estado', pos: [3.4, -4.3, 0],
     title: 'Update state', summary: 'Tras cada fragmento aprobado: reconstruir el contexto específico, actualizar personajes si procede y evaluar si el capítulo avanza.',
-    rules: ['Regla de personajes (§6.2): paso ligero que pregunta si algo cambió el state de algún personaje; description y arc no se tocan', 'Rebuild specific context: Recent, Distant, Future, Budget'], file: 'Spec1 §6, §6.2' },
+    rules: ['Regla de personajes (§6.2): paso ligero que pregunta si algo cambió el state de algún personaje; description y arc no se tocan', 'Rebuild specific context: Recent, Distant, Future, Budget'], file: 'spec1 §6, §6.2' },
   { id: 'characters', kind: 'store', label: 'characters.md', pos: [7.6, -4.3, -0.8],
     title: 'Personajes (characters.md)', summary: 'La lista characters del Spirit. Vive en su propio fichero porque state se reescribe tras casi cada fragmento aprobado.',
     outputs: ['id · name · role · description · arc', 'state: lo que le ha pasado hasta ahora (actualizado por el harness)'], file: 'books/<slug>/characters.md' },
   { id: 'advance', kind: 'decision', label: '¿Avanzar capítulo?', pos: [3.4, -6.1, 0],
     title: 'Regla de avance de capítulo', summary: 'Se avanza cuando el beat de resolución del capítulo está done y el Reviewer marca chapter_closable. Si sólo se cumple lo primero, se pide al Writer un fragmento más cuyo objetivo explícito es cerrar el capítulo.',
-    rules: ['No → siguiente fragmento del mismo capítulo', 'Sí, quedan capítulos → cerrar capítulo (generar resumen Distant), chapter_fragment_failures = 0, current_chapter_id += 1', 'Sí, era el último → ensamblar novel.md'], file: 'Spec1 §6.1' },
+    rules: ['No → siguiente fragmento del mismo capítulo', 'Sí, quedan capítulos → cerrar capítulo (generar resumen Distant), chapter_fragment_failures = 0, current_chapter_id += 1', 'Sí, era el último → ensamblar novel.md'], file: 'spec1 §6.1' },
   { id: 'next', kind: 'process', label: 'Siguiente capítulo', pos: [7.2, -7.7, 0],
-    title: 'Set next chapter as current', summary: 'Cierra el capítulo actual, genera su resumen Distant, toma un nuevo snapshot de estados de personajes y mueve el puntero current_chapter_id.', file: 'Spec1 §6' },
+    title: 'Set next chapter as current', summary: 'Cierra el capítulo actual, genera su resumen Distant, toma un nuevo snapshot de estados de personajes y mueve el puntero current_chapter_id.', file: 'spec1 §6' },
   { id: 'novel', kind: 'io', label: 'novel.md', pos: [1.2, -7.9, 0],
     title: 'novel.md (el entregable)', summary: 'Un encabezado por capítulo y los fragmentos aprobados en orden, ensamblado desde manuscript/ cuando cierra el último capítulo. Todo lo demás en la carpeta es estado de trabajo, no parte de la promesa.',
     file: 'books/<novel-slug>/novel.md' },

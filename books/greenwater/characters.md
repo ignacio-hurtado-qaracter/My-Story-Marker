@@ -1,6 +1,6 @@
 # Characters — *Greenwater*
 
-The `characters` list of the Spirit (Spec1 4.1). Held apart from `spirit.md` because `state` is
+The `characters` list of the Spirit (spec1 4.1). Held apart from `spirit.md` because `state` is
 rewritten after almost every approved fragment (6.2). `description` and `arc` are never touched by
 the loop. States below are final, as of the close of chapter 3.
 

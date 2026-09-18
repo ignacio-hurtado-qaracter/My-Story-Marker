@@ -33,7 +33,7 @@
   },
   "chapter_start_character_snapshot": {
     "taken_at_chapter": 3,
-    "note": "Spec1 6.3: se restaura al descartar un capítulo. No se usó — ningún capítulo fue descartado.",
+    "note": "spec1 6.3: se restaura al descartar un capítulo. No se usó — ningún capítulo fue descartado.",
     "characters": {
       "mara-solis": "Sabe que su señal fue reclasificada como ruido antes de que ella la revisara, por el Protocolo Umbral; ha presentado un informe formal con anulación manual de la reclasificación y lo ha visto absorbido sin error ni rechazo que pueda apelar.",
       "kade-osei": "Ha aprobado el acceso de Mara al archivo bruto invocando el Protocolo Umbral sin explicárselo. No ha vuelto a intervenir desde entonces.",
@@ -41,7 +41,7 @@
     }
   },
   "config_snapshot": {
-    "$comment": "Input of the Story Creator Harness. See Spec1.md section 2.1. Only chapters.count is required; every other field falls back to the value shown here.",
+    "$comment": "Input of the Story Creator Harness. See spec1.md section 2.1. Only chapters.count is required; every other field falls back to the value shown here.",
     "model": "claude-sonnet-5",
     "theme": null,
     "language": "es",

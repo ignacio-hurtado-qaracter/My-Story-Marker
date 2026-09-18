@@ -1,5 +1,5 @@
 // Create page: builds config.json live from the form. Empty fields are omitted
-// so the harness applies its own defaults (Spec1 §2.1). Only chapters.count is required.
+// so the harness applies its own defaults (spec1 §2.1). Only chapters.count is required.
 
 const form = document.getElementById('config-form');
 const preview = document.getElementById('json-preview');
@@ -7,7 +7,7 @@ const note = document.getElementById('preview-note');
 const toast = document.getElementById('toast');
 
 const COMMENT =
-  'Input of the Story Creator Harness. See Spec1.md section 2.1. Only chapters.count is required; every other field falls back to its default.';
+  'Input of the Story Creator Harness. See spec1.md section 2.1. Only chapters.count is required; every other field falls back to its default.';
 
 function setDeep(obj, path, value) {
   const keys = path.split('.');

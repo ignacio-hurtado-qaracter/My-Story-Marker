@@ -1,6 +1,6 @@
 # Characters — *La Grieta*
 
-La lista `characters` del Spirit (Spec1 4.1). Se mantiene aparte de `spirit.md` porque `state` se
+La lista `characters` del Spirit (spec1 4.1). Se mantiene aparte de `spirit.md` porque `state` se
 reescribe tras casi cada fragmento aprobado (6.2). `description` y `arc` no los toca el bucle.
 Los estados de abajo son finales, tal como quedan al cierre del capítulo 3.
 

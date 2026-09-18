@@ -1,6 +1,6 @@
 # Spirit — *Greenwater*
 
-The Spirit of Spec1 4.1, less the `characters` list, which lives in `characters.md`. Together the two
+The Spirit of spec1 4.1, less the `characters` list, which lives in `characters.md`. Together the two
 files are the Spirit. All nine beats closed `done`.
 
 ```yaml

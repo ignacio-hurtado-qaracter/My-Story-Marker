@@ -1,0 +1,17 @@
+﻿{
+    "fragments_approved":  9,
+    "total_chapters":  3,
+    "config":  {
+                   "chapters_count":  3,
+                   "total_paragraphs":  21,
+                   "language":  "es",
+                   "model":  "claude-haiku-4.5",
+                   "chapters_target_paragraphs":  7
+               },
+    "novel_file":  "novel.md",
+    "completion_date":  "2026-09-17 15:22:12",
+    "current_chapter_id":  3,
+    "chapters_completed":  3,
+    "status":  "complete",
+    "total_paragraphs":  21
+}

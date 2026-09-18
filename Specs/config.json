@@ -1,12 +1,12 @@
 {
-  "$comment": "Input of the Story Creator Harness. See Spec1.md section 2.1. Only chapters.count is required; every other field falls back to the value shown here.",
-  "model": "claude-sonnet-5",
+  "$comment": "Input of the Story Creator Harness. See spec1.md section 2.1. Only chapters.count is required; every other field falls back to the value shown here.",
+  "model": "claude-haiku-4.5",
   "theme": null,
   "language": "es",
   "tone_and_style": null,
   "chapters": {
-    "count": 5,
-    "target_paragraphs": 14
+    "count": 3,
+    "target_paragraphs": 7
   },
   "fragment": {
     "min_paragraphs": 1,

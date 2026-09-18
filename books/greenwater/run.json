@@ -33,7 +33,7 @@
   },
   "chapter_start_character_snapshot": {
     "taken_at_chapter": 3,
-    "note": "Spec1 6.3: restored on chapter discard. Unused - no chapter was discarded.",
+    "note": "spec1 6.3: restored on chapter discard. Unused - no chapter was discarded.",
     "characters": {
       "ilse": "In the valley. Has seen the settlement, read CP-114 in Wyre's ledger, and watched her own stamped correction be absorbed without error or rejection.",
       "cadence": "Still flying the grid and publishing the flattened floor. Has answered every question truthfully.",
@@ -41,7 +41,7 @@
     }
   },
   "config_snapshot": {
-    "$comment": "Input of the Story Creator Harness. See Spec1.md section 2.1. Only chapters.count is required; every other field falls back to the value shown here.",
+    "$comment": "Input of the Story Creator Harness. See spec1.md section 2.1. Only chapters.count is required; every other field falls back to the value shown here.",
     "model": "claude-opus-5",
     "theme": null,
     "language": "en",

@@ -178,7 +178,7 @@ function openDetail(b) {
   panel('metrics').innerHTML = renderMetrics(b);
   panel('novel').innerHTML = b.raw.novel
     ? `<article class="prose">${md(b.raw.novel)}</article>`
-    : `<div class="empty-state">Esta ejecución no produjo <code>novel.md</code> (Spec1 §2.2: sólo se escribe al completar).</div>`;
+    : `<div class="empty-state">Esta ejecución no produjo <code>novel.md</code> (spec1 §2.2: sólo se escribe al completar).</div>`;
 
   activateTab('overview');
 }
@@ -329,7 +329,7 @@ function renderMetrics(b) {
     </div>
     <div class="metrics-legend">
       <span><i class="dot pass"></i> pass</span><span><i class="dot fail"></i> fail</span>
-      <span class="muted">Un registro por veredicto, incluidos rechazos (Spec1 §5.3).</span>
+      <span class="muted">Un registro por veredicto, incluidos rechazos (spec1 §5.3).</span>
     </div>
     <div style="overflow-x:auto">
     <table class="metrics">

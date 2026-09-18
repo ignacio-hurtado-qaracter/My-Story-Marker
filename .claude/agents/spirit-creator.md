@@ -19,7 +19,7 @@ The run configuration: `theme` (may be null), `language`, `tone_and_style` (may 
 
 ## Output
 
-A complete Spirit. Structure per Spec1 4.1:
+A complete Spirit. Structure per spec1 4.1:
 
 ```yaml
 spirit:
@@ -53,7 +53,7 @@ spirit:
 
 Every beat is `pending` except the very first, which is `current`.
 
-It is written to two files (Spec1 2.2): the `characters` list to `characters.md`, everything else to
+It is written to two files (spec1 2.2): the `characters` list to `characters.md`, everything else to
 `spirit.md`. They are one document split by write frequency, not two documents.
 
 ## Acceptance
