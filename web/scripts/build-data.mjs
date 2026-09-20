@@ -87,8 +87,11 @@ function yamlBlock(md) {
 }
 
 // ---------- helpers ----------
+// Strips a UTF-8 BOM: PowerShell's Out-File / > write one by default and JSON.parse rejects it.
+const stripBom = (s) => (s && s.charCodeAt(0) === 0xfeff ? s.slice(1) : s);
+
 async function readIf(p) {
-  return existsSync(p) ? readFile(p, 'utf8') : null;
+  return existsSync(p) ? stripBom(await readFile(p, 'utf8')) : null;
 }
 
 function wordCount(md) {
@@ -108,7 +111,7 @@ function chapterHeadings(md) {
 async function listMd(dir) {
   if (!existsSync(dir)) return [];
   const files = (await readdir(dir)).filter((f) => f.endsWith('.md')).sort();
-  return Promise.all(files.map(async (f) => ({ file: f, markdown: await readFile(path.join(dir, f), 'utf8') })));
+  return Promise.all(files.map(async (f) => ({ file: f, markdown: stripBom(await readFile(path.join(dir, f), 'utf8')) })));
 }
 
 // ---------- main ----------
@@ -118,7 +121,9 @@ async function buildBook(booksDir, slug) {
   if (!st.isDirectory()) return null;
 
   const runRaw = await readIf(path.join(dir, 'run.json'));
-  const run = runRaw ? JSON.parse(runRaw) : null;
+  let run = null;
+  let runError = null;
+  try { run = runRaw ? JSON.parse(runRaw) : null; } catch (e) { runError = `run.json: ${e.message}`; }
   const spiritMd = await readIf(path.join(dir, 'spirit.md'));
   const charactersMd = await readIf(path.join(dir, 'characters.md'));
   const novelMd = await readIf(path.join(dir, 'novel.md'));
@@ -182,6 +187,7 @@ async function buildBook(booksDir, slug) {
       run: run,
     },
     hasNovel: Boolean(novelMd),
+    error: runError,
   };
 }
 
@@ -189,7 +195,19 @@ async function buildBook(booksDir, slug) {
 export async function buildIndex(booksDir = defaultBooksDir) {
   if (!existsSync(booksDir)) throw new Error(`books dir not found: ${booksDir}`);
   const slugs = (await readdir(booksDir)).sort();
-  const books = (await Promise.all(slugs.map((slug) => buildBook(booksDir, slug)))).filter(Boolean);
+  const books = (
+    await Promise.all(
+      slugs.map(async (slug) => {
+        try {
+          return await buildBook(booksDir, slug);
+        } catch (e) {
+          // One broken book must not take the whole library down: report it and keep going.
+          console.error(`[build-data] skipping books/${slug}: ${e.message}`);
+          return null;
+        }
+      })
+    )
+  ).filter(Boolean);
   books.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   return { generatedAt: new Date().toISOString(), books };
 }

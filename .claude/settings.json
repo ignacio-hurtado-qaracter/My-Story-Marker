@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node web/scripts/build-data.mjs --quiet 2>/dev/null || true",
+            "command": "node web/scripts/build-data.mjs --quiet",
             "timeout": 20,
             "statusMessage": "Actualizando biblioteca web…"
           }
@@ -18,7 +18,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node web/scripts/build-data.mjs --quiet 2>/dev/null || true",
+            "command": "node web/scripts/build-data.mjs --quiet",
             "timeout": 20
           }
         ]
