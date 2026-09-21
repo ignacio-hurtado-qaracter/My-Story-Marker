@@ -14,9 +14,17 @@ Vocabulary is defined in [`definitions.md`](./definitions.md). The system being 
 
 There are two distinct objects under verification, and they fail in different ways.
 
-**The code** — `backend/` (FastAPI, Python) and `frontend/` (React, three.js). It is
-deterministic. A given input produces a given output, so the classical toolbox applies:
+**The code** — `backend/` (FastAPI, Python) and `frontend/` (React, three.js), both laid
+out **package by feature** with a single shared folder, as
+[`architecture.md`](./architecture.md#code-architecture--package-by-feature) describes. It
+is deterministic. A given input produces a given output, so the classical toolbox applies:
 types, static analysis, tests, proofs.
+
+The layout is itself a thing to verify. "A feature does not import another feature's
+internals", "`commons/` never imports a feature" and "only `commons/stores/` touches the
+store tree" are not style preferences — the last one is where Figure 3's permission table
+is enforced. All three are decidable without running the code, so they are **A**, and they
+are listed in the coverage matrix like any other claim.
 
 **The agents** — the six roles in Figure 3 of `architecture.md` (architect, world builder,
 writer, auditor, canoniser, style editor). They are stochastic. The same prompt can
@@ -66,8 +74,11 @@ present.
 
 *In this project.* Python: `mypy --strict` (or `pyright`) over `backend/`, with Pydantic
 models for every store record (`Draft`, `ProposedFact`, `Violation`, scene records,
-ledger entries). TypeScript in `strict` mode over `frontend/`, with API response types
-generated from the backend's OpenAPI schema so the two sides cannot silently disagree.
+ledger entries). Models shared by more than one feature live in `app/commons/schemas/`;
+a model used by one feature lives in that feature's `models.py`, and moving it is itself a
+type-checked change. TypeScript in `strict` mode over `frontend/`, with API response types
+generated from the backend's OpenAPI schema into `src/shared/types/`, so the two sides
+cannot silently disagree.
 
 *What it catches.* The field-level errors that `definitions.md` makes possible to state:
 a `story_time` used where a `discourse_time` is expected, a character `id` used as a
@@ -87,6 +98,16 @@ valuable custom rules encode the permission table of Figure 3: any code path tha
 to `canon/` must go through the world-builder or canoniser operation, and any code path
 that writes to `manuscript/` must go through the writer or style-editor operation.
 Dependency scanning (`pip-audit`, `npm audit`) belongs here too.
+
+*Architectural boundaries are checked here too*, because a feature layout that nothing
+enforces decays into a flat namespace within a quarter. `import-linter` contracts over
+`backend/app/`: each feature is an independent module (no feature imports another
+feature's internals), `commons/` is a foundation layer that imports no feature, and only
+`commons/stores/` imports the file-tree access primitives. `eslint`'s
+`import/no-restricted-paths` (or `eslint-plugin-boundaries`) states the same for
+`frontend/src/`: features may import `shared/`, never each other's files, and only
+`shared/api/` may issue a request to `backend/`. These contracts are the cheapest
+verification in the project and they run on every commit.
 
 *What it catches.* Path traversal in store access (the stores are a file tree, and file
 paths come from entity ids), unsafe YAML loading, secrets in source, a write to a store
@@ -134,8 +155,20 @@ Checking behaviour against specific, chosen example inputs and expected outputs.
 `assemble_context`, `extract_facts`, `promote`, `audit`, `reconcile`. Unit tests use an
 in-memory or temp-directory store. Integration tests run FastAPI through `httpx` against
 a fixture repository (a small canon with a handful of characters, scenes, and a
-deliberately planted contradiction). Frontend: `vitest` for components, Playwright for the
-few end-to-end flows (open a scene, view its assembled context, view its violations).
+deliberately planted contradiction). Tests live inside the feature they exercise
+(`app/<feature>/tests/`); `backend/tests/` holds only what crosses features or runs
+end to end. Frontend: `vitest` for components, colocated with them in the feature folder,
+Playwright for the few end-to-end flows (open a scene, view its assembled context, view
+its violations).
+
+*Persistence gets its own integration tests.* The derived index is SQLite (with FTS5 for
+text and `sqlite-vec` for embeddings), owned by `app/commons/db/`. Each migration is
+applied to a copy of the fixture repository and the result compared against the expected
+schema; the index is rebuilt from the file tree and checked to reproduce the same rows.
+The file tree is the source of truth and the database is derived, so "the index can be
+dropped and rebuilt without loss" is the property that must hold and is tested directly.
+`SQLITE_BUSY` under concurrent turns is exercised in an integration test, not assumed
+away.
 
 *The fixture repository is the key asset.* It should contain at least one instance of
 every violation type `definitions.md` names, so that `audit()` has something to find.
@@ -185,7 +218,9 @@ either side's internals.
 
 *In this project.* There is exactly one internal contract: `frontend/` ↔ `backend/` over
 HTTP. The backend publishes its OpenAPI schema; the frontend's generated client is built
-from it; a CI step fails if the schema changes without the client being regenerated.
+from it into `src/shared/api/`, which is the only module allowed to call the backend (the
+boundary rule above is what keeps that true); a CI step fails if the schema changes without
+the client being regenerated.
 `schemathesis` fuzzes the backend against its own schema. If a Pact-style
 consumer-driven contract is adopted later, the frontend owns the consumer side.
 
@@ -266,8 +301,10 @@ it acts.
 is enforced in `backend/`, not in the prompt. Concretely:
 
 - Each role gets a tool set that contains only the writes it is allowed. The writer has no
-  tool that can write under `canon/`. This is a structural guardrail and is verified by
-  static analysis (**A**) and by tests that attempt the forbidden write (**T**).
+  tool that can write under `canon/`. The role definitions and the check itself live in
+  `app/commons/permissions/`, and every write through `app/commons/stores/` names the role
+  performing it. This is a structural guardrail and is verified by static analysis (**A**)
+  and by tests that attempt the forbidden write (**T**).
 - Output schema validation: `extract_facts` must return a list of well-formed
   `ProposedFact`; a malformed result is rejected, not repaired.
 - Lexicon filter: drafts are checked against `canon/lexicon.yaml` forbidden variants
@@ -399,6 +436,13 @@ of this document; the sections above justify it.
 | Claim | Method(s) | Letter |
 |---|---|---|
 | Store records have the shapes `definitions.md` says | Type checking, JSON Schema on read | A, T |
+| No feature imports another feature's internals | `import-linter` / `import/no-restricted-paths` | A |
+| `commons/` and `shared/` import no feature | Layered `import-linter` contract | A |
+| Only `commons/stores/` reaches the store tree | Import contract, SAST rule | A |
+| Only `shared/api/` calls the backend from `frontend/` | ESLint boundary rule | A |
+| The SQLite index can be dropped and rebuilt from the files | Rebuild-and-compare integration test | T |
+| Migrations apply cleanly to an existing index | Migration test on a fixture copy | T |
+| Concurrent turns do not corrupt the index | `SQLITE_BUSY` integration test | T |
 | No module outside its role writes to a forbidden store | SAST custom rules, forbidden-write tests | A, T |
 | Invariant checkers are correct at their boundaries | Symbolic execution, property tests | A, T |
 | Operations behave correctly on known cases | Unit and integration tests, fixture repo | T |
@@ -445,8 +489,10 @@ Not everything above exists on day one. The order that gives the most protection
 unit of effort, given that the permission boundary is the architecture's load-bearing
 wall:
 
-1. Type checking, SAST with the permission rules, JSON Schema on store reads. (**A**)
-2. Fixture repository and unit and integration tests for the six operations. (**T**)
+1. Type checking, SAST with the permission rules, the import-boundary contracts for
+   features and `commons/`, JSON Schema on store reads. (**A**)
+2. Fixture repository and unit and integration tests for the six operations, plus the
+   index rebuild and migration tests. (**T**)
 3. Tracing of every turn to Langfuse, with role and store-path tags. (**D**)
 4. Tool-set guardrails and forbidden-write tests. (**A**, **T**)
 5. Branch-per-turn sandbox and the story pipeline in CI. (**D**, **T**)

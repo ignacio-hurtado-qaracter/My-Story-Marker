@@ -265,14 +265,24 @@ flowchart LR
 
 Thick edges are writes, dotted edges are reads.
 
-| Agent | Canon | Structure | Prose | Responsibility |
-|---|---|---|---|---|
-| Architect | read | **write** | — | Scene records, tension curve, budgets |
-| World builder | **write** | read | — | Axioms, technology, locations, lexicon |
-| Writer | read only | read | **write** | One scene per turn, from assembled context |
-| Auditor | read | read | read | Runs invariants, issues violations |
-| Canoniser | **write** | — | read | Promotes proposed facts, resolves conflicts |
-| Style editor | read | — | **write** | Voice, rhythm, metrics, forbidden tics |
+| Agent | Signature | Canon | Structure | Prose | In | Out | Responsibility |
+|---|---|---|---|---|---|---|---|
+| Architect | `plan(canon, structure, intent) → scene records` | read | **write** | — | `canon/project.md` · `canon/axioms/` · `canon/factions/` · `canon/history/` · `canon/locations/` · `cast/{id}/dossier.md` · `ledger/setups.yaml` · `ledger/threads.yaml` | `structure/arcs.yaml` · `structure/chapters.yaml` · `scenes/NNN.yaml` | Scene records, tension curve, budgets |
+| World builder | `build(intent, structure) → canon records` | **write** | read | — | `canon/project.md` · `canon/` · `structure/` | `canon/axioms/*.md` · `canon/technology/*.md` · `canon/locations/*.md` · `canon/factions/*.md` · `canon/history/*.md` · `canon/lexicon.yaml` · `canon/time.yaml` | Axioms, technology, locations, lexicon |
+| Writer | `write(assembled_context) → Draft, ProposedFact[]`<br/>`revise(draft, Violation[]) → Draft` | read only | read | **write** | `assemble_context(scene)` (Figure 2), which resolves to `canon/project.md` · `canon/style.md` · `cast/{id}/` · `canon/` · `ledger/setups.yaml` · `manuscript/` · `scenes/NNN.yaml`; on revision also `ledger/violations.yaml` | `manuscript/NNN.md` · `ledger/proposed.yaml` | One scene per turn, from assembled context |
+| Style editor | `polish(draft, style) → Draft` | read | — | **write** | `manuscript/NNN.md` · `canon/style.md` · `canon/lexicon.yaml` · `cast/{id}/voice.md` | `manuscript/NNN.md` | Voice, rhythm, metrics, forbidden tics |
+| Auditor | `audit(scene) → Violation[]` | read | read | read | `manuscript/NNN.md` · `scenes/NNN.yaml` · `canon/axioms/` · `canon/time.yaml` · `canon/lexicon.yaml` · `cast/{id}/knowledge.yaml` · `cast/relationships.yaml` · `ledger/timeline.yaml` | `ledger/violations.yaml` | Runs invariants, issues violations |
+| Canoniser | `promote(fact) → canon` | **write** | — | read | `ledger/proposed.yaml` · `manuscript/NNN.md` · `canon/` | `canon/` · `cast/` · `ledger/proposed.yaml` | Promotes proposed facts, resolves conflicts |
+
+`In` and `Out` are a stricter statement than the permission columns: a store an agent is
+allowed to read is not necessarily in its context on a given turn. **Anything not listed
+as an input is not available to the agent.** An agent that needs a fact absent from its
+inputs does not go and fetch it; the contract is wrong and gets amended. This is what
+keeps the context budget bounded and the behaviour reproducible.
+
+Some inputs and outputs are not artefacts and so do not appear above: the human intent
+that opens a planning turn, the human ruling the canoniser asks for on a collision, and
+the escalation it raises when the conflict is not its to settle.
 
 ### Reading it
 
@@ -287,18 +297,28 @@ prose from rewriting the world to justify itself, which is the failure that ends
 long-form generation attempts.
 
 **The auditor writes only to `ledger/`.** It cannot touch canon, structure or prose. Its
-output is a report, and the decision about what to do with the report belongs to a human
-or to the architect.
+output is a report and nothing else: the decision about what to do with it belongs to a
+human or to the architect, so the auditor cannot act on its own findings.
 
 **The canoniser cannot write prose and the writer cannot write canon**, which means no
 single agent can both invent a fact and make it binding. That separation is what keeps
-canon worth trusting.
+canon worth trusting. Its human ruling is not optional decoration: a canoniser that
+resolves every collision by itself is the failure mode named under `ProposedFact` — canon
+fills with improvised noise and stops being worth consulting.
+
+**The architect's `tags` matter beyond their own record.** They are the index the
+assembler uses to select axioms and lexicon, so a scene record emitted without tags
+produces a context with no world in it.
+
+**The writer's two invocations are not interchangeable.** `write` produces a scene from
+context; `revise` is scoped to the flagged spans and must not regenerate the scene.
+
+**The style editor reads canon and writes prose**, never the reverse: a voice decision
+taken there does not become a rule, which would have to go through the world builder.
 
 Roles are separations of permission, not necessarily separate processes. A small setup can
 run several of these as distinct prompts against the same model; what must not collapse is
 the permission boundary.
-
----
 
 ## Figure 4 — One writing turn
 
@@ -426,6 +446,103 @@ above: agents still read and write through the stores in `Storage layout`, and
 `frontend/`.
 
 ---
+
+## Code architecture — package by feature
+
+Both halves of the monorepo are organised the same way: **one folder per feature**, and a
+single shared folder for what genuinely crosses features. Code is grouped by what it is
+*about*, not by what it *is*. There is no top-level `models/`, `services/`, `routers/`,
+`components/` or `hooks/` folder; those names appear *inside* a feature.
+
+The rule that decides where a file goes: **if only one feature uses it, it lives in that
+feature.** It moves to the shared folder the moment a second feature needs it — not in
+anticipation of one. Speculative sharing is how a commons turns into a dumping ground.
+
+### `backend/` — feature folders plus `commons/`
+
+```
+backend/
+  app/
+    main.py                   FastAPI app, mounts each feature's router
+    commons/                  cross-feature only
+      stores/                 the store layer — the ONLY path to canon/ structure/
+                              scenes/ manuscript/ ledger/, and where Figure 3's
+                              permission table is enforced
+      permissions/            agent roles, the permission check itself
+      schemas/                shared Pydantic models and JSON Schemas
+      db/                     SQLite connection, migrations, FTS5 + vector setup
+      errors/                 error types and the exception handlers
+      config.py
+    canon/                    one feature =…
+      router.py               …its HTTP surface
+      service.py              …its operations
+      models.py               …its Pydantic models
+      repository.py           …its access to the store layer in commons/
+      tests/                  …and its tests, next to the code
+    cast/
+    scenes/
+    manuscript/
+    ledger/
+    agents/
+  tests/                      cross-feature and end-to-end tests only
+```
+
+Rules that hold across features:
+
+1. **A feature owns its vertical slice.** Router, service, models, repository and tests
+   for one concept live together. Deleting a feature means deleting one folder.
+2. **Features do not import each other's internals.** If `scenes/` needs something from
+   `canon/`, it calls `canon`'s service through its public surface, or the thing it needs
+   belongs in `commons/`. No reaching into another feature's `repository.py`.
+3. **`commons/` never imports a feature.** Dependencies point one way: feature →
+   `commons/`. A `commons/` module that knows a feature's name is a design error.
+4. **Store access stays in `commons/stores/`.** A feature's `repository.py` calls it and
+   names the agent role performing the write. This is the load-bearing wall of Figure 3
+   and no feature is allowed its own path around it.
+5. **Cycles are forbidden.** Two features that need each other are one feature, or the
+   shared part belongs in `commons/`.
+
+### `frontend/` — package by feature, not FSD
+
+The frontend is organised **package by feature**. It deliberately does *not* use Feature-
+Sliced Design: no `entities/` · `features/` · `widgets/` · `pages/` · `shared/` layer
+ladder, and no per-slice `ui/ model/ api/` segments. That ceremony buys layering
+discipline we already get from the rule above, at the cost of scattering one concept
+across five directories.
+
+```
+frontend/
+  src/
+    main.tsx
+    app/                      router, providers, global layout
+    shared/                   cross-feature only
+      api/                    generated OpenAPI client — the only way to reach backend/
+      ui/                     design-system primitives (button, dialog, …)
+      three/                  reusable react-three-fiber helpers, loaders, controls
+      lib/                    formatting, hooks and utilities used by 2+ features
+      types/                  generated backend types
+    canon/                    one feature =…
+      CanonPage.tsx           …its screens and components
+      useCanon.ts             …its hooks
+      api.ts                  …its calls, built on shared/api
+      types.ts                …its local types
+      CanonView.test.tsx      …and its tests
+    cast/
+    scenes/
+    manuscript/
+    timeline/
+    graph3d/
+```
+
+The same five rules apply, with the frontend-specific additions:
+
+6. **A feature's components, hooks, state and API calls live in its folder**, flat, until
+   the folder is large enough that subfolders help. Nesting is earned, not assumed.
+7. **The generated API client is the only door to the backend.** Features import from
+   `shared/api`; nothing hand-rolls a `fetch` to a route, and nothing touches the stores
+   (see `frontend/` above and Process 3 rule 5 in `AGENTS.md`).
+8. **`app/` composes features; features do not compose `app/`.** Routing knows about
+   features; a feature never imports the router's configuration.
 
 ## A warning about over-constraint
 

@@ -8,8 +8,18 @@
 | `docs/domain-knowledge.md` | Entity graph, knowledge model, temporal axes | You need to know how entities relate |
 | `docs/architecture.md` | Loop, operations, stores, turn protocol | You need to know how the system runs |
 | `docs/verification.md` | Verification methods, Trust Spec letters, coverage matrix | You need to decide how a change is proven correct |
-| `specs/` | One spec per change: scope, acceptance criteria, verification plan | You are about to change code |
+| `specs/` | One spec per change: scope, acceptance criteria, verification plan. One implementation plan per approved spec | You are about to change code |
 | `AGENTS.md` | This file — what you may do, right now | Every session |
+
+---
+
+## Rules
+
+- Backend is dewith python + FastAPI
+- Frontend with React + three.js
+- Limit of concurrent tokens of context: 100k tokens
+- SQL Lite -> con sin vector compatible
+- All diagrams must be in mermaid format
 
 ---
 
@@ -37,6 +47,7 @@ wrong, stop and fix the doc first (Process 1), then the spec (Process 2), then t
 |---|---|
 | Change what a field means, how entities relate, how the loop runs, or how we verify | 1 — Edit docs |
 | Propose, refine or close a change to the system | 2 — Edit specs |
+| Write or revise the implementation plan for an approved spec | 3 — Edit code |
 | Change anything under `backend/` or `frontend/` | 3 — Edit code |
 | Fix a typo or a broken link, with no change of meaning | Edit directly, commit with `chore:` |
 
@@ -57,8 +68,7 @@ wrong and edited confidently. The permission table, the invariants and the store
 are precisely the kind of thing that breaks when a "small" edit is made under a
 misreading. So the agent interrogates before it edits.
 
-**The tool.** The project ships the `grill-me` skill (and its implementation, `grilling`)
-in `.claude/skills/`. It interviews the user in rounds: every open decision is asked as a
+**The form.** The interrogation runs in rounds: every open decision is asked as a
 numbered question with the agent's recommended answer, the user answers, and the agent
 recomputes what is still undecided until nothing is left silently assumed. Facts are the
 agent's job to look up; decisions are the user's to make.
@@ -70,8 +80,8 @@ one of the exemptions below.
 
 1. Read the request and the relevant docs and specs first. Look up every fact you can
    from the repository yourself. Do not ask the user something a grep would answer.
-2. Invoke the `grill-me` skill. Ask the whole current frontier of decisions in one round,
-   each with a recommended answer. At minimum the first round covers:
+2. Ask the whole current frontier of decisions in one round, each with a recommended
+   answer. At minimum the first round covers:
    - **Intent.** What the user wants to be true afterwards, in their words, restated by
      the agent for confirmation.
    - **Layer.** Whether this is a docs, spec or code change, and whether a higher layer
@@ -87,7 +97,7 @@ one of the exemptions below.
    spec's "Scope" and "Acceptance criteria"; for Process 1 it goes into the commit body.
 5. **Wait for the user's explicit confirmation of the summary.** Only then start editing.
 
-**Exemptions.** The grilling round may be skipped only for:
+**Exemptions.** The interrogation may be skipped only for:
 
 - Typos, broken links and formatting, with no change of meaning (`chore:`).
 - Changes where the user has already approved a spec that covers the exact edit and
@@ -98,7 +108,7 @@ If in doubt, it is not exempt.
 
 **Stop conditions during editing.** If, while editing, the agent discovers something that
 was not covered by the shared understanding (a second call site, a doc that says
-otherwise, an invariant that would need to bend), it stops, reopens the grilling with the
+otherwise, an invariant that would need to bend), it stops, reopens the interrogation with the
 new fact, and does not proceed until the summary is re-confirmed. Discovering a surprise
 and pressing on is the failure this process exists to prevent.
 
@@ -110,7 +120,7 @@ The docs are the source of truth for the design. They are edited rarely and care
 
 **Before editing**
 
-0. Run Process 0. A docs change rewrites what the system *is*, so the grilling must
+0. Run Process 0. A docs change rewrites what the system *is*, so the interrogation must
    surface which invariants, permissions and cross-references the change touches, and the
    user must confirm the summary before step 1.
 1. Identify the single doc that owns the concept, using the documentation map. A concept
@@ -166,7 +176,13 @@ and the implementation. **No non-trivial code change without a spec.**
 ```
 specs/
   NNN-short-slug.md        NNN is zero-padded and sequential, never reused
+  NNN-short-slug-plan.md   the implementation plan, written only once the spec is approved
 ```
+
+The spec says *what* and *why*; the implementation plan says *how* and *in what order*. The
+plan is a Process 3 artefact even though it lives next to the spec — it is written, approved
+and revised under [Process 3, "The implementation plan"](#the-implementation-plan). Process 2
+never writes it.
 
 Each spec has YAML frontmatter followed by fixed sections:
 
@@ -205,7 +221,7 @@ Anything that must be settled before status can move to approved.
 **Creating a spec**
 
 0. Run Process 0. The spec is the written form of the shared understanding, so it is not
-   drafted until the grilling has closed. Its "Scope" and "Acceptance criteria" are taken
+   drafted until the interrogation has closed. Its "Scope" and "Acceptance criteria" are taken
    from the confirmed summary, not invented afterwards.
 1. Check `specs/` for an existing spec on the same subject. Extend or supersede it rather
    than duplicating. A superseding spec sets `supersedes:` and the old one moves to
@@ -224,35 +240,48 @@ Anything that must be settled before status can move to approved.
    `approved`. Approval means: the scope is right, the criteria are verifiable, the open
    questions are closed or explicitly deferred.
 7. Commit with `spec(NNN): approve <title>`.
+8. Approval is the gate that unlocks the implementation plan. No plan may be written,
+   committed or acted on while the spec is `draft` (Process 3, "The implementation plan").
 
 **Revising a spec**
 
-8. Small clarifications that do not change scope or criteria: edit in place, keep status,
+9. Small clarifications that do not change scope or criteria: edit in place, keep status,
    commit `spec(NNN): clarify …`.
-9. Changes to scope, design or criteria after approval: status returns to `draft` and the
-   spec is re-approved. Note the reason at the top of "Open questions".
-10. If a doc the spec cites is changed (Process 1), re-read the spec and either confirm it
+10. Changes to scope, design or criteria after approval: status returns to `draft` and the
+    spec is re-approved. Any implementation plan already written for it returns to `draft`
+    too, and coding stops until both are approved again. Note the reason at the top of
+    "Open questions".
+11. If a doc the spec cites is changed (Process 1), re-read the spec and either confirm it
     still holds or revise it. Never leave a spec pointing at a section that no longer says
     what the spec assumes.
 
 **Closing a spec**
 
-11. When every acceptance criterion is met and its verification is in place and passing,
+12. When every acceptance criterion is met and its verification is in place and passing,
     status moves to `implemented`. The closing commit lists, per criterion, the test,
     check or review that satisfies it.
-12. Specs are never deleted. `superseded` and `implemented` are terminal states and stay in
-    `specs/` as history.
+13. Specs are never deleted, and neither are their implementation plans. `superseded` and
+    `implemented` are terminal states and stay in `specs/` as history.
 
 **Commit**
 
-13. Prefix `spec(NNN):`. One spec per commit.
+14. Prefix `spec(NNN):`. One spec per commit. The implementation plan is not committed
+    under this prefix — it belongs to Process 3 and uses `plan(NNN):`.
 
 ---
 
 ## Process 3 — Editing the code (`backend/` and `frontend/`)
 
-Code is the lowest layer. It implements an approved spec and is proven correct by the
-methods in `docs/verification.md`.
+Code is the lowest layer. It implements an approved spec, follows an approved
+implementation plan, and is proven correct by the methods in `docs/verification.md`.
+
+The order is fixed and has no shortcut:
+
+```
+Process 0 (interrogation)  →  spec  →  spec approved by a human
+                           →  implementation plan  →  plan approved by a human
+                           →  code
+```
 
 **Before writing code**
 
@@ -260,45 +289,107 @@ methods in `docs/verification.md`.
    has been learned. Even then, restate in one paragraph which files you will touch and
    which acceptance criteria you are implementing, and wait for confirmation. If the
    implementation reveals anything the spec did not anticipate, stop and reopen the
-   grilling (Process 0, "Stop conditions").
+   interrogation (Process 0, "Stop conditions").
 1. Locate the approved spec. If there is none, and the change is more than a typo, a
    comment or a dependency bump, write one (Process 2) and get it approved. Do not start
-   implementing from a `draft`.
+   implementing from a `draft`, and do not start *planning* from one either (step 4).
 2. Read the doc sections the spec cites. Read `docs/architecture.md` Figure 3 whenever the
    change touches store access: the permission table is the load-bearing wall of the
    system and is enforced in `backend/`, never in the client and never in a prompt.
 3. Work on a branch named `spec/NNN-short-slug`. Never commit to `main` directly.
+4. Write the implementation plan for the spec, and ask the user whatever the spec leaves
+   open before you write it. See "The implementation plan" below.
+5. Wait for a human to approve the plan. No code is written before that.
+
+### The implementation plan
+
+The spec is the contract; the plan is the route through the code that honours it. It exists
+so that the disagreement about *how* happens before the diff exists, not in review.
+
+**The rule that governs it.** *No implementation plan without an approved spec.* If
+`specs/NNN-short-slug.md` is `draft`, `superseded`, or absent, there is nothing to plan
+against: go to Process 2 and get a spec approved first. An agent that starts planning from a
+`draft` spec has already broken this process, because the plan will encode decisions the
+user has not yet made.
+
+**Asking first.** Before writing the plan, the agent asks the user, in the rounds of
+Process 0, everything the spec leaves open at the level of implementation: which module
+owns the new behaviour, which existing call sites are in scope, what happens to data
+already on disk, which test level satisfies each criterion. Facts are the agent's job to
+look up in the repository; decisions are the user's to make. A plan whose "Steps" section
+contains a silent assumption is a defect, not a draft.
+
+**Layout.** One plan per spec, named after it:
+
+```markdown
+---
+spec: 012                 # the approved spec this plan implements
+status: draft             # draft · approved · done
+---
+
+## Files to touch
+Each path, and in one line what changes in it. Anything not listed here is out of scope.
+
+## Steps
+Numbered and ordered, each one small enough to be a single commit. Each step names the
+acceptance criteria it advances (`AC 1, AC 3`).
+
+## Verification mapping
+One row per acceptance criterion: criterion → Trust Spec letter → the test, check, review
+or run that will satisfy it, and where it will live.
+
+## Risks and stop conditions
+What could make this plan wrong, and what the agent does if it happens. At minimum: what
+would require reopening Process 0.
+```
+
+**Approving it.** Agents draft and revise plans; only a human moves a plan to `approved`,
+exactly as with a spec. Approval means: the file list is complete, the steps are in a
+workable order, and every acceptance criterion has a verification that a reviewer believes.
+
+**Revising it.** If the code reveals the plan is wrong — a fourth call site, a migration
+nobody costed — the agent stops, sets the plan back to `draft`, reopens Process 0 with the
+new fact, and does not resume until the plan is re-approved. Discovering a surprise and
+pressing on is the failure this process exists to prevent. If the surprise is in the spec
+rather than the plan, fix the spec first (Process 2, "Revising a spec"), which sends the
+plan back to `draft` with it.
+
+**Committing it.** Commit the plan on the spec's branch before the first code commit,
+prefixed `plan(NNN):`. When every step is done and every criterion verified, status moves
+to `done` in the commit that closes the spec. Plans are never deleted.
 
 **While writing code — rules that always apply**
 
-4. **Store access goes through the permission layer.** No module reads or writes
+6. **Store access goes through the permission layer.** No module reads or writes
    `canon/`, `structure/`, `scenes/`, `manuscript/` or `ledger/` except through the store
    layer, and every write names the agent role performing it. A write path that bypasses
    this is a bug even if it works.
-5. **The frontend never touches the stores.** It talks to `backend/` over the API and
+7. **The frontend never touches the stores.** It talks to `backend/` over the API and
    nothing else.
-6. **Every store record is typed.** Pydantic models on the backend, generated TypeScript
+8. **Every store record is typed.** Pydantic models on the backend, generated TypeScript
    types on the frontend. New file types under the stores get a JSON Schema, validated on
    read.
-7. **Types are strict.** `mypy --strict` (or `pyright`) clean on `backend/`; TypeScript
+9. **Types are strict.** `mypy --strict` (or `pyright`) clean on `backend/`; TypeScript
    `strict` clean on `frontend/`. No `Any` and no `@ts-ignore` without a comment saying
    why and a link to the spec.
-8. **Every acceptance criterion in the spec gets its verification** before the change is
-   done: a test (T), a static rule (A), a review note (I), a demonstrated run (D), or an
-   entry in the accepted-risk register (U). Add the test in the same commit as the code
-   it verifies.
-9. **Changing the API changes the contract.** If a FastAPI route or model changes,
-   regenerate the OpenAPI schema and the frontend client in the same change. CI fails on
-   a stale client.
-10. **No agent may widen its own permissions.** If implementing a spec seems to need a role
+10. **Every acceptance criterion in the spec gets its verification** before the change is
+    done: a test (T), a static rule (A), a review note (I), a demonstrated run (D), or an
+    entry in the accepted-risk register (U). Add the test in the same commit as the code
+    it verifies, as mapped in the plan's "Verification mapping".
+11. **Changing the API changes the contract.** If a FastAPI route or model changes,
+    regenerate the OpenAPI schema and the frontend client in the same change. CI fails on
+    a stale client.
+12. **No agent may widen its own permissions.** If implementing a spec seems to need a role
     to write to a store it is not allowed to write to, stop. That is a design change and
     goes to Process 1.
-11. Keep the change inside the spec's scope. Anything you notice outside it becomes a note
-    in the spec's "Open questions" or a new spec, not an extra commit.
+13. Keep the change inside the spec's scope and the plan's file list. Anything you notice
+    outside it becomes a note in the spec's "Open questions" or a new spec, not an extra
+    commit. A file you need that the plan does not list means the plan is wrong: revise it
+    (see "Revising it") rather than touching the file quietly.
 
 **Checks before committing**
 
-12. Run the full local gate and paste its result in the commit body or PR description:
+14. Run the full local gate and paste its result in the commit body or PR description:
 
     ```
     backend/    ruff check . && mypy --strict . && bandit -r . && pytest
@@ -306,21 +397,22 @@ methods in `docs/verification.md`.
     contract    schema regenerated · client regenerated · no diff
     ```
 
-13. Every test you added fails without your change and passes with it. If you cannot show
+15. Every test you added fails without your change and passes with it. If you cannot show
     that, the test is not verifying the criterion.
-14. Grep for the spec id in your tests. Each test that satisfies a criterion references it
+16. Grep for the spec id in your tests. Each test that satisfies a criterion references it
     (`# spec 012 / AC 3`), so the closing commit of the spec can list them.
 
 **Commit and merge**
 
-15. Commits are small and prefixed by area: `backend:`, `frontend:`, `contract:`. The body
+17. Commits are small and prefixed by area: `backend:`, `frontend:`, `contract:`. The body
     references the spec (`Implements spec 012, AC 1–3`). Agent-authored commits carry the
     `Co-Authored-By` trailer required by the session.
-16. Open a PR against `main` titled `spec(NNN): <title>`. The description lists each
-    acceptance criterion and the verification that covers it, with its letter.
-17. A human reviews and merges. Agents do not merge their own PRs.
-18. After merge, close the spec (Process 2, "Closing a spec") in a separate `spec(NNN):`
-    commit.
+18. Open a PR against `main` titled `spec(NNN): <title>`. The description lists each
+    acceptance criterion and the verification that covers it, with its letter, and links
+    the approved implementation plan.
+19. A human reviews and merges. Agents do not merge their own PRs.
+20. After merge, close the spec (Process 2, "Closing a spec") and move the plan to `done`
+    in a separate `spec(NNN):` commit.
 
 ---
 
@@ -329,8 +421,10 @@ methods in `docs/verification.md`.
 | Layer | Who may change it | Requires | Commit prefix |
 |---|---|---|---|
 | `docs/` | Human, or agent with a human-reviewed commit | Process 0 confirmed; spec first if it touches invariants, permissions or store layout | `docs:` |
-| `specs/` | Anyone drafts; only a human approves or closes | Process 0 confirmed; consistency with cited docs | `spec(NNN):` |
-| `backend/`, `frontend/` | Agent or human, on a `spec/NNN-*` branch | Process 0 confirmed or covered by the spec; passing gate; human merge | `backend:` `frontend:` `contract:` |
+| `specs/NNN-short-slug.md` | Anyone drafts; only a human approves or closes | Process 0 confirmed; consistency with cited docs | `spec(NNN):` |
+| `specs/NNN-short-slug-plan.md` | Agent drafts; only a human approves | An **approved** spec; Process 0 confirmed | `plan(NNN):` |
+| `backend/`, `frontend/` | Agent or human, on a `spec/NNN-*` branch | An approved spec **and** an approved plan; passing gate; human merge | `backend:` `frontend:` `contract:` |
 
 Process 0 is the one step no layer is exempt from. An agent that is unsure whether it
-understood the request asks; it does not edit and hope.
+understood the request asks; it does not edit and hope. And no layer skips the one below
+its own gate: no plan without an approved spec, no code without an approved plan.
