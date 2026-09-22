@@ -33,6 +33,14 @@ SCENE_ID_PATTERN: Final[str] = r"^\d{3}$"
 EntityId = Annotated[str, Field(pattern=ENTITY_ID_PATTERN, min_length=1, max_length=120)]
 SceneId = Annotated[str, Field(pattern=SCENE_ID_PATTERN)]
 
+SCENE_REF_PATTERN: Final[str] = r"^\d{3}(-\d{3})?$"
+"""DR-11. What a digest may point at: one scene, or the contiguous range a chapter or arc
+digest covers. Constrained for the same reason every other identifier is -- FR-OPS-03 parses
+it at assembly time to decide whether every scene covered is at or before the instant, and a
+field that accepted arbitrary text would make that undecidable rather than merely wrong."""
+
+SceneRef = Annotated[str, Field(pattern=SCENE_REF_PATTERN)]
+
 # Every integer in a store record is strict. Pydantic's lax mode reads `true` as 1, and a
 # `story_time: true` that silently becomes hour 1 is exactly the kind of quiet nonsense the
 # invariants are meant to catch. AC 5 only asks this of the enums; it costs nothing to make
@@ -228,6 +236,7 @@ class Ruling(HarnessModel):
 __all__ = [
     "ENTITY_ID_PATTERN",
     "SCENE_ID_PATTERN",
+    "SCENE_REF_PATTERN",
     "SCHEMA_VERSION",
     "Certainty",
     "DigestLevel",
@@ -241,6 +250,7 @@ __all__ = [
     "Ruling",
     "RulingKind",
     "SceneId",
+    "SceneRef",
     "SetupResolution",
     "Severity",
     "StoreDocument",

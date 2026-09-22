@@ -414,7 +414,7 @@ move is the forbidden one.
 
 ### Expected semantic finding 1 — invariant 6, an axiom violated
 
-The scene pins the axiom `ax_brine_dark` through `tags: ["ax_brine_dark", "lx_vault"]`, so it
+The scene pins the axiom `ax_brine_dark` through `pins: ["ax_brine_dark", "lx_vault"]` (and `tags: ["vault", "perception"]`), so it
 is prepended to the context and named in the turn's selected list. That list is the authority
 on which axioms are in force, which is what makes checking invariant 6 against it possible at
 all.
@@ -577,9 +577,14 @@ tier and *does* enter a context.
 
 The scene records' dramatic fields (`goal`, `conflict`, `value_change`, `entry_state`,
 `exit_state`, `notes`) are what the ranking embeds, so they are written to be specific.
-`tags` are the architect's pin: an axiom or lexicon entry tagged on a record enters the
-context regardless of ranking. Scene 006 pins `ax_brine_dark`, which is the precondition for
-checking invariant 6 against it at all.
+Pinning is two mechanisms and the fixture exercises both. `pins` names an entity by
+identifier; `tags` are domain tags and pin an axiom by intersecting its `scope`. Scene 006
+does it both ways at once -- `pins: [ax_brine_dark, lx_vault]` and `tags: [vault, perception]`
+against that axiom's `scope: [vault, perception, light, sound]` -- so a selection that
+implemented only one of the two still puts `ax_brine_dark` in the context, and a test that
+wants to tell them apart has a case where they overlap deliberately. Either way the axiom
+being in the turn's selected list is the precondition for checking invariant 6 against it at
+all.
 
 ---
 

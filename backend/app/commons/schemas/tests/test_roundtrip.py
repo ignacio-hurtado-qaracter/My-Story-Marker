@@ -13,9 +13,9 @@ read rejects, and `from`/`to` on ChangeEvent and Relationship are exactly that r
 from __future__ import annotations
 
 import pytest
-from hypothesis import HealthCheck, given, settings
+from hypothesis import HealthCheck, assume, given, settings
 from hypothesis_jsonschema import from_schema
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.commons.schemas.change_event import ChangeEvent, ChangesFile
 from app.commons.schemas.digest import SceneDigest
@@ -73,7 +73,16 @@ def test_parse_serialise_parse_is_identity(model: type[BaseModel]) -> None:
         suppress_health_check=[HealthCheck.too_slow, HealthCheck.data_too_large],
     )
     def check(instance: object) -> None:
-        first = model.model_validate(instance)
+        # Some model rules cannot be expressed in JSON Schema at all -- `Scene` requires
+        # `participants` to be disjoint from `pov`, which no keyword can state -- so the
+        # generator legitimately produces records the model rejects. The property under test
+        # is "parse, serialise, parse is identity", which only says anything about records
+        # that parse; a generated record that does not is out of its domain, not a failure.
+        try:
+            first = model.model_validate(instance)
+        except ValidationError:
+            assume(False)
+            raise
         dumped = first.model_dump(mode="json", by_alias=True)
         second = model.model_validate(dumped)
         assert first == second

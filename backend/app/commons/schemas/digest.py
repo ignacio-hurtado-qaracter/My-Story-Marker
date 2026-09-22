@@ -10,7 +10,13 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from app.commons.schemas.common import DigestLevel, EntityId, StoreDocument, Words
+from app.commons.schemas.common import (
+    DigestLevel,
+    EntityId,
+    SceneRef,
+    StoreDocument,
+    Words,
+)
 
 
 class SceneDigest(StoreDocument):
@@ -37,11 +43,13 @@ class SceneDigest(StoreDocument):
     `promote`, not by summarisation. It is derived, regenerable and never authoritative.
     """
 
-    scene_ref: str = Field(
-        min_length=1,
+    scene_ref: SceneRef = Field(
         description=(
-            "The scene this summarises, as a `NNN` scene id; at chapter and arc level, the "
-            "range of scenes covered. Not a `SceneId`, because a range is not one scene."
+            "The scene this summarises as `NNN`, or `NNN-NNN` for the contiguous range a "
+            "chapter or arc digest covers. Not a `SceneId`, because a range is not one "
+            "scene - but constrained all the same: FR-OPS-03 has to parse this field at "
+            "assembly time to decide whether every scene it covers has `story_time <= T`, "
+            "and a field that accepted `banana` would make that undecidable."
         ),
     )
     level: DigestLevel = Field(

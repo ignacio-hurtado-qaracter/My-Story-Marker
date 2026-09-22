@@ -15,6 +15,9 @@ value_change: "Vance's certainty about the core: guessed → known (+)"
 entry_state: "Vance and Ilan are both on the vault side of the throat, which has closed behind them. Ilan has his soak and his graft hand and no dive rig."
 exit_state: "Vance knows whether the ring is intact, and Ilan is at the cradle with her when the shelf works overhead and the throat seals."
 tags:
+  - vault
+  - perception
+pins:
   - ax_brine_dark
   - lx_vault
 notes: "Everything she needs to know is at the far end of the vault, and the vault is eleven metres long. What Ilan can do down here, he can do because of what the co-op did to him once; what closed behind them opens only from this side."

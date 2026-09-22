@@ -14,7 +14,7 @@ outcome: no-and-furthermore
 value_change: "standing: tolerated → refused (-)"
 entry_state: "The sealing order is posted on the slot board. Vance has a certification and no slot."
 exit_state: "The slot is refused, and Quiej has logged the request, which starts the clock on the indemnity."
-tags:
+pins:
   - ax_calving_window
   - lx_calving
 notes: "The refusal is the scene. Quiej's reason for it is hers and stays hers."

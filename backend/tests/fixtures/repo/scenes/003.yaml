@@ -16,7 +16,7 @@ outcome: yes-but
 value_change: "hope of a clean recovery: intact → spent (-)"
 entry_state: "Vance is in the vault with no signed slot and no witness."
 exit_state: "She has the shape of the seating under her palm and no way to name what is missing from it."
-tags:
+pins:
   - ax_brine_dark
   - lx_readkey
 notes: "She is alone and it is entirely dark; everything she learns she learns with her hands."

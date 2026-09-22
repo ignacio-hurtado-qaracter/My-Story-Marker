@@ -16,7 +16,7 @@ outcome: yes-but
 value_change: "authority over the vault"
 entry_state: "The order is signed and the window opens in six hours."
 exit_state: "The order stands, and Quiej has understood it will not hold."
-tags:
+pins:
   - ax_calving_window
 notes: "She is right about the schedule and wrong about the people; write the first and let the reader find the second."
 budget: 800

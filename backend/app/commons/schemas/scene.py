@@ -8,7 +8,7 @@ selection reads it, assembly is anchored to it, and the mechanical invariants ru
 
 from __future__ import annotations
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from app.commons.schemas.common import (
     EntityId,
@@ -42,6 +42,12 @@ class Scene(StoreDocument):
     hours since `epoch_zero` (Decision 8), not a date string, because invariants 4 and 5
     subtract it; and `participants` (Decision 9) exists so the spatial and transit checks
     have the full cast of the scene, not only its POV.
+
+    `tags` and `pins` are two pinning mechanisms and not one. `tags` are domain tags matched
+    against an Axiom's `scope`, so they are free text; `pins` name an entity by identifier, so
+    they obey the identifier grammar. Collapsed into one field, whichever grammar wins makes
+    the other mechanism unusable -- an axiom scoped `FTL` becomes unpinnable, or a pin stops
+    resolving to a record (docs `aa05ee9`).
     """
 
     id: SceneId = Field(description="`NNN`, stable forever; the file is named after it.")
@@ -49,10 +55,12 @@ class Scene(StoreDocument):
         description="The single POV character; determines the knowledge trim of assembly.",
     )
     participants: list[EntityId] = Field(
-        default_factory=list,
         description=(
-            "Characters present besides the POV. Invariants 4 and 5 run over `pov` plus "
-            "this list, so a missing name is a check that silently does not run."
+            "Characters present besides the POV. Required, and may be empty: invariants 4 "
+            "and 5 run over `pov` plus this list, so a missing name is a check that "
+            "silently does not run, and an omitted field would narrow both checks to the "
+            "POV alone with nothing recording that it had happened. The POV is never "
+            "repeated here and no character appears twice."
         ),
     )
     story_time: StoryHours = Field(
@@ -79,11 +87,21 @@ class Scene(StoreDocument):
     exit_state: str = Field(
         description="The world as the scene closes; the verifiable other half of the delta.",
     )
-    tags: list[EntityId] = Field(
+    tags: list[str] = Field(
         default_factory=list,
         description=(
-            "Optional pins: axioms and lexicon entries that enter the context regardless "
-            "of ranking. FR-OPS-02 puts them first."
+            "Optional domain tags, free text in the world's own vocabulary. An axiom whose "
+            "`scope` intersects them is pinned into the context regardless of ranking "
+            "(FR-OPS-02). Free text on purpose: a scope written `FTL` could never be matched "
+            "by a field constrained to the identifier grammar."
+        ),
+    )
+    pins: list[EntityId] = Field(
+        default_factory=list,
+        description=(
+            "Optional identifiers of entities that enter the context regardless of ranking, "
+            "named directly rather than matched. FR-OPS-02 prepends them. This is the half "
+            "of pinning that resolves to a record; `tags` is the half that matches a scope."
         ),
     )
     notes: str | None = Field(
@@ -93,6 +111,24 @@ class Scene(StoreDocument):
             "never binds the writer."
         ),
     )
+
+    @model_validator(mode="after")
+    def _cast_is_well_formed(self) -> Scene:
+        """`participants` is "characters present **besides** the POV" (`definitions.md`).
+
+        Repeating the POV there, or naming anyone twice, makes invariants 4 and 5 walk the
+        same character more than once for one scene. The checks would still be correct, and
+        the duplicate would still be a record saying something the author did not mean.
+        """
+        if self.pov in self.participants:
+            message = f"the POV {self.pov!r} must not be repeated in participants"
+            raise ValueError(message)
+        seen = self.participants
+        duplicates = sorted({name for name in seen if seen.count(name) > 1})
+        if duplicates:
+            message = f"participants names a character more than once: {', '.join(duplicates)}"
+            raise ValueError(message)
+        return self
     budget: Words = Field(
         description="Assigned words; the turn records the draft's count against it.",
     )

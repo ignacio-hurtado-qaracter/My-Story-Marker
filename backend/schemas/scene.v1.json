@@ -13,7 +13,7 @@
     }
   },
   "additionalProperties": false,
-  "description": "DR-03. The whole of `scenes/NNN.yaml`, with the fields `definitions.md` Scene gives it.\n\nThe dramatic fields are not prose for a human planner to read. FR-OPS-02 builds the\nselection query out of `goal`, `conflict`, `value_change`, `pov`, `location`,\n`entry_state`, `exit_state` and `notes`, and whatever that query retrieves is the world\nthe writer is handed. A record whose conflict is \"something goes wrong\" matches nothing\nin particular, so the retrieval falls back to whatever ranked first, and the scene is\nwritten against generic material. The vagueness does not stay in the record; it becomes\nthe context, and the context becomes the prose.\n\n**Failure mode** (`definitions.md` Scene): specifying the *how* as well as the *what*.\nThe record states dramatic function - what the POV wants, what prevents it, which value\nmoves and in which direction, how much room there is - and leaves execution free. An\nover-prescriptive record produces dead prose, because the writer then writes to satisfy\nthe record rather than to write well.\n\nTwo fields carry decisions rather than description. `story_time` is an integer count of\nhours since `epoch_zero` (Decision 8), not a date string, because invariants 4 and 5\nsubtract it; and `participants` (Decision 9) exists so the spatial and transit checks\nhave the full cast of the scene, not only its POV.",
+  "description": "DR-03. The whole of `scenes/NNN.yaml`, with the fields `definitions.md` Scene gives it.\n\nThe dramatic fields are not prose for a human planner to read. FR-OPS-02 builds the\nselection query out of `goal`, `conflict`, `value_change`, `pov`, `location`,\n`entry_state`, `exit_state` and `notes`, and whatever that query retrieves is the world\nthe writer is handed. A record whose conflict is \"something goes wrong\" matches nothing\nin particular, so the retrieval falls back to whatever ranked first, and the scene is\nwritten against generic material. The vagueness does not stay in the record; it becomes\nthe context, and the context becomes the prose.\n\n**Failure mode** (`definitions.md` Scene): specifying the *how* as well as the *what*.\nThe record states dramatic function - what the POV wants, what prevents it, which value\nmoves and in which direction, how much room there is - and leaves execution free. An\nover-prescriptive record produces dead prose, because the writer then writes to satisfy\nthe record rather than to write well.\n\nTwo fields carry decisions rather than description. `story_time` is an integer count of\nhours since `epoch_zero` (Decision 8), not a date string, because invariants 4 and 5\nsubtract it; and `participants` (Decision 9) exists so the spatial and transit checks\nhave the full cast of the scene, not only its POV.\n\n`tags` and `pins` are two pinning mechanisms and not one. `tags` are domain tags matched\nagainst an Axiom's `scope`, so they are free text; `pins` name an entity by identifier, so\nthey obey the identifier grammar. Collapsed into one field, whichever grammar wins makes\nthe other mechanism unusable -- an axiom scoped `FTL` becomes unpinnable, or a pin stops\nresolving to a record (docs `aa05ee9`).",
   "properties": {
     "budget": {
       "description": "Assigned words; the turn records the draft's count against it.",
@@ -79,7 +79,7 @@
       "description": "How the scene answers the goal; the four-value enum."
     },
     "participants": {
-      "description": "Characters present besides the POV. Invariants 4 and 5 run over `pov` plus this list, so a missing name is a check that silently does not run.",
+      "description": "Characters present besides the POV. Required, and may be empty: invariants 4 and 5 run over `pov` plus this list, so a missing name is a check that silently does not run, and an omitted field would narrow both checks to the POV alone with nothing recording that it had happened. The POV is never repeated here and no character appears twice.",
       "items": {
         "maxLength": 120,
         "minLength": 1,
@@ -87,6 +87,17 @@
         "type": "string"
       },
       "title": "Participants",
+      "type": "array"
+    },
+    "pins": {
+      "description": "Optional identifiers of entities that enter the context regardless of ranking, named directly rather than matched. FR-OPS-02 prepends them. This is the half of pinning that resolves to a record; `tags` is the half that matches a scope.",
+      "items": {
+        "maxLength": 120,
+        "minLength": 1,
+        "pattern": "^[a-z0-9][a-z0-9_-]*$",
+        "type": "string"
+      },
+      "title": "Pins",
       "type": "array"
     },
     "pov": {
@@ -109,11 +120,8 @@
       "type": "integer"
     },
     "tags": {
-      "description": "Optional pins: axioms and lexicon entries that enter the context regardless of ranking. FR-OPS-02 puts them first.",
+      "description": "Optional domain tags, free text in the world's own vocabulary. An axiom whose `scope` intersects them is pinned into the context regardless of ranking (FR-OPS-02). Free text on purpose: a scope written `FTL` could never be matched by a field constrained to the identifier grammar.",
       "items": {
-        "maxLength": 120,
-        "minLength": 1,
-        "pattern": "^[a-z0-9][a-z0-9_-]*$",
         "type": "string"
       },
       "title": "Tags",
@@ -128,6 +136,7 @@
   "required": [
     "id",
     "pov",
+    "participants",
     "story_time",
     "discourse_order",
     "location",

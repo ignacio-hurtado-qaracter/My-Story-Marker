@@ -35,8 +35,8 @@
       "type": "array"
     },
     "scene_ref": {
-      "description": "The scene this summarises, as a `NNN` scene id; at chapter and arc level, the range of scenes covered. Not a `SceneId`, because a range is not one scene.",
-      "minLength": 1,
+      "description": "The scene this summarises as `NNN`, or `NNN-NNN` for the contiguous range a chapter or arc digest covers. Not a `SceneId`, because a range is not one scene - but constrained all the same: FR-OPS-03 has to parse this field at assembly time to decide whether every scene it covers has `story_time <= T`, and a field that accepted `banana` would make that undecidable.",
+      "pattern": "^\\d{3}(-\\d{3})?$",
       "title": "Scene Ref",
       "type": "string"
     },

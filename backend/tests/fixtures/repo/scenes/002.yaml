@@ -14,7 +14,7 @@ outcome: no-and-furthermore
 value_change: "Ilan's usefulness to the co-op: certified → indemnified (-)"
 entry_state: "Ilan is on the vault side with his soak behind him and a witness he did not ask for."
 exit_state: "The seating is found, the hand is gone, and Quiej has a signature that was never given aloud."
-tags:
+pins:
   - ax_cold_soak
   - ax_indemnity_burn
   - lx_soak

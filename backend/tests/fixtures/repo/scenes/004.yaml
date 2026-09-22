@@ -14,7 +14,7 @@ outcome: yes-but
 value_change: "truth between the siblings: withheld → spoken (+)"
 entry_state: "Both of them are on the vault side. Ilan has been told nothing."
 exit_state: "Ilan's graft hand finds the seating sequence without him, and he learns that the co-op took something out of him."
-tags:
+pins:
   - ax_indemnity_burn
   - lx_readkey
 notes: "The hand remembers; procedural habit is outside the indemnity. That is the scene's whole mechanism."
