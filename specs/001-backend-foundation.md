@@ -1,7 +1,7 @@
 ---
 id: 001
 title: Backend v1 — stores, permissions, index, operations, agent roles and the writing turn
-status: draft            # draft · approved · implemented · superseded
+status: approved         # draft · approved · implemented · superseded
 supersedes: null
 docs:
   - docs/architecture.md#governing-principle
@@ -27,8 +27,8 @@ docs:
 > answered by the user on 2026-09-22; every decision is in the
 > [Decision log](#decision-log). The four Process 1 doc edits the spec depended on are
 > committed (`b8e76ed`, `1578513`, `f39300b`, `95e0cd5`) and every requirement below now
-> links to a doc section that says what it assumes. The spec is ready for human review;
-> only a human moves `status` to `approved`.
+> links to a doc section that says what it assumes. **Approved by the user on 2026-09-22**;
+> the approval was recorded by the agent at the user's explicit instruction.
 
 This document is written as a Software Requirements Specification (SRS) for the first
 version of `backend/`. It keeps the fixed sections that `AGENTS.md` prescribes for every
