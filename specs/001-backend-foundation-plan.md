@@ -202,9 +202,9 @@ commit message of each step names the test and states that it was red on the par
 
 Section by section, where each mechanism the doc describes lands in this plan. The gap the
 user asked to drive to zero is the set of rows that are neither *covered* nor *deferred
-by name*; after two passes it is the three "residual" rows at the end, each of which is a
-tension inside the docs or a decision the approved spec already took, not something the
-plan can close.
+by name*. Three passes found ten, then four, then zero omissions; two doc tensions the
+passes surfaced were resolved in `docs/` (Process 1) rather than worked around here. One
+row remains deferred by name, at the end.
 
 | Architecture section | Mechanism | Plan | Status |
 |---|---|---|---|
@@ -219,9 +219,9 @@ plan can close.
 | L4 · Violation | Evidence with position; severity; resolution | Steps 14, 17; IF-04 | Covered |
 | Operations | `dossier` as-of | AC 10 | Covered |
 | Operations | `select_entities` ids only, pins first, POV by id | AC 11 | Covered |
-| Operations | `select_entities` embeds "any free text the architect wrote" | Embeds every string field of the record | **Residual 1** |
+| Operations | `select_entities` embeds the architect's `notes` | Scene has `notes`; step 11 embeds it | Covered |
 | Operations | `assemble_context` ranked as-of loading to the cap | AC 12 | Covered |
-| Operations | `extract_facts` "runs unconditionally, including on discarded drafts" | Accepted draft only; writer proposals from all iterations kept (spec FR-TURN-03) | **Residual 2** — spec decision |
+| Operations | `extract_facts` on the accepted draft; writer proposals from every iteration kept | Step 18 (spec FR-TURN-03) | Covered |
 | Operations | `promote` escalates collisions | AC 13, 20 | Covered |
 | Operations | `reconcile` on retroactive change | Step 13; wired into promotion and rulings, step 18 | Covered |
 | Memory tiers | Agents stateless; no transcript between roles | FR-AGENT-11 test; AC 23 | Covered |
@@ -252,21 +252,14 @@ plan can close.
 | Package by feature | Tests live in the feature; `backend/tests/` cross-feature only | File list follows it; `tests/` holds conftest, fixture, shared-selection, schemathesis, live | Covered |
 | Package by feature | Frontend rules 6–8 | Frontend deferred to its own spec | Deferred by name |
 | Over-constraint | Flag, don't repair; function, not how | AC 16; writer prompt, step 16; fixture review AC 28 | Covered |
-| TemporalSystem (via `transit_matrix`) | `dilation_factor` per character | Not applied in the transit check | **Residual 3** — later spec |
+| TemporalSystem (via `transit_matrix`) | `dilation_factor` per character | Not applied in the transit check | **Deferred by name** — later spec |
 
-**Residuals, named so nobody mistakes them for coverage:**
+**Deferred, named so nobody mistakes it for coverage:**
 
-1. **Free text on the scene record.** `architecture.md` says selection embeds "any free
-   text the architect wrote", but `definitions.md` gives Scene no free-text field. The plan
-   embeds every string field the record has; if a `notes` field is wanted it is a
-   `definitions.md` change (Process 1), not a plan change.
-2. **Extraction on discarded drafts.** The Operations section says extraction runs on every
-   draft; Figure 4 puts it on the accepted path. The approved spec chose Figure 4 and kept
-   the writer's own proposals from every iteration as the compromise. The doc tension
-   itself is a Process 1 note, recorded here.
-3. **Relativistic dilation.** `dilation_factor` exists in `TemporalSystem` but the v1
-   transit check compares raw `story_time`. Deferred to the spec that makes invariant 5
-   character-relative.
+- **Relativistic dilation.** `dilation_factor` exists in `TemporalSystem` but the v1
+  transit check compares raw `story_time`. Deferred to the spec that makes invariant 5
+  character-relative; the fixture has no relativistic transit, so nothing in v1 is wrong,
+  only incomplete.
 
 ---
 
