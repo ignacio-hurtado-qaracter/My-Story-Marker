@@ -556,6 +556,17 @@ ledger/
 every agent sees. The invariants themselves are stated in `definitions.md` and referenced
 from there.
 
+Next to the tree, and excluded from version control, sits `.index/`: the entity index,
+the embedding-model cache, and the backend's operational records, one file per writing turn
+(the selected-entity list, model and prompt versions, token counts, iterations, outcome) and
+an append-only provenance log naming the role behind every store write. Nothing under
+`.index/` is a store: it is not governed by Figure 3, no agent reads it, and the index part
+is rebuilt from the tree at will. The turn and provenance records are **not** rebuildable —
+losing `.index/` loses the history of how the tree came to be, though not the tree — which
+is registered as an accepted risk in
+[`verification.md`](./verification.md#accepted-risks-u-register) until tracing moves them
+to Langfuse.
+
 ---
 
 ## Repository and application stack
