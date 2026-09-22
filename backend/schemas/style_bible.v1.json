@@ -1,0 +1,105 @@
+{
+  "$defs": {
+    "StyleMetrics": {
+      "additionalProperties": false,
+      "description": "Target prose metrics, as a value inside `canon/style.md`.\n\nNumbers rather than adjectives, because these are the only part of style a check can\nmeasure without a model. Both are optional: a project that has not decided a target is\nbetter represented by an absent number than by an invented one, which something would\nlater report the prose as deviating from.",
+      "properties": {
+        "mean_sentence_length": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target mean sentence length in words; `None` when no target was set.",
+          "title": "Mean Sentence Length"
+        },
+        "variance": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Target variance of sentence length. Uniform sentences read as machine prose, which is what a variance target exists to prevent; `None` when no target was set.",
+          "title": "Variance"
+        }
+      },
+      "title": "StyleMetrics",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "DR-01, DR-02, DR-10. The whole of `canon/style.md`: the rules of the textual surface.\n\nThe cheapest layer to maintain and the one that prevents the most drift, because readers\nnotice a change of voice long before they notice a change of plot. It is the second half\nof the fixed block (FR-OPS-03), and the style editor and the auditor read it as well as\nthe writer.\n\n**Failure mode** (`definitions.md` StyleBible): writing it abstractly. A rule such as\n\"dense but not ornate\" is not imitable; two or three paragraphs of canonical sample prose\nare, because the writer can copy the cadence directly instead of inferring it from an\nadjective. That sample is what `body` holds, and it is the reason this record is a\nMarkdown file rather than a YAML one.\n\n`language` is here rather than in configuration because the prose language is a fact\nabout this novel, not about this deployment. FR-LLM-10 and Decision R2-9 read it from\nthis file: role prompts stay in English, and the writer and the style editor are told in\ntheir instruction which language to write the prose in.",
+  "properties": {
+    "body": {
+      "description": "The canonical sample prose: the Markdown body of the file. It works far better than the abstract rules above, because the writer can imitate it directly.",
+      "title": "Body",
+      "type": "string"
+    },
+    "exposition_policy": {
+      "description": "How much backstory per scene, and through which vehicle.",
+      "minLength": 1,
+      "title": "Exposition Policy",
+      "type": "string"
+    },
+    "forbidden": {
+      "description": "Tics, verbal crutches and images already spent in this book. These are stylistic rather than canonical, which is why they live here and not among the `forbidden_variants` of `canon/lexicon.yaml`.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Forbidden",
+      "type": "array"
+    },
+    "language": {
+      "description": "The language the prose is written in. Role prompts are English (FR-LLM-10, Decision R2-9); this is what the writer and the style editor are told to write in.",
+      "minLength": 1,
+      "title": "Language",
+      "type": "string"
+    },
+    "metrics": {
+      "$ref": "#/$defs/StyleMetrics",
+      "description": "Target mean sentence length and variance: the measurable part of style."
+    },
+    "pov_policy": {
+      "description": "Third limited, one POV per scene, no internal head-hopping - or whatever this book decided instead.",
+      "minLength": 1,
+      "title": "Pov Policy",
+      "type": "string"
+    },
+    "register": {
+      "description": "Lexical density, jargon tolerance, narrative distance.",
+      "minLength": 1,
+      "title": "Register",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "tense": {
+      "description": "Past or present; never mixed without a stated cause.",
+      "minLength": 1,
+      "title": "Tense",
+      "type": "string"
+    }
+  },
+  "required": [
+    "tense",
+    "pov_policy",
+    "register",
+    "exposition_policy",
+    "language",
+    "body"
+  ],
+  "title": "StyleBible",
+  "type": "object"
+}

@@ -1,0 +1,173 @@
+{
+  "$defs": {
+    "GenreContract": {
+      "additionalProperties": false,
+      "description": "The explicit promises of the book, as a value inside `canon/project.md`.\n\nIt fixes the level of scientific rigour, what the mystery owes the reader, how much of\nthe violence or intimacy happens on the page, and what this novel will never do. Those\nare decisions, and writing them down is what makes a departure from them detectable.\n\n**Failure mode** (`definitions.md` GenreContract): leaving it undeclared. The prose\ndrifts from thriller to space opera and nothing catches it, because with no contract\nthere is no rule to break - the drift is not a violation of anything, only a surprise.",
+      "properties": {
+        "limits": {
+          "description": "What this novel will never do. The half of the contract that forbids, and therefore the half that can be violated.",
+          "minLength": 1,
+          "title": "Limits",
+          "type": "string"
+        },
+        "promises": {
+          "description": "Each promise made to the reader, with its intended payoff scene.",
+          "items": {
+            "$ref": "#/$defs/GenrePromise"
+          },
+          "title": "Promises",
+          "type": "array"
+        },
+        "rigour": {
+          "description": "What may be hand-waved and what may not; the standard axioms are held to.",
+          "minLength": 1,
+          "title": "Rigour",
+          "type": "string"
+        },
+        "subgenre": {
+          "description": "Hard SF, space opera, social SF - the shelf this book asks to be read on.",
+          "minLength": 1,
+          "title": "Subgenre",
+          "type": "string"
+        }
+      },
+      "required": [
+        "subgenre",
+        "rigour",
+        "limits"
+      ],
+      "title": "GenreContract",
+      "type": "object"
+    },
+    "GenrePromise": {
+      "additionalProperties": false,
+      "description": "One promise made to the reader, with the scene intended to pay it.\n\nKept as a pair rather than as a sentence because a promise with no named payoff is\nindistinguishable from an intention, and `definitions.md` GenreContract asks for each\npromise with its intended payoff scene.",
+      "properties": {
+        "payoff_scene": {
+          "anyOf": [
+            {
+              "pattern": "^\\d{3}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Where it is intended to be paid; `None` while the plan has not placed it.",
+          "title": "Payoff Scene"
+        },
+        "promise": {
+          "description": "What the reader is promised by the genre this book declares itself to be.",
+          "minLength": 1,
+          "title": "Promise",
+          "type": "string"
+        }
+      },
+      "required": [
+        "promise"
+      ],
+      "title": "GenrePromise",
+      "type": "object"
+    },
+    "Premise": {
+      "additionalProperties": false,
+      "description": "The dramatic question of the book, as a value inside `canon/project.md`.\n\nIt is not a summary. It is the test that decides whether a scene belongs to *this* novel\nrather than to some adjacent one, which is why `definitions.md` Premise asks for one\nsentence with protagonist, desire and obstacle and nothing else.\n\n**Failure mode** (`definitions.md` Premise): a three-paragraph premise. A filter that\nlong stops discriminating - everything passes it - and the writer, handed a paragraph\nwhere it expected a test, ignores it.",
+      "properties": {
+        "answer": {
+          "description": "How it resolves. Decided before writing starts, not found in chapter thirty.",
+          "minLength": 1,
+          "title": "Answer",
+          "type": "string"
+        },
+        "dramatic_question": {
+          "description": "What the reader wants to know, phrased as the question the book answers.",
+          "minLength": 1,
+          "title": "Dramatic Question",
+          "type": "string"
+        },
+        "statement": {
+          "description": "One sentence with protagonist, desire and obstacle; no chained clauses.",
+          "minLength": 1,
+          "title": "Statement",
+          "type": "string"
+        }
+      },
+      "required": [
+        "statement",
+        "dramatic_question",
+        "answer"
+      ],
+      "title": "Premise",
+      "type": "object"
+    },
+    "ThematicThesis": {
+      "additionalProperties": false,
+      "description": "What the novel argues, as a value inside `canon/project.md`.\n\nA thesis is arguable or it is nothing: it has to be the sort of claim a character can\ndefend the opposite of and sometimes win with, because that disagreement is what orders\nscenes. `test_scenes` holds scene ids rather than prose so the claim is anchored to the\nplan and can be checked against it.\n\n**Failure mode** (`definitions.md` ThematicThesis): confusing thesis with theme.\n\"Identity\" is a subject, not a proposition - nobody can disagree with it, so it orders\nnothing and selects nothing.",
+      "properties": {
+        "antithesis": {
+          "description": "Who defends the opposite, and how strongly; the counterargument must be able to win sometimes or the thesis is never really tested.",
+          "minLength": 1,
+          "title": "Antithesis",
+          "type": "string"
+        },
+        "proposition": {
+          "description": "The arguable claim the book makes, stated so that one can disagree with it.",
+          "minLength": 1,
+          "title": "Proposition",
+          "type": "string"
+        },
+        "test_scenes": {
+          "description": "Scenes where the thesis is put under real pressure. Scene ids, not prose, so the argument is anchored to the plan rather than asserted about it.",
+          "items": {
+            "pattern": "^\\d{3}$",
+            "type": "string"
+          },
+          "title": "Test Scenes",
+          "type": "array"
+        }
+      },
+      "required": [
+        "proposition",
+        "antithesis"
+      ],
+      "title": "ThematicThesis",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "DR-01, DR-02, DR-10. The whole of `canon/project.md`: premise, thesis, genre contract.\n\nThis is the **fixed block**. FR-OPS-03 loads it, with `canon/style.md`, at the head of\nevery assembled context, unfiltered, for the length of the book - so it is the one record\nwhose cost is paid on every single call. That is why FR-OPS-04 raises\n`fixed_block_over_budget` above 800 tokens, and the warning is about quality before it is\nabout money: at three paragraphs the premise has stopped working as a filter, and a\nwriter handed a paragraph where it expected a test ignores it.\n\nThree values rather than one flat sheet of fields, because the three answer different\nquestions - what the book is about, what it argues, what it owes the reader - and a scene\nis judged against each of them separately.",
+  "properties": {
+    "body": {
+      "description": "The Markdown body of the file: what the structured fields cannot hold. It is part of the fixed block too, so it counts against the 800-token warning.",
+      "title": "Body",
+      "type": "string"
+    },
+    "genre_contract": {
+      "$ref": "#/$defs/GenreContract",
+      "description": "The promises to the reader, their payoffs, and what this book never does."
+    },
+    "premise": {
+      "$ref": "#/$defs/Premise",
+      "description": "The dramatic question; the test for whether a scene belongs to this novel."
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "thesis": {
+      "$ref": "#/$defs/ThematicThesis",
+      "description": "What the novel argues, with the counterargument that is allowed to win."
+    }
+  },
+  "required": [
+    "premise",
+    "thesis",
+    "genre_contract",
+    "body"
+  ],
+  "title": "Project",
+  "type": "object"
+}

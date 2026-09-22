@@ -1,0 +1,42 @@
+{
+  "additionalProperties": false,
+  "description": "DR-11. The whole of `manuscript/NNN.md`: the prose of one scene, subordinate to canon.\n\n`words` and `literal_tail` are **derived by code on write and never supplied by a\nmodel** (FR-AGENT-03). A word count a writer reports about its own output is a claim,\nnot a measurement; accepting it would make the budget line of the turn record a check\non the model's arithmetic rather than on the draft. The same reasoning applies to the\ntail: it must be exactly what the file ends with, not what the model believes it wrote.\n\n`literal_tail` is the last 500 words, verbatim, and it is the only prose that reaches\nthe next scene at all - everything else arrives compressed, as a digest. It exists for\ntonal inertia: a summary preserves what happened and loses how it sounded, so without\nthe tail the next scene restarts in the model's default voice instead of continuing in\nthe register the book has been building. Because it is verbatim, it is also the one\nplace where an earlier scene's exact words can contradict a later record, which is why\nit is carried as a field rather than reconstructed on demand.\n\n**Failure mode** (`architecture.md` Draft): letting the writer edit canon to justify\nwhat it has just written. That is the precise mechanism by which drift begins, and it\nis why the writer's Figure 3 row grants `manuscript/` and nothing under `canon/`: an\ninvention goes to `ledger/proposed.yaml` as a proposal, and the canoniser decides.\n\nThe `version` column of the `architecture.md` table is not a field here. Versions are\ngit history, and DR-11 lists four fields; the backend never writes a version number\ninto the record it would then have to keep true.",
+  "properties": {
+    "body": {
+      "description": "The prose of the scene: the Markdown body of the file.",
+      "title": "Body",
+      "type": "string"
+    },
+    "literal_tail": {
+      "description": "The last 500 words of `body`, verbatim, derived on write. The only prose that reaches the next scene, and the carrier of tonal inertia.",
+      "title": "Literal Tail",
+      "type": "string"
+    },
+    "scene_ref": {
+      "description": "The one scene this draft is of. One scene, one file.",
+      "pattern": "^\\d{3}$",
+      "title": "Scene Ref",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "words": {
+      "description": "Word count of `body`, measured by the store layer on write and checked against the scene `budget`. Never taken from model output.",
+      "minimum": 0,
+      "title": "Words",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "scene_ref",
+    "words",
+    "literal_tail",
+    "body"
+  ],
+  "title": "Draft",
+  "type": "object"
+}

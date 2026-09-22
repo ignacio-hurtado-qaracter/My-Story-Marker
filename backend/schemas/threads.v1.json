@@ -1,0 +1,87 @@
+{
+  "$defs": {
+    "PlotThread": {
+      "additionalProperties": false,
+      "description": "DR-06. One plot line, and how long it may be away before the reader loses it.\n\n`definitions.md` PlotThread says this exists so that \"how long since we touched the\nsister subplot?\" gets a number rather than an impression. That is the whole design: the\nquestion is answerable only if the scenes a thread appears in are listed **in discourse\norder**, because latency is a reading-order distance, not a story-time one. A subplot can\nbe set in the past and still be fresh on the page, and one set yesterday can still have\nvanished for eighty pages.\n\n**Failure mode** (`definitions.md`): no maximum latency. Secondary threads evaporate and\nnobody notices until the final read-through, at which point the fix is structural and\nexpensive. `max_latency` is required (DR-06) so that FR-AUD-08 can compare the gap in\n`discourse_order` since the thread's last scene against the number this thread was given,\nper thread: a slow-burn romance and a ticking bomb do not tolerate the same silence.\n\n**FR-OPS-03.** A thread whose `state` is `resolved` or `abandoned` has left the working\ntier and never enters a context again. That is the same rule that drops closed setups and\nresolved violations: what is finished stops competing for the 100k budget with what is\nstill live. `dormant` is not finished - it is a thread deliberately quiet, still counted\nby the latency check, still eligible for assembly.",
+      "properties": {
+        "depends_on": {
+          "description": "Threads that must resolve first; empty means this one is free to close whenever the structure allows.",
+          "items": {
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "type": "string"
+          },
+          "title": "Depends On",
+          "type": "array"
+        },
+        "id": {
+          "description": "Stable identifier for the thread; the backend never renames.",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "max_latency": {
+          "description": "How many scenes it may vanish for before the reader loses it. Required (DR-06) and per thread: a thread with no bound can never be reported as late.",
+          "minimum": 1,
+          "title": "Max Latency",
+          "type": "integer"
+        },
+        "scenes": {
+          "description": "Where the thread advances, in discourse order. FR-AUD-08 measures the gap in `discourse_order` since the last of these, so the order is load-bearing.",
+          "items": {
+            "pattern": "^\\d{3}$",
+            "type": "string"
+          },
+          "title": "Scenes",
+          "type": "array"
+        },
+        "state": {
+          "$ref": "#/$defs/ThreadState",
+          "description": "`planted`, `developing`, `dormant`, `resolved` or `abandoned`. The last two leave the working tier and never enter a context (FR-OPS-03)."
+        }
+      },
+      "required": [
+        "id",
+        "state",
+        "max_latency"
+      ],
+      "title": "PlotThread",
+      "type": "object"
+    },
+    "ThreadState": {
+      "description": "DR-06. Where a plot line stands.",
+      "enum": [
+        "planted",
+        "developing",
+        "dormant",
+        "resolved",
+        "abandoned"
+      ],
+      "title": "ThreadState",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "DR-06, DR-10. The whole of `ledger/threads.yaml`.\n\nOne file for the book. A thread by definition spans non-contiguous chapters, so there is\nno scene, chapter or arc that owns one, and the latency question is asked across all of\nthem at once.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "threads": {
+      "description": "Every plot thread, live and closed; FR-AUD-08 checks the latency of the `planted` and `developing` ones.",
+      "items": {
+        "$ref": "#/$defs/PlotThread"
+      },
+      "title": "Threads",
+      "type": "array"
+    }
+  },
+  "title": "ThreadsFile",
+  "type": "object"
+}

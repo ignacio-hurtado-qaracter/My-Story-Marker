@@ -1,0 +1,76 @@
+{
+  "$defs": {
+    "ChangeEvent": {
+      "additionalProperties": false,
+      "description": "DR-08. One registered change to a body or a memory.\n\nThis is what lets a scar, an amputation, a memory wipe or a conditioning be told apart\nfrom a continuity error. Invariant 3 (stable bodies) asks that a physical attribute in\nthe prose match `immutable_physical`; the exception it allows is exactly one of these,\ndated at or before the scene under audit. The same record covers the `Knows -> Unaware`\nedge of the knowledge lifecycle, which is why `attribute` is either an\n`immutable_physical` key or the `fact_ref` that was forgotten.\n\n**Failure mode: registering the change after the checker complains.** A ChangeEvent is\na decision taken before the prose, not an excuse written after it. Nothing in the shape\ncan enforce that - it is a discipline, and the provenance log is where it is visible -\nbut it is the reason `cause` is required: a change with no cause is a plot hole with a\nreceipt, and demanding the cause at write time is what makes the retrofit feel like\nwhat it is.\n\n`scene` dates the event on the story axis through the scene record. Before that scene\nthe old value holds, which is what the auditor compares against.",
+      "properties": {
+        "attribute": {
+          "description": "The `immutable_physical` key that changed, or the `fact_ref` forgotten.",
+          "minLength": 1,
+          "title": "Attribute",
+          "type": "string"
+        },
+        "cause": {
+          "description": "What did it; a change with no cause is a plot hole with a receipt.",
+          "minLength": 1,
+          "title": "Cause",
+          "type": "string"
+        },
+        "character": {
+          "description": "Whose body or memory changed.",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "title": "Character",
+          "type": "string"
+        },
+        "from": {
+          "description": "The value before the change; for a forgotten fact, what was believed.",
+          "title": "From",
+          "type": "string"
+        },
+        "scene": {
+          "description": "Where it happens; before this scene on the story axis, the old value holds.",
+          "pattern": "^\\d{3}$",
+          "title": "Scene",
+          "type": "string"
+        },
+        "to": {
+          "description": "The value after the change; empty for a forgotten fact.",
+          "title": "To",
+          "type": "string"
+        }
+      },
+      "required": [
+        "character",
+        "attribute",
+        "from",
+        "to",
+        "scene",
+        "cause"
+      ],
+      "title": "ChangeEvent",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "DR-08, DR-10. The whole of `cast/{id}/changes.yaml`.\n\nA list, because a character can lose the same attribute twice - a hand, then the\nprosthesis - and each step has its own scene and its own cause.",
+  "properties": {
+    "changes": {
+      "description": "Every registered change for this character; the auditor reads those dated at or before the scene under audit.",
+      "items": {
+        "$ref": "#/$defs/ChangeEvent"
+      },
+      "title": "Changes",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "title": "ChangesFile",
+  "type": "object"
+}

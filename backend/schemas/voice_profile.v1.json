@@ -1,0 +1,65 @@
+{
+  "additionalProperties": false,
+  "description": "DR-01, DR-02, DR-10. The whole of `cast/{id}/voice.md`: how this person sounds.\n\nKept out of the dossier because it is consulted at a different moment - when dialogue is\nwritten, and when style is audited - and by a different role: the style editor reads\n`cast/{id}/voice.md` and never the dossier.\n\nA voice is defined mostly **by negation**, and `never_says` is the most useful field in\nthe whole record, because it is the only part of voice a machine can check. FR-AUD-07\nsearches the POV's `never_says` in the draft and reports invariant 9 as `reviewable`\n(Decision 13) - the POV only, because that is the character whose interiority and speech\nthe scene is actually written in.\n\n**Failure mode** (`definitions.md` VoiceProfile): describing a voice with adjectives -\n\"ironic, dry\" - instead of samples. Adjectives are not imitable: two models, or the same\nmodel twice, will read \"dry\" differently, and neither reading can be compared with the\nother. `sample` is imitable, which is why it carries most of the weight here.",
+  "properties": {
+    "body": {
+      "description": "The Markdown body: anything about the voice that the fields above cannot hold, including longer passages of speech in context.",
+      "title": "Body",
+      "type": "string"
+    },
+    "id": {
+      "description": "The character this voice belongs to; the same id as the dossier.",
+      "maxLength": 120,
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9_-]*$",
+      "title": "Id",
+      "type": "string"
+    },
+    "never_says": {
+      "description": "Words and turns of phrase this character never uses. The most useful field in the record, and the only one a check can run over: FR-AUD-07 searches it in the draft for the POV (invariant 9, `reviewable`, Decision 13).",
+      "items": {
+        "type": "string"
+      },
+      "title": "Never Says",
+      "type": "array"
+    },
+    "own_lexicon": {
+      "description": "Words only this person uses. The positive half of the profile, and the weaker half: it suggests rather than constrains.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Own Lexicon",
+      "type": "array"
+    },
+    "sample": {
+      "description": "Canonical lines of dialogue to imitate directly - six or so, per `definitions.md`. This is what replaces adjectives.",
+      "title": "Sample",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "syntax": {
+      "description": "Long or clipped, subordinated or flat, with or without ellipsis: the shape of the sentences, not their content.",
+      "title": "Syntax",
+      "type": "string"
+    },
+    "under_pressure": {
+      "description": "How the voice degrades when control is lost. Stated in advance, because under pressure is exactly where an improvised voice reverts to the model's own.",
+      "title": "Under Pressure",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "syntax",
+    "under_pressure",
+    "sample",
+    "body"
+  ],
+  "title": "VoiceProfile",
+  "type": "object"
+}

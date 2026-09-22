@@ -1,0 +1,100 @@
+{
+  "$defs": {
+    "Setup": {
+      "additionalProperties": false,
+      "description": "DR-05. One promise made to the reader, and how it stands.\n\n`definitions.md` Setup/Payoff calls these explicit pairs carrying an open obligation.\nThe obligation is the point: a detail that merely appears is not a setup, and a setup\nthat is never collected is not a mystery, it is a loose end. `promise` therefore records\nwhat the *reader* now expects rather than what was planted, because that is the thing\ninvariant 2 asks about at the last scene.\n\n**Failure mode** (`definitions.md`): not distinguishing deliberate abandonment from\nforgetting. The two look identical on disk unless the decision is written down, so a\nchecker without `resolution` reports every unpaid promise, including the ones a writer\ndropped on purpose. That is noise, and noisy checkers get ignored - which costs more\nthan the check was ever worth, because a silenced invariant 2 is how a novel reaches its\nlast chapter still owing the reader an answer.\n\n`due_by` is required for the same reason `max_latency` is required on a thread: an open\ndebt with no deadline can never be late, so nothing ever reports it. With a deadline,\nFR-AUD-02 can say that a setup due at or before the current scene is still open, and\nescalate that from `reviewable` to `blocking` at the last scene.\n\n**FR-OPS-03** defines *open* as `paid_in` and `resolution` both empty, with `planted_in`\nat or before the story time being assembled. Open setups are offered to the writer under\na *may collect* label, never as an instruction to pay a specific one: the writer decides\nwhether this scene is where a debt comes due, and an assembler that instructed instead of\noffering would be planning the novel from inside the context window.",
+      "properties": {
+        "due_by": {
+          "description": "Latest scene at which it can still be collected. Required (DR-05): a debt with no deadline is never late and so is never reported.",
+          "pattern": "^\\d{3}$",
+          "title": "Due By",
+          "type": "string"
+        },
+        "id": {
+          "description": "Stable identifier for the debt; the backend never renames.",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "paid_in": {
+          "anyOf": [
+            {
+              "pattern": "^\\d{3}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Scene where it was collected; empty while the debt remains open.",
+          "title": "Paid In"
+        },
+        "planted_in": {
+          "description": "Scene where the promise is made to the reader.",
+          "pattern": "^\\d{3}$",
+          "title": "Planted In",
+          "type": "string"
+        },
+        "promise": {
+          "description": "What the reader now expects - the expectation, not the detail that created it; a promise nobody could state is one nobody can check as paid.",
+          "minLength": 1,
+          "title": "Promise",
+          "type": "string"
+        },
+        "resolution": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SetupResolution"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "`paid`, `subverted` or `deliberately_abandoned`; optional while `paid_in` is empty. `deliberately_abandoned` is a decision on record, not a forgotten promise."
+        }
+      },
+      "required": [
+        "id",
+        "planted_in",
+        "promise",
+        "due_by"
+      ],
+      "title": "Setup",
+      "type": "object"
+    },
+    "SetupResolution": {
+      "description": "DR-05. How a reader debt was closed.\n\n`deliberately_abandoned` is what separates a decision from a forgotten promise. Without\nit the checker reports noise, and noisy checkers get ignored.",
+      "enum": [
+        "paid",
+        "subverted",
+        "deliberately_abandoned"
+      ],
+      "title": "SetupResolution",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "DR-05, DR-10. The whole of `ledger/setups.yaml`.\n\nOne file for the book rather than one per scene: a debt is planted in one scene and paid\nin another, so it belongs to neither, and splitting it by `planted_in` would put the\nhalf-written history of every promise in a different place from the question being asked.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "setups": {
+      "description": "Every reader debt, open and closed; FR-OPS-03 offers the open ones to the writer and FR-AUD-02 reports those past `due_by`.",
+      "items": {
+        "$ref": "#/$defs/Setup"
+      },
+      "title": "Setups",
+      "type": "array"
+    }
+  },
+  "title": "SetupsFile",
+  "type": "object"
+}

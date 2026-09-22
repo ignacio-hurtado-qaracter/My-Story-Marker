@@ -1,0 +1,106 @@
+{
+  "$defs": {
+    "FactionStance": {
+      "additionalProperties": false,
+      "description": "One faction's relation to another, dated to the scene where it took this shape.\n\nDated for the same reason a relationship valence is: a stance stated once is a fact about\nthe setting, while a stance with a scene attached is a fact about the story, and only the\nsecond can change later without becoming a contradiction.",
+      "properties": {
+        "faction": {
+          "description": "The other faction this stance is directed at.",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "title": "Faction",
+          "type": "string"
+        },
+        "since": {
+          "anyOf": [
+            {
+              "pattern": "^\\d{3}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Scene from which the stance holds; `None` when it predates page one.",
+          "title": "Since"
+        },
+        "stance": {
+          "description": "What this faction is to that one: allied, at war, dependent, infiltrated.",
+          "minLength": 1,
+          "title": "Stance",
+          "type": "string"
+        }
+      },
+      "required": [
+        "faction",
+        "stance"
+      ],
+      "title": "FactionStance",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "DR-01, DR-02, DR-10. One collective agent: `canon/factions/<id>.md`.\n\nA faction exists so that pressure on the characters has an origin and a direction. The\nsplit between `wants` and `actual_goal` is what makes it usable: a faction whose stated\ngoal is its real one can only ever do what it says, and nothing it does can surprise.\n\n**Failure mode** (`definitions.md` Faction): monolithic factions. With no internal dissent\nthey generate no scenes, only geopolitical scenery - there is nobody inside to disagree\nwith, so every encounter with them is an encounter with a weather system. `register` is\nwhere the internal texture starts, and it feeds the lexicon: a term's `used_by` is what\nkeeps that jargon in this faction's mouths and out of everyone else's.",
+  "properties": {
+    "actual_goal": {
+      "description": "What it is actually after. The gap between this and `wants` is where its scenes come from; equal to `wants` only for a faction that never lies.",
+      "title": "Actual Goal",
+      "type": "string"
+    },
+    "body": {
+      "description": "The Markdown body, including the internal dissent that keeps the faction from being scenery.",
+      "title": "Body",
+      "type": "string"
+    },
+    "id": {
+      "description": "Stable identifier; the file is named after it and the index keys a row on it.",
+      "maxLength": 120,
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9_-]*$",
+      "title": "Id",
+      "type": "string"
+    },
+    "register": {
+      "description": "How its members speak; feeds the lexicon and the voice profiles.",
+      "title": "Register",
+      "type": "string"
+    },
+    "resources": {
+      "description": "What it can mobilise, and how fast. A threat with no stated reach can be neither escaped nor outrun in any checkable way.",
+      "title": "Resources",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "stance": {
+      "description": "Relations to other factions, each dated to the scene it holds from.",
+      "items": {
+        "$ref": "#/$defs/FactionStance"
+      },
+      "title": "Stance",
+      "type": "array"
+    },
+    "wants": {
+      "description": "The stated goal: what it says in public it is trying to achieve.",
+      "minLength": 1,
+      "title": "Wants",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "wants",
+    "actual_goal",
+    "resources",
+    "register",
+    "body"
+  ],
+  "title": "Faction",
+  "type": "object"
+}

@@ -1,0 +1,103 @@
+{
+  "$defs": {
+    "Certainty": {
+      "description": "DR-04. Five values, not a boolean.\n\n`believes_falsely` is the one that earns the enum: without it you cannot write deception\nor dramatic irony at all, which is the failure mode `definitions.md` names for\nKnowledgeState.",
+      "enum": [
+        "unaware",
+        "suspects",
+        "believes",
+        "knows",
+        "believes_falsely"
+      ],
+      "title": "Certainty",
+      "type": "string"
+    },
+    "KnowledgeState": {
+      "additionalProperties": false,
+      "description": "DR-04. One character's standing on one fact, anchored to the scene that created it.\n\n`definitions.md` calls this the highest-value entity in the system, and the reason is\narithmetic rather than sentiment: most serious continuity errors in a long novel are\ncharacters who know something they could not yet have learned. Every other entity can\nbe wrong in a way a reader forgives; this one cannot.\n\n**Failure mode: modelling it as a boolean.** A `knows: bool` collapses five distinct\nstates into two, and the one it destroys first is `believes_falsely` - which is not a\ndegraded `knows` but the opposite dramatic device. Without it you cannot write\ndeception, and you cannot write dramatic irony at all, because both consist precisely\nof a character holding a confident belief the reader knows to be false. `suspects` and\n`believes` are the graduations between, and `via` records how the state was reached, so\nthat a fact a character deduced can be told apart from one they were told - the\ndifference between a deduction that can be wrong and a lie that was planted.\n\n**FR-OPS-01.** `dossier(character, at=T)` includes a row only when the scene named by\n`acquired_in` has `story_time <= T`. The filtering is done on the *scene's* story time,\nnot on any field here, which is why `acquired_in` is a scene id and not a timestamp: a\nscene can be re-dated on the story axis without every knowledge row having to be\nrewritten behind it.",
+      "properties": {
+        "acquired_in": {
+          "description": "Scene where the state was reached; before it, the character is unaware.",
+          "pattern": "^\\d{3}$",
+          "title": "Acquired In",
+          "type": "string"
+        },
+        "certainty": {
+          "$ref": "#/$defs/Certainty",
+          "description": "One of the five values; never a boolean (DR-04, AC 5)."
+        },
+        "character": {
+          "description": "Whose knowledge this is.",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "title": "Character",
+          "type": "string"
+        },
+        "fact_ref": {
+          "description": "The canon entity this state is held about.",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "title": "Fact Ref",
+          "type": "string"
+        },
+        "may_tell": {
+          "description": "Characters this one is socially free to disclose the fact to; empty means no constraint has been recorded, not that disclosure is forbidden.",
+          "items": {
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "type": "string"
+          },
+          "title": "May Tell",
+          "type": "array"
+        },
+        "via": {
+          "$ref": "#/$defs/Via",
+          "description": "How it was acquired: witnessed, was told, deduced, suspects."
+        }
+      },
+      "required": [
+        "character",
+        "fact_ref",
+        "acquired_in",
+        "via",
+        "certainty"
+      ],
+      "title": "KnowledgeState",
+      "type": "object"
+    },
+    "Via": {
+      "description": "DR-04. How the knowledge was acquired.",
+      "enum": [
+        "witnessed",
+        "was_told",
+        "deduced",
+        "suspects"
+      ],
+      "title": "Via",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "DR-04, DR-10. The whole of `cast/{id}/knowledge.yaml`.\n\nThe rows are not keyed by `fact_ref`, because a character can hold successive states on\nthe same fact - `suspects` at scene 012, `knows` at scene 031 - and a mapping would\nforce the earlier one out. A list keeps the history that FR-OPS-01 reads as-of.",
+  "properties": {
+    "knowledge": {
+      "description": "Every recorded state for this character, in no significant order; as-of queries order by the story time of `acquired_in`.",
+      "items": {
+        "$ref": "#/$defs/KnowledgeState"
+      },
+      "title": "Knowledge",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "title": "KnowledgeFile",
+  "type": "object"
+}

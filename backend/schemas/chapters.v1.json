@@ -1,0 +1,102 @@
+{
+  "$defs": {
+    "Chapter": {
+      "additionalProperties": false,
+      "description": "One chapter of `structure/chapters.yaml`: the container the reader actually meets.\n\n`scenes` is in discourse order, because a chapter is a unit of reading: it is the order\nthe reader receives, not the order the world happened in, and the two differ the moment\nthe book contains a single flashback. The scene records carry `story_time` for the axis\nevery invariant runs over.",
+      "properties": {
+        "active_threads": {
+          "description": "Plot lines that advance here. Thread ids from `ledger/threads.yaml`, so invariant 10 can ask how long it has been since one of them was touched.",
+          "items": {
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "type": "string"
+          },
+          "title": "Active Threads",
+          "type": "array"
+        },
+        "arc": {
+          "description": "The arc this chapter belongs to. Recorded here rather than as a list on the arc, so that moving a chapter is one edit and cannot leave a stale membership.",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "title": "Arc",
+          "type": "string"
+        },
+        "budget": {
+          "description": "Words assigned; this is what controls global pacing. The sum of the parts is what keeps act two from eating the book.",
+          "minimum": 0,
+          "title": "Budget",
+          "type": "integer"
+        },
+        "function": {
+          "description": "What must have changed by the end of it. The dramatic job of the container, stated as an outcome rather than as a summary of its contents.",
+          "minLength": 1,
+          "title": "Function",
+          "type": "string"
+        },
+        "id": {
+          "description": "Stable identifier; scenes and chapters point at it and the backend never renames (DR-08).",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "scenes": {
+          "description": "The scenes of this chapter, in discourse order: the order the reader meets them, which is the axis tension is designed on.",
+          "items": {
+            "pattern": "^\\d{3}$",
+            "type": "string"
+          },
+          "title": "Scenes",
+          "type": "array"
+        },
+        "target_tension_in": {
+          "description": "Target tension on entry, 0-10.",
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Target Tension In",
+          "type": "integer"
+        },
+        "target_tension_out": {
+          "description": "Target tension on exit, 0-10. Equal to `target_tension_in` means the container is designed to leave the reader exactly where it found them.",
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Target Tension Out",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "function",
+        "budget",
+        "target_tension_in",
+        "target_tension_out",
+        "arc"
+      ],
+      "title": "Chapter",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "DR-10. The whole of `structure/chapters.yaml`.\n\nKept in one file with the same reasoning as the arcs, and with one of its own: the\nchapter list is what the discourse order of the book *is*, and a question about that\norder is a question about all of them at once.",
+  "properties": {
+    "chapters": {
+      "description": "Every chapter of the book, each naming its arc and its scenes in discourse order.",
+      "items": {
+        "$ref": "#/$defs/Chapter"
+      },
+      "title": "Chapters",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "title": "ChaptersFile",
+  "type": "object"
+}

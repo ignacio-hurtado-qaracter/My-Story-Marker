@@ -1,0 +1,138 @@
+{
+  "$defs": {
+    "Evidence": {
+      "additionalProperties": false,
+      "description": "DR-07. A quotation and where it is, so a violation can be pointed at rather than\nargued about.",
+      "properties": {
+        "offset": {
+          "description": "Character offset of the quote in the draft.",
+          "minimum": 0,
+          "title": "Offset",
+          "type": "integer"
+        },
+        "quote": {
+          "description": "The offending text, verbatim.",
+          "minLength": 1,
+          "title": "Quote",
+          "type": "string"
+        }
+      },
+      "required": [
+        "quote",
+        "offset"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "Severity": {
+      "description": "DR-07. Only `blocking` stops a turn; the rest are reported and carried.",
+      "enum": [
+        "blocking",
+        "reviewable",
+        "note"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "Violation": {
+      "additionalProperties": false,
+      "description": "DR-07. One breach of a domain invariant, reported and not repaired.\n\n**Failure mode** (`architecture.md` Violation): letting the auditor self-correct. An\nauditor with a write into the prose trims precisely the living details that made the\nscene work, because those are exactly the ones that deviate from the plan - the\nunplanned gesture, the line nobody outlined. So this record is a report: it names the\ninvariant, quotes the offending text and stops. Only a human sets `resolution`, through\nthe auditor's route with `X-Actor: human`, and the prose or canon edit that follows goes\nthrough the role that owns that path.\n\n`evidence` is what makes the report arguable rather than assertable. A finding that says\n\"the timeline is wrong\" cannot be checked, agreed with or dismissed; a quote with its\noffset can be looked at, and a wrong one can be shown to be wrong. That matters most for\nthe model-backed half of the audit, where the finding is a judgement and the quote is the\nonly thing anchoring it to the page.\n\n`source` tells the mechanical checks apart from the model. FR-AUD-09 reports the model\nhalf as `skipped` when it fails, so a reader must be able to see which half produced a\nfinding and, by absence, which half never ran. Reading a silent audit as a pass is the\nerror the pair of fields exists to prevent.\n\n**FR-OPS-03.** A violation with a `resolution` set has left the working tier and never\nenters a context again: it is settled, and carrying it forward would spend budget on a\nquestion already answered.",
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/Evidence",
+          "description": "The offending text and its offset, so the finding is pointed at rather than argued about."
+        },
+        "id": {
+          "description": "Stable identifier; the turn record names violations by it.",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "invariant": {
+          "description": "Which of the ten domain invariants of `definitions.md` broke, by number.",
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Invariant",
+          "type": "integer"
+        },
+        "resolution": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ViolationResolution"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "`fix_prose`, `fix_canon` or `accept_with_reason`; set only by a human. Once set, the violation leaves the working tier (FR-OPS-03)."
+        },
+        "scene": {
+          "description": "The scene whose draft or record breaches the invariant.",
+          "pattern": "^\\d{3}$",
+          "title": "Scene",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity",
+          "description": "`blocking`, `reviewable` or `note`. Only `blocking` stops a turn; the revise step receives the blocking ones and nothing else (FR-AGENT-02)."
+        },
+        "source": {
+          "$ref": "#/$defs/ViolationSource",
+          "description": "`mechanical` or `model`. FR-AUD-09 reports the model half as `skipped` on failure, so absence of a finding is never mistaken for a pass."
+        }
+      },
+      "required": [
+        "id",
+        "scene",
+        "invariant",
+        "evidence",
+        "severity",
+        "source"
+      ],
+      "title": "Violation",
+      "type": "object"
+    },
+    "ViolationResolution": {
+      "description": "DR-07. What a human decided to do about a violation.\n\nThe auditor never sets this: it reports and does not repair (AC 16). It is written\nthrough `PUT /ledger/violations` by a human acting as the auditor with `X-Actor: human`,\nwhich is the dotted escalate-ruling edge of Figure 1.",
+      "enum": [
+        "fix_prose",
+        "fix_canon",
+        "accept_with_reason"
+      ],
+      "title": "ViolationResolution",
+      "type": "string"
+    },
+    "ViolationSource": {
+      "description": "DR-07. Mechanical checks and the model-backed auditor are told apart on the record,\nbecause FR-AUD-09 reports the model half as `skipped` when it fails and a reader has to\nbe able to see which half produced a finding.",
+      "enum": [
+        "mechanical",
+        "model"
+      ],
+      "title": "ViolationSource",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "DR-07, DR-10. The whole of `ledger/violations.yaml`.\n\nThe auditor's single writable path (Figure 3), which is what makes \"the auditor reports\nand does not repair\" checkable rather than merely intended. Roles hand work to each other\nthrough the stores (FR-AGENT-11): `revise` reads the blocking violations back from this\nfile after the auditor's write has landed, not from memory.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "violations": {
+      "description": "Every violation reported against the manuscript, open and resolved; the resolved ones stay as history and never enter a context.",
+      "items": {
+        "$ref": "#/$defs/Violation"
+      },
+      "title": "Violations",
+      "type": "array"
+    }
+  },
+  "title": "ViolationsFile",
+  "type": "object"
+}

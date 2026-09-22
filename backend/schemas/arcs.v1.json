@@ -1,0 +1,84 @@
+{
+  "$defs": {
+    "Arc": {
+      "additionalProperties": false,
+      "description": "One arc of `structure/arcs.yaml`: the largest container, and pure plan.\n\nIt holds no list of its own members. A chapter names its `arc`, so the membership is\nrecorded once, on the side that changes when a chapter moves - reordering the book then\ncannot leave an arc claiming a chapter that has left it.",
+      "properties": {
+        "active_threads": {
+          "description": "Plot lines that advance here. Thread ids from `ledger/threads.yaml`, so invariant 10 can ask how long it has been since one of them was touched.",
+          "items": {
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "type": "string"
+          },
+          "title": "Active Threads",
+          "type": "array"
+        },
+        "budget": {
+          "description": "Words assigned; this is what controls global pacing. The sum of the parts is what keeps act two from eating the book.",
+          "minimum": 0,
+          "title": "Budget",
+          "type": "integer"
+        },
+        "function": {
+          "description": "What must have changed by the end of it. The dramatic job of the container, stated as an outcome rather than as a summary of its contents.",
+          "minLength": 1,
+          "title": "Function",
+          "type": "string"
+        },
+        "id": {
+          "description": "Stable identifier; scenes and chapters point at it and the backend never renames (DR-08).",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "target_tension_in": {
+          "description": "Target tension on entry, 0-10.",
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Target Tension In",
+          "type": "integer"
+        },
+        "target_tension_out": {
+          "description": "Target tension on exit, 0-10. Equal to `target_tension_in` means the container is designed to leave the reader exactly where it found them.",
+          "maximum": 10,
+          "minimum": 0,
+          "title": "Target Tension Out",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "function",
+        "budget",
+        "target_tension_in",
+        "target_tension_out"
+      ],
+      "title": "Arc",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "DR-10. The whole of `structure/arcs.yaml`.\n\nOne file for the book's arcs: they are few, they are read together whenever the shape of\nthe novel is in question, and a per-arc file would buy nothing but a directory walk.",
+  "properties": {
+    "arcs": {
+      "description": "Every arc of the book. Empty is a legitimate state for a project whose structure has not been planned yet.",
+      "items": {
+        "$ref": "#/$defs/Arc"
+      },
+      "title": "Arcs",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "title": "ArcsFile",
+  "type": "object"
+}

@@ -1,0 +1,65 @@
+{
+  "$defs": {
+    "DigestLevel": {
+      "description": "DR-11. Only `chapter` is indexed for retrieval (FR-IDX-02).",
+      "enum": [
+        "scene",
+        "chapter",
+        "arc"
+      ],
+      "title": "DigestLevel",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "DR-11. The whole of `manuscript/digests/NNN.md`: what one scene, chapter or arc changed.\n\n`povs` is not a credit list, it is the filter, and it is the reason this record can be\nput in front of a writer at all. FR-OPS-03 labels a digest whose `povs` does not\ninclude the scene's POV as events the POV did not witness, so the field decides whether\nwhat it says arrives as something the POV knows or as something that merely happened.\nA name wrongly present in `povs` hands the POV knowledge nobody gave them, which is\ninvariant 1 broken by bookkeeping rather than by the prose; a name wrongly absent loses\na thread the POV lived through. The assembler has nothing else to go on: it never reads\nthe prose the digest was made from.\n\n`level` decides how the digest travels. Only **chapter** level is indexed for retrieval\n(FR-IDX-02); scene- and arc-level digests exist and are read by reference, but they are\nnot rows in the entity index, so a scene digest is never selected into a context by\nranking. A chapter digest is loaded only when every scene it covers is at or before the\nstory time being assembled, which is why `scene_ref` must state the whole range covered\nand not merely where the digest starts.\n\n**Failure mode** (`architecture.md` SceneDigest): treating the digest as canon. A digest\nrecords what the prose *said*; whether that becomes true of the world is decided by\n`promote`, not by summarisation. It is derived, regenerable and never authoritative.",
+  "properties": {
+    "delta": {
+      "description": "What changed in the world, who learned what, which setups were paid. The compressed content itself, not a pointer to it.",
+      "title": "Delta",
+      "type": "string"
+    },
+    "level": {
+      "$ref": "#/$defs/DigestLevel",
+      "description": "`scene`, `chapter` or `arc`. Only `chapter` is indexed (FR-IDX-02)."
+    },
+    "povs": {
+      "description": "Whose scenes are covered. FR-OPS-03 filters by it: a digest that does not name the assembling scene's POV is labelled as events the POV did not witness.",
+      "items": {
+        "maxLength": 120,
+        "minLength": 1,
+        "pattern": "^[a-z0-9][a-z0-9_-]*$",
+        "type": "string"
+      },
+      "title": "Povs",
+      "type": "array"
+    },
+    "scene_ref": {
+      "description": "The scene this summarises, as a `NNN` scene id; at chapter and arc level, the range of scenes covered. Not a `SceneId`, because a range is not one scene.",
+      "minLength": 1,
+      "title": "Scene Ref",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "words": {
+      "description": "Length of `delta`, derived on write: roughly 100 at scene level, 250 at chapter, 400 at arc. The turn records it against its level target.",
+      "minimum": 0,
+      "title": "Words",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "scene_ref",
+    "level",
+    "povs",
+    "delta",
+    "words"
+  ],
+  "title": "SceneDigest",
+  "type": "object"
+}

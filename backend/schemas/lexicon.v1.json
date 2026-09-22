@@ -1,0 +1,108 @@
+{
+  "$defs": {
+    "CanonicalTerm": {
+      "additionalProperties": false,
+      "description": "DR-09. One neologism, proper noun or piece of jargon, in its exact form.\n\n**Failure mode** (`definitions.md` CanonicalTerm): registering the term but not the set\nof wrong forms. The right spelling alone tells a checker nothing - it cannot know which\nof the thousand strings in a draft were meant to be this term and came out wrong. With\n`forbidden_variants` the check exists and is trivial: FR-AUD-05 is a case-insensitive\nsearch of every variant in the draft, and its evidence is the quote and its offset. With\nan empty list the term is simply unchecked, which is why DR-09 asks for the field to be\npresent rather than merely allowed: an empty list is a visible decision, a missing key\nis an oversight nobody sees.\n\n`plural` and `gender` are decided here rather than improvised in a scene, because a\nneologism pluralised two ways in one chapter reads as two words.\n\n**`used_by` is what binds a term into a context.** FR-OPS-03 loads the lexicon through\nit: a term enters the writer's context when one of the entities already loaded for the\nscene is in this list. It is therefore not a note about who happens to say the word - it\nis the rule that nobody else says it, and the mechanism by which jargon stays with the\nfaction it belongs to instead of leaking into every mouth in the book.",
+      "properties": {
+        "canonical_form": {
+          "description": "The single definitive spelling; everything else about the term hangs on it.",
+          "minLength": 1,
+          "title": "Canonical Form",
+          "type": "string"
+        },
+        "forbidden_variants": {
+          "description": "The wrong forms FR-AUD-05 searches for, case-insensitively. Present always (DR-09); empty means the term is deliberately unchecked.",
+          "items": {
+            "type": "string"
+          },
+          "title": "Forbidden Variants",
+          "type": "array"
+        },
+        "gender": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Grammatical gender where the language needs it; `None` when it does not.",
+          "title": "Gender"
+        },
+        "id": {
+          "description": "Stable identifier for the term; the index keys a row on it.",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "plural": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The plural, decided in advance; `None` when the term has none.",
+          "title": "Plural"
+        },
+        "pronunciation": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "How it is said, to keep the cadence stable when the prose is read aloud.",
+          "title": "Pronunciation"
+        },
+        "used_by": {
+          "description": "Characters and factions that use the term; nobody else says it, and FR-OPS-03 loads the term into a scene through this list.",
+          "items": {
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "type": "string"
+          },
+          "title": "Used By",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "canonical_form"
+      ],
+      "title": "CanonicalTerm",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "DR-09, DR-10. The whole of `canon/lexicon.yaml`.\n\nOne file for the project's whole vocabulary, not one per term: the checker runs every\nvariant over every draft, so splitting it would buy nothing and cost a directory walk.\nThe index still stores one row per term (plan step 9), which is what makes a term\nretrievable on its own.",
+  "properties": {
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "terms": {
+      "description": "Every registered term; empty is a legitimate state for a project that has not coined anything yet.",
+      "items": {
+        "$ref": "#/$defs/CanonicalTerm"
+      },
+      "title": "Terms",
+      "type": "array"
+    }
+  },
+  "title": "LexiconFile",
+  "type": "object"
+}

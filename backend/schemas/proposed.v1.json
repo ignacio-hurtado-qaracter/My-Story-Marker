@@ -1,0 +1,170 @@
+{
+  "$defs": {
+    "FactStatus": {
+      "description": "DR-07. A proposed fact is pending until the canoniser acts on it.",
+      "enum": [
+        "pending",
+        "promoted",
+        "rejected"
+      ],
+      "title": "FactStatus",
+      "type": "string"
+    },
+    "ProposedFact": {
+      "additionalProperties": false,
+      "description": "DR-07. A detail invented mid-draft, queued for review before it can reach canon.\n\n`architecture.md` calls this the entity most systems omit, and its absence is why details\nget lost and contradicted thirty chapters later. Prose invents constantly - a ship's\nname, a rank, the colour of a uniform - and none of it is in canon at the moment it is\nwritten. Without a queue the invention either vanishes, and the next scene invents\nsomething else, or it is written straight into canon by whatever produced it.\n\n**Failure mode** (`architecture.md`): automatic promotion with no review. Canon fills\nwith improvised noise and stops being authoritative, at which point it is no longer worth\nconsulting - and a canon nobody consults is a canon that constrains nothing, which is the\nwhole system failing quietly rather than loudly.\n\n**FR-OPS-06.** `promote` never overwrites. When `target_entity.target_field` already\nholds a different value it sets `conflict`, records `existing_value`, leaves `status`\npending and returns an `Escalation`; nothing on disk changes. The collision is the\ninteresting case precisely because it is where a machine would have to guess which of two\ntruths the novel holds, and that guess is not the canoniser's to make.\n\n**FR-OPS-07.** Only `rule`, under the canoniser role with `actor: human`, resolves one:\n`accept` promotes despite the collision, `reject` marks the fact rejected, and either way\nthe decision and its reason are recorded in `ruling`. This is the human gate of\n`verification.md`, and the reason it is a field rather than a log line is that the next\nreader of this record needs to see who decided and why, not merely that something did.",
+      "properties": {
+        "conflict": {
+          "default": false,
+          "description": "Set by `promote` when the target already holds a different value. It is never cleared by code; only a human ruling settles it (FR-OPS-07).",
+          "title": "Conflict",
+          "type": "boolean"
+        },
+        "existing_value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "What the target already held, recorded at the moment of collision so the human ruling compares two stated values rather than one and a memory.",
+          "title": "Existing Value"
+        },
+        "extracted_from": {
+          "description": "The source draft the assertion was read out of, so a promotion can be traced back to the prose that claimed it.",
+          "minLength": 1,
+          "title": "Extracted From",
+          "type": "string"
+        },
+        "id": {
+          "description": "Stable identifier; turn records name facts by it.",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "payload": {
+          "description": "The asserted value, as the prose has it.",
+          "minLength": 1,
+          "title": "Payload",
+          "type": "string"
+        },
+        "ruling": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Ruling"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "The human decision, with who, why and when; empty until `rule` is called."
+        },
+        "source_scene": {
+          "description": "The scene whose turn produced the assertion; dates it on the story axis through the scene record.",
+          "pattern": "^\\d{3}$",
+          "title": "Source Scene",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/FactStatus",
+          "default": "pending",
+          "description": "`pending`, `promoted` or `rejected`. Pending is the default because nothing becomes canon without an act (FR-OPS-06)."
+        },
+        "target_entity": {
+          "description": "The canon or cast record it would attach to.",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "title": "Target Entity",
+          "type": "string"
+        },
+        "target_field": {
+          "description": "The field on that record the `payload` would fill; with `target_entity` it is the address a collision is detected at.",
+          "minLength": 1,
+          "title": "Target Field",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "extracted_from",
+        "target_entity",
+        "target_field",
+        "payload",
+        "source_scene"
+      ],
+      "title": "ProposedFact",
+      "type": "object"
+    },
+    "Ruling": {
+      "additionalProperties": false,
+      "description": "DR-07, FR-OPS-07. The human decision recorded on a proposed fact.",
+      "properties": {
+        "at": {
+          "description": "ISO-8601 timestamp of the ruling.",
+          "minLength": 1,
+          "title": "At",
+          "type": "string"
+        },
+        "by": {
+          "description": "Who ruled.",
+          "minLength": 1,
+          "title": "By",
+          "type": "string"
+        },
+        "reason": {
+          "description": "Why; a ruling without one is unreviewable.",
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "ruling": {
+          "$ref": "#/$defs/RulingKind"
+        }
+      },
+      "required": [
+        "by",
+        "ruling",
+        "reason",
+        "at"
+      ],
+      "title": "Ruling",
+      "type": "object"
+    },
+    "RulingKind": {
+      "description": "FR-OPS-07. The human decision on a collision, and the only way one is resolved.",
+      "enum": [
+        "accept",
+        "reject"
+      ],
+      "title": "RulingKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "DR-07, DR-10. The whole of `ledger/proposed.yaml`.\n\nThe one store two roles append to: the writer proposes its own inventions as it drafts,\nand the canoniser adds what `extract_facts` finds in the accepted draft. FR-TURN-03 keeps\nthe writer's proposals from every iteration, including the ones whose draft was revised\naway, because a rejected draft can still have invented a good name for something.\n\nFacts are kept after they are promoted or rejected rather than removed: the record of\nwhat was refused, and why, is what stops the same invention being proposed and argued\nabout again twenty scenes later.",
+  "properties": {
+    "proposed": {
+      "description": "The whole queue, pending and settled; FR-TURN-04 promotes the pending non-colliding ones before the turn returns.",
+      "items": {
+        "$ref": "#/$defs/ProposedFact"
+      },
+      "title": "Proposed",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "title": "ProposedFile",
+  "type": "object"
+}

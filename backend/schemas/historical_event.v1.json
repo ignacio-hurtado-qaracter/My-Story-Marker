@@ -1,0 +1,62 @@
+{
+  "additionalProperties": false,
+  "description": "DR-01, DR-02, DR-10. One fact predating page one: `canon/history/<id>.md`.\n\nWhat distinguishes it from a scene beat is that nobody witnesses it on the page: it is\nonly remembered, argued about, or lied about. `date` is therefore in the same hours since\n`epoch_zero` as a scene's `story_time`, normally negative, and the event reaches a scene\nonly through somebody who holds a version of it.\n\n**Failure mode** (`definitions.md` HistoricalEvent): a single version. Without the gap\nbetween `official_version` and `actual_version` the past generates no plot - there is\nnothing to discover and nobody is lying, so the event is set dressing rather than\npressure. `actual_version` may never be revealed on the page and still has to be decided\nhere, because the characters who know it speak differently from the ones who do not.",
+  "properties": {
+    "actual_version": {
+      "description": "What actually happened. May never be revealed on the page, and still has to be decided here - the gap between the two versions is the plot the event carries.",
+      "minLength": 1,
+      "title": "Actual Version",
+      "type": "string"
+    },
+    "body": {
+      "description": "The Markdown body: the event at the length a writer needs.",
+      "title": "Body",
+      "type": "string"
+    },
+    "date": {
+      "description": "When it happened, in hours since `epoch_zero`. Negative for anything before the book begins, which is most history.",
+      "title": "Date",
+      "type": "integer"
+    },
+    "id": {
+      "description": "Stable identifier; the file is named after it and the index keys a row on it.",
+      "maxLength": 120,
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9_-]*$",
+      "title": "Id",
+      "type": "string"
+    },
+    "official_version": {
+      "description": "What is said in public: the version a character can repeat without risk.",
+      "minLength": 1,
+      "title": "Official Version",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "who_knows_what": {
+      "description": "Characters holding a position on this event. Their exact certainty and the scene each learnt it in live in `cast/{id}/knowledge.yaml` (DR-04), which is what invariant 1 runs over; this list is the edge, not the state.",
+      "items": {
+        "maxLength": 120,
+        "minLength": 1,
+        "pattern": "^[a-z0-9][a-z0-9_-]*$",
+        "type": "string"
+      },
+      "title": "Who Knows What",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "date",
+    "official_version",
+    "actual_version",
+    "body"
+  ],
+  "title": "HistoricalEvent",
+  "type": "object"
+}

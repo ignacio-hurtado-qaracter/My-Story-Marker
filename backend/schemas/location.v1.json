@@ -1,0 +1,94 @@
+{
+  "$defs": {
+    "LocationAccess": {
+      "additionalProperties": false,
+      "description": "One way into a location, and how long it takes to arrive that way.\n\nThe duration is in the unit `Scene.story_time` is counted in - integer hours since\n`epoch_zero` - because invariant 5 subtracts the two, and a travel time in any other unit\ncould not be compared with them. The authoritative `transit_matrix` lives in\n`canon/time.yaml`, which is what FR-AUD-04 runs over; this field states the same quantity\nwhere a writer reads it, next to the place it applies to.",
+      "properties": {
+        "from": {
+          "description": "The location one can arrive from.",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "title": "From",
+          "type": "string"
+        },
+        "hours": {
+          "description": "Travel time in hours, the unit `story_time` is counted in, so the two can be subtracted directly by the transit check.",
+          "title": "Hours",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "from",
+        "hours"
+      ],
+      "title": "LocationAccess",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "DR-01, DR-02, DR-10. One place: `canon/locations/<id>.md`.\n\nLocations are hierarchical - system, body, settlement, enclosure - and context is\ninherited downward: loading a cabin implies loading its ship and its orbit. FR-OPS-03\ndoes exactly that, walking `parent` upward and loading the whole chain, which is why\n`parent` is a reference rather than a sentence of prose. A scene's `location` is a leaf\nof this tree.\n\n**Failure mode** (`definitions.md` Location): no explicit geometry. Two scenes set in the\nsame room end up with incompatible floor plans - one has a door behind the desk, the next\nhas a window there - and nothing detects it, because neither scene is wrong on its own.\n`geometry` decides the blocking once, for every scene that will ever be set here.",
+  "properties": {
+    "access": {
+      "description": "Where one can arrive from, and how long it takes.",
+      "items": {
+        "$ref": "#/$defs/LocationAccess"
+      },
+      "title": "Access",
+      "type": "array"
+    },
+    "body": {
+      "description": "The Markdown body: the place at the length a writer needs.",
+      "title": "Body",
+      "type": "string"
+    },
+    "geometry": {
+      "description": "What constrains blocking: exits, heights, cover, sightlines. Decided here once, so two scenes in this room cannot contradict each other.",
+      "title": "Geometry",
+      "type": "string"
+    },
+    "id": {
+      "description": "Stable identifier; the file is named after it and the index keys a row on it.",
+      "maxLength": 120,
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9_-]*$",
+      "title": "Id",
+      "type": "string"
+    },
+    "parent": {
+      "anyOf": [
+        {
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "The level above in the hierarchy; `None` only at the root. FR-OPS-03 loads the whole parent chain, so context is inherited downward rather than restated.",
+      "title": "Parent"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "sensory_palette": {
+      "description": "Light, sound, smell, gravity, temperature: what the place is like to be in.",
+      "title": "Sensory Palette",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "sensory_palette",
+    "geometry",
+    "body"
+  ],
+  "title": "Location",
+  "type": "object"
+}

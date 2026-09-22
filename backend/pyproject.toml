@@ -31,6 +31,10 @@ dev = [
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
     "hypothesis==6.168.0",
+    # AC 4 generates round-trip cases from each model's own JSON Schema rather than from
+    # hand-written examples: examples test the shapes the author thought of, the schema is
+    # the contract the store layer is actually handed.
+    "hypothesis-jsonschema==0.23.1",
     "schemathesis==4.27.5",
     "httpx==0.28.1",
     "types-PyYAML==6.0.12.20260906",
@@ -121,7 +125,11 @@ warn_required_dynamic_aliases = true
 # --------------------------------------------------------------------------------------
 
 [tool.bandit]
-exclude_dirs = ["semgrep", ".venv"]
+# Test trees are excluded, not because their content does not matter, but because the
+# only rule that fires there is B101 (`assert` is stripped under `python -O`). That is a
+# statement about production code compiled with optimisations, and a test suite whose
+# assertions bandit objects to is a test suite that would have to stop asserting.
+exclude_dirs = ["semgrep", ".venv", "tests", "*/tests", "*/tests/*"]
 
 # --------------------------------------------------------------------------------------
 # pytest — NFR-09

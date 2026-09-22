@@ -1,0 +1,101 @@
+{
+  "$defs": {
+    "Calendar": {
+      "additionalProperties": false,
+      "description": "DR-09. One culture's way of naming the time that `epoch_zero` counts.\n\nCalendars are presentation, not arithmetic. Nothing in the harness computes with them -\nthe invariants subtract raw hours - so `conversion` is prose stating how this calendar\nrelates to the epoch, for a human and for the writer's context, and is deliberately not\na machine-evaluated expression. Getting a second calendar wrong is a flavour error;\ngetting `epoch_zero` wrong would be an arithmetic one, which is why they are separate.",
+      "properties": {
+        "conversion": {
+          "description": "How it maps to hours since `epoch_zero`, stated for a reader; not evaluated.",
+          "minLength": 1,
+          "title": "Conversion",
+          "type": "string"
+        },
+        "id": {
+          "description": "Stable identifier for the calendar.",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "name": {
+          "description": "What the culture that uses it calls it.",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "conversion"
+      ],
+      "title": "Calendar",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "DR-09, DR-10. The whole of `canon/time.yaml`: origin, calendars, transits, dilation.\n\n**Failure mode** (`definitions.md` TemporalSystem): skipping the transit matrix.\nCharacters then get teleported and nobody can prove it - two scenes an hour apart on\nopposite sides of a system read as fast pacing rather than as an error, and by the time\na reader notices, the chapter between them depends on it. FR-AUD-04 is the check the\nmatrix exists for: for each character it walks consecutive scenes on the story axis and\nrequires `delta story_time >= transit_matrix[from][to]`. Where the pair has no entry it\ncannot conclude anything, so it reports a `note` rather than passing silently - an\nabsent route is an unanswered question, not a permission.\n\nThat is why `epoch_zero` and `transit_matrix` are required (DR-09) while the rest is\noptional. Without the origin the scene integers have no referent; without the matrix\ninvariant 5 does not run at all, and an invariant that does not run is worse than one\nthat fails, because nothing reports its absence.\n\n**`dilation_factor` is carried but not applied.** The v1 transit check compares raw\n`story_time` and ignores this field entirely (plan Residual 3). It is stored so the\ncanon can record the offset between proper and coordinate time where the setting has\none, and so the later spec that makes invariant 5 character-relative finds the data\nalready there. Nobody should read a value here as evidence that a relativistic transit\nhas been checked: in v1 it has not been.",
+  "properties": {
+    "calendars": {
+      "description": "One per culture, with its conversion; presentation only, never arithmetic.",
+      "items": {
+        "$ref": "#/$defs/Calendar"
+      },
+      "title": "Calendars",
+      "type": "array"
+    },
+    "dilation_factor": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Offset between proper and coordinate time. Carried only: the v1 transit check does not apply it (plan Residual 3).",
+      "title": "Dilation Factor"
+    },
+    "epoch_zero": {
+      "description": "The absolute origin every `story_time` is counted from, in hours. Required (DR-09): without it the scene integers refer to nothing.",
+      "minLength": 1,
+      "title": "Epoch Zero",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "transit_matrix": {
+      "additionalProperties": {
+        "additionalProperties": {
+          "type": "integer"
+        },
+        "propertyNames": {
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$"
+        },
+        "type": "object"
+      },
+      "description": "Minimum travel time in hours between pairs of location ids, as `transit_matrix[from][to]`. Required (DR-09); a missing pair makes FR-AUD-04 report a `note`, so an empty matrix checks nothing and says so.",
+      "propertyNames": {
+        "maxLength": 120,
+        "minLength": 1,
+        "pattern": "^[a-z0-9][a-z0-9_-]*$"
+      },
+      "title": "Transit Matrix",
+      "type": "object"
+    }
+  },
+  "required": [
+    "epoch_zero",
+    "transit_matrix"
+  ],
+  "title": "TemporalSystem",
+  "type": "object"
+}

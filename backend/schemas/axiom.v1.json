@@ -1,0 +1,68 @@
+{
+  "additionalProperties": false,
+  "description": "DR-01, DR-02, DR-10. One rule of the universe: `canon/axioms/<id>.md`.\n\nIn science fiction this is the highest-leverage record in the ontology, and invariant 6\nis stated over it: no scene violates an axiom selected for its context. \"Selected\" is\nexact - the axioms in force for a scene are the ones the turn recorded, whether pinned\nthrough the scene's `tags` or retrieved by `select_entities` - and `scope` is the set\na scene's `tags` intersect to pin this one in.\n\n**Failure mode** (`definitions.md` Axiom), in two halves. An axiom with no declared\n`consequences` is the origin of most plot holes: the rule is stated once, nobody derives\nwhat it forbids, and three hundred pages later something impossible happens that no check\ncan name. And an axiom that declares the capability while forgetting the limit drains the\ntension from every scene it touches, because a rule that only permits creates no\nobstacle. `consequences`, `exceptions` and `cost` are what make the rule cost something;\n`exceptions` is closed and enumerated, or they are not exceptions.",
+  "properties": {
+    "body": {
+      "description": "The Markdown body: the rule explained at the length a writer needs.",
+      "title": "Body",
+      "type": "string"
+    },
+    "consequences": {
+      "description": "What necessarily follows, and what becomes impossible. This is what the auditor reasons against for invariant 6; empty means the rule forbids nothing anybody can check.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Consequences",
+      "type": "array"
+    },
+    "cost": {
+      "description": "What it costs to use this. Conflict comes from here: a capability with no price generates no scene.",
+      "title": "Cost",
+      "type": "string"
+    },
+    "exceptions": {
+      "description": "Closed and enumerated. An open-ended exception is not an exception, it is a way for the rule never to apply.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Exceptions",
+      "type": "array"
+    },
+    "id": {
+      "description": "Stable identifier; the file is named after it and the index keys a row on it.",
+      "maxLength": 120,
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9_-]*$",
+      "title": "Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "scope": {
+      "description": "Domain tags. A scene whose `tags` intersect this list pins the axiom into context regardless of ranking (FR-OPS-02), which is how a rule reaches the scene that is about to break it.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Scope",
+      "type": "array"
+    },
+    "statement": {
+      "description": "The rule, phrased positively: what is the case in this universe.",
+      "minLength": 1,
+      "title": "Statement",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "statement",
+    "cost",
+    "body"
+  ],
+  "title": "Axiom",
+  "type": "object"
+}

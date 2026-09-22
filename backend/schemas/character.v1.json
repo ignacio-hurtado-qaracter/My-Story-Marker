@@ -1,0 +1,108 @@
+{
+  "$defs": {
+    "ArcEntry": {
+      "additionalProperties": false,
+      "description": "One state of a character, anchored to the scene it holds from.\n\n**Failure mode** (`definitions.md` Character): an arc written as a prose summary. A\nparagraph of development cannot answer \"where is she at chapter 19?\", and that is the\nonly question the assembler ever asks of an arc: FR-OPS-01 takes the entry anchored to\nthe latest scene with `story_time <= at` and nothing later. A summary has no such entry\nto take, so either the whole arc goes into the context - telling the writer how the\ncharacter will end before she has got there - or none of it does.",
+      "properties": {
+        "scene": {
+          "description": "The scene this state holds from; the anchor FR-OPS-01 orders the arc by.",
+          "pattern": "^\\d{3}$",
+          "title": "Scene",
+          "type": "string"
+        },
+        "state": {
+          "description": "Where the character is at that point: what she now believes, wants or admits that she did not before.",
+          "minLength": 1,
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scene",
+        "state"
+      ],
+      "title": "ArcEntry",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "DR-01, DR-02, DR-10. The whole of `cast/{id}/dossier.md`: identity, body, architecture.\n\nThe *wants / needs / lies* triple is not psychological decoration. `needs` usually\ncontradicts `wants` - the conscious goal is the wrong one - and that contradiction is\nwhat decides which way the character goes at each fork, which is precisely what the\nwriter has to resolve on the page. `lies` is the false belief about the self that keeps\nthe contradiction alive; the arc is the record of it giving way.\n\n`immutable_physical` is the anchor of invariant 3: these attributes do not change without\na registered ChangeEvent in `cast/{id}/changes.yaml`. FR-AGENT-06 checks the prose\nagainst this map, and finds a violation when a physical attribute in the draft differs\nfrom the value here with no ChangeEvent at or before the scene. Without the register, a\nscar that appears in chapter nine and a continuity error look identical on the page.\n\n**A dossier is never loaded whole.** FR-OPS-01 trims it to the instant of the scene: the\narc entry anchored at or before `story_time`, the knowledge rows acquired by then, the\nlatest valence of each relationship dated by then. The trim is not an optimisation. A\nwriter handed the complete record will use facts the character has not yet learned,\nbecause nothing in the text marks them as future - the record reads as true, and\neverything true in the context is fair to write.",
+  "properties": {
+    "arc": {
+      "description": "Successive states, each anchored to a scene. Ordered by the story axis at read time, never assumed sorted on disk.",
+      "items": {
+        "$ref": "#/$defs/ArcEntry"
+      },
+      "title": "Arc",
+      "type": "array"
+    },
+    "body": {
+      "description": "The Markdown body: the character at the length a writer needs, for everything the structured fields above cannot carry.",
+      "title": "Body",
+      "type": "string"
+    },
+    "competences": {
+      "description": "What the character can do. This bounds what she can solve: a problem outside this list has to be solved by somebody else or not at all.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Competences",
+      "type": "array"
+    },
+    "id": {
+      "description": "Stable identifier; it names the `cast/{id}/` directory and keys the index row. The backend never renames (DR-08): renaming breaks every edge pointing here.",
+      "maxLength": 120,
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9_-]*$",
+      "title": "Id",
+      "type": "string"
+    },
+    "immutable_physical": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Attributes that do not change without a registered ChangeEvent (invariant 3). A map because FR-AGENT-06 compares the prose against it key by key, and a ChangeEvent names the key it changed.",
+      "title": "Immutable Physical",
+      "type": "object"
+    },
+    "lies": {
+      "description": "The false belief about the self that sustains the arc, and that the arc is the record of losing.",
+      "title": "Lies",
+      "type": "string"
+    },
+    "name": {
+      "description": "What the character is called in the prose.",
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "needs": {
+      "description": "What is actually missing. Usually contradicts `wants`, and that contradiction is what decides the choice at each fork.",
+      "minLength": 1,
+      "title": "Needs",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "wants": {
+      "description": "The conscious goal pursued in scenes: what the character would say she is doing.",
+      "minLength": 1,
+      "title": "Wants",
+      "type": "string"
+    }
+  },
+  "required": [
+    "id",
+    "name",
+    "wants",
+    "needs",
+    "lies",
+    "body"
+  ],
+  "title": "Character",
+  "type": "object"
+}

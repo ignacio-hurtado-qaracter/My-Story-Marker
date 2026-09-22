@@ -1,0 +1,97 @@
+{
+  "$defs": {
+    "DatedValence": {
+      "additionalProperties": false,
+      "description": "DR-08. One reading of an edge, anchored to the scene that produced it.\n\nThe anchor is a scene rather than a story time for the same reason `KnowledgeState`\nanchors to one: scenes are re-dated on the story axis during planning, and a valence\nthat carried its own timestamp would quietly stop agreeing with the scene it came from.",
+      "properties": {
+        "scene": {
+          "description": "The scene from which this reading holds.",
+          "pattern": "^\\d{3}$",
+          "title": "Scene",
+          "type": "string"
+        },
+        "value": {
+          "description": "Where the edge stands after that scene: -3 to +3.",
+          "maximum": 3,
+          "minimum": -3,
+          "title": "Value",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "scene",
+        "value"
+      ],
+      "title": "DatedValence",
+      "type": "object"
+    },
+    "Relationship": {
+      "additionalProperties": false,
+      "description": "DR-08. What one character feels towards another, and how that has moved.\n\n**Directed on purpose.** A can trust B while B despises A, and that asymmetry is not an\ninconvenience to be averaged away - it is dramatic material, and often the engine of a\nwhole subplot. A symmetric edge would make the two indistinguishable. Two rows are\nwritten when the feeling runs both ways, and they are free to disagree.\n\n**Failure mode: a single valence value instead of a dated series.** A scalar answers\n\"do they get on?\" and nothing else. It cannot answer \"where were they at chapter\nnineteen?\", so there is no queryable evolution, and relationships flatten into fixed\ndispositions - which is precisely what a novel is not about. The dated list is what\nmakes a betrayal legible as a movement rather than an inconsistency.\n\n**FR-OPS-01.** `dossier(character, at=T)` takes the latest entry in `valence` whose\nscene has `story_time <= T`, and nothing later appears. `shared_history` and `unspoken`\nare not dated, so they are read as standing context: `unspoken` in particular is what\nthe pair never say to each other, which by construction has no scene to be dated from.",
+      "properties": {
+        "from": {
+          "description": "The character whose feeling this row records.",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "title": "From",
+          "type": "string"
+        },
+        "shared_history": {
+          "default": "",
+          "description": "Events both remember, possibly differently.",
+          "title": "Shared History",
+          "type": "string"
+        },
+        "to": {
+          "description": "The character it is directed at; never symmetric by default.",
+          "maxLength": 120,
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9_-]*$",
+          "title": "To",
+          "type": "string"
+        },
+        "unspoken": {
+          "default": "",
+          "description": "What is between them and never gets said.",
+          "title": "Unspoken",
+          "type": "string"
+        },
+        "valence": {
+          "description": "Dated series, -3 to +3 per scene; empty means nothing has been recorded yet.",
+          "items": {
+            "$ref": "#/$defs/DatedValence"
+          },
+          "title": "Valence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "from",
+        "to"
+      ],
+      "title": "Relationship",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "DR-08, DR-10. The whole of `cast/relationships.yaml`.\n\nOne file for every edge in the cast. It is not split per character because each edge\nwould then have two homes and one of them would fall behind.",
+  "properties": {
+    "relationships": {
+      "description": "Every directed edge in the cast; both directions of a pair are separate rows and may disagree.",
+      "items": {
+        "$ref": "#/$defs/Relationship"
+      },
+      "title": "Relationships",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    }
+  },
+  "title": "RelationshipsFile",
+  "type": "object"
+}

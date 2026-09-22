@@ -1,0 +1,79 @@
+{
+  "additionalProperties": false,
+  "description": "DR-01, DR-02, DR-10. One artifact or system: `canon/technology/<id>.md`.\n\nA technology derives from one or more axioms and inherits their restrictions, which is\nwhat `derives_from` records: not a citation, but the edge along which an axiom's\n`consequences` reach the machine, so that a rule pinned into a scene also constrains the\ndevices used in it.\n\n`cannot` is the field that actually matters. `can` is easy to write and easy for a model\nto honour; the limits are what make a scene hard, and a technology with an empty `cannot`\nquietly solves every problem the plot has.\n\n**Failure mode** (`definitions.md` Technology): no `sensory` field. The writer improvises\nthe texture each time and the ship sounds different in every chapter - a drift no\ninvariant catches, because nothing about it is false, only inconsistent.",
+  "properties": {
+    "body": {
+      "description": "The Markdown body: the technology at the length a writer needs.",
+      "title": "Body",
+      "type": "string"
+    },
+    "can": {
+      "description": "Capabilities, with magnitudes. A capability without a magnitude is not one.",
+      "minLength": 1,
+      "title": "Can",
+      "type": "string"
+    },
+    "cannot": {
+      "description": "The operating limits: the field that actually matters, because it is what keeps the technology from solving the plot.",
+      "minLength": 1,
+      "title": "Cannot",
+      "type": "string"
+    },
+    "derives_from": {
+      "description": "Axiom ids that license it; their restrictions are inherited here. An empty list is a machine that answers to no rule of the universe.",
+      "items": {
+        "maxLength": 120,
+        "minLength": 1,
+        "pattern": "^[a-z0-9][a-z0-9_-]*$",
+        "type": "string"
+      },
+      "title": "Derives From",
+      "type": "array"
+    },
+    "failure_mode": {
+      "description": "How it breaks and what happens then; where most of its scenes come from.",
+      "title": "Failure Mode",
+      "type": "string"
+    },
+    "id": {
+      "description": "Stable identifier; the file is named after it and the index keys a row on it.",
+      "maxLength": 120,
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9_-]*$",
+      "title": "Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "sensory": {
+      "description": "How it sounds, smells and feels in use, so the texture is decided once rather than improvised per chapter.",
+      "title": "Sensory",
+      "type": "string"
+    },
+    "who_has_it": {
+      "description": "Factions and characters with access. Who does *not* have it is the other half of the same fact, and is read off this list.",
+      "items": {
+        "maxLength": 120,
+        "minLength": 1,
+        "pattern": "^[a-z0-9][a-z0-9_-]*$",
+        "type": "string"
+      },
+      "title": "Who Has It",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "can",
+    "cannot",
+    "failure_mode",
+    "sensory",
+    "body"
+  ],
+  "title": "Technology",
+  "type": "object"
+}
