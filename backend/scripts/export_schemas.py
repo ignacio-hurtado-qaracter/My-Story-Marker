@@ -83,6 +83,41 @@ exported schema, which DR-01 forbids; the test in `tests/test_schema_export.py` 
 makes the omission visible."""
 
 
+DOCUMENT_FORMATS: dict[str, str] = {
+    # Markdown with frontmatter (DR-02): the ones whose prose a model reads for texture.
+    "project": ".md",
+    "style_bible": ".md",
+    "axiom": ".md",
+    "technology": ".md",
+    "faction": ".md",
+    "location": ".md",
+    "historical_event": ".md",
+    "character": ".md",
+    "voice_profile": ".md",
+    "draft": ".md",
+    "scene_digest": ".md",
+    # YAML: the ones that exist to be queried.
+    "lexicon": ".yaml",
+    "temporal_system": ".yaml",
+    "knowledge": ".yaml",
+    "changes": ".yaml",
+    "relationships": ".yaml",
+    "arcs": ".yaml",
+    "chapters": ".yaml",
+    "scene": ".yaml",
+    "setups": ".yaml",
+    "threads": ".yaml",
+    "proposed": ".yaml",
+    "violations": ".yaml",
+}
+"""Which of the two shapes each type is stored in, per the storage layout.
+
+Separate from `DOCUMENT_MODELS` because it answers a different question -- that one says what
+validates a file, this says how the file is written -- and because a test that round-trips a
+YAML-only record through the Markdown path would be testing something that never happens.
+"""
+
+
 def schemas_dir() -> Path:
     return Path(__file__).resolve().parent.parent / "schemas"
 

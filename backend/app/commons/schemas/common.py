@@ -18,7 +18,7 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Annotated, Final, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 SCHEMA_VERSION: Final[int] = 1
 """DR-10. Bumping this is a migration, not an edit."""
@@ -69,6 +69,21 @@ class StoreDocument(HarnessModel):
     """A store file. DR-10: the version travels with the record, not only in the filename."""
 
     schema_version: Literal[1] = 1
+
+    @field_validator("schema_version", mode="before")
+    @classmethod
+    def _version_is_not_a_boolean(cls, value: object) -> object:
+        """DR-10: an unknown version fails validation.
+
+        `Literal[1]` alone does not achieve that, because `True == 1` in Python and pydantic
+        accepts it. YAML `schema_version: true` would then be read as version 1 -- the same
+        "lax mode reads true as 1" hole the strict integer aliases above exist to close, in
+        the one field where it decides how the whole record is interpreted.
+        """
+        if isinstance(value, bool):
+            message = f"schema_version must be an integer version, got {value!r}"
+            raise ValueError(message)
+        return value
 
 
 # --------------------------------------------------------------------------------------

@@ -49,6 +49,9 @@ def read_record[RecordT: BaseModel](root: Path, relative: str, model: type[Recor
     except (ValueError, TypeError) as error:
         raise InvalidRecord(f"{relative} is not readable: {error}", file=relative) from error
 
+    if fm.is_markdown(relative) and fm.BODY_FIELD not in model.model_fields:
+        record = _without_empty_body(relative, record, model)
+
     try:
         return model.model_validate(record)
     except ValidationError as error:
@@ -60,6 +63,47 @@ def read_record[RecordT: BaseModel](root: Path, relative: str, model: type[Recor
             file=relative,
             field=field,
         ) from error
+
+
+def _without_empty_body(
+    relative: str, record: dict[str, object], model: type[BaseModel]
+) -> dict[str, object]:
+    """Drop the `body` a Markdown file always has when the model has no place for it.
+
+    Not every `.md` store file carries prose. A scene digest is all frontmatter -- its prose
+    *is* `delta` (DR-11) -- and `manuscript/digests/NNN.md` is a `.md` file only because the
+    storage layout says so. `parse_markdown` cannot know that, so it always produces a `body`,
+    and a model with `extra="forbid"` would reject every such file.
+
+    Prose that is actually there is a different matter and is **not** dropped: a file with a
+    body under a model that has nowhere to put it means someone wrote text the system will
+    never read, and losing it silently is exactly the kind of quiet divergence FR-STORE-06
+    exists to prevent.
+    """
+    body = record.pop(fm.BODY_FIELD, "")
+    if isinstance(body, str) and body.strip():
+        message = (
+            f"{relative} carries prose in its body, but {model.__name__} has no `body` field "
+            "to put it in; the text would be silently lost"
+        )
+        raise InvalidRecord(message, file=relative, field=fm.BODY_FIELD)
+    return record
+
+
+def parse_for_test[RecordT: BaseModel](
+    relative: str, text: str, model: type[RecordT]
+) -> dict[str, object]:
+    """The parse half of `read_record`, without the filesystem.
+
+    Exists so a test can round-trip a record through its real **file format** rather than
+    through `model_dump`. That distinction is not academic: it is the difference the digest
+    defect fell through, where every file was unreadable while the object-level round trip
+    was green.
+    """
+    record = fm.parse_markdown(text) if fm.is_markdown(relative) else fm.parse_yaml(text)
+    if fm.is_markdown(relative) and fm.BODY_FIELD not in model.model_fields:
+        record = _without_empty_body(relative, record, model)
+    return record
 
 
 def list_records(root: Path, directory: str, suffix: str) -> list[str]:
@@ -94,4 +138,11 @@ def list_subdirectories(root: Path, directory: str) -> list[str]:
     return sorted(child.name for child in target.iterdir() if child.is_dir())
 
 
-__all__ = ["exists", "list_records", "list_subdirectories", "read_raw", "read_record"]
+__all__ = [
+    "exists",
+    "list_records",
+    "list_subdirectories",
+    "parse_for_test",
+    "read_raw",
+    "read_record",
+]

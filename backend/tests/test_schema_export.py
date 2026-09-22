@@ -17,7 +17,14 @@ import pytest
 from pydantic import BaseModel
 
 from app.commons.schemas.common import StoreDocument
-from scripts.export_schemas import DOCUMENT_MODELS, render, schemas_dir, stale, target_path
+from scripts.export_schemas import (
+    DOCUMENT_FORMATS,
+    DOCUMENT_MODELS,
+    render,
+    schemas_dir,
+    stale,
+    target_path,
+)
 
 STORAGE_LAYOUT_TYPES = {
     # canon/
@@ -110,3 +117,18 @@ def test_rendering_is_stable(tmp_path: Path) -> None:
     del tmp_path
     for model in DOCUMENT_MODELS.values():
         assert render(model) == render(model)
+
+
+# spec 001 / AC 4 — the tree-wide round trip through the real file format lives in
+# `tests/test_fixture_validates.py`, against the fixture repository. Generating instances from
+# each schema was tried here first and was the wrong tool: it cost minutes of gate time to
+# synthesise records that the fixture already provides as real files, and hypothesis spends
+# that time on shapes nobody will ever write. The two concrete regressions -- a digest with no
+# `body`, a draft with one -- are pinned in
+# `app/commons/stores/tests/test_validate_on_read.py`, where they are fast and exact.
+
+
+# spec 001 / AC 4 — and every type says which shape it is stored in.
+def test_every_document_has_a_declared_format() -> None:
+    assert set(DOCUMENT_FORMATS) == set(DOCUMENT_MODELS)
+    assert set(DOCUMENT_FORMATS.values()) == {".md", ".yaml"}

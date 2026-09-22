@@ -16,9 +16,12 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from pydantic import BaseModel
 
 from app.commons.errors import InvalidRecord, NotFound
 from app.commons.permissions import AgentRole
+from app.commons.schemas.common import DigestLevel
+from app.commons.schemas.digest import SceneDigest
 from app.commons.schemas.draft import Draft
 from app.commons.schemas.scene import Scene
 from app.commons.stores import Store
@@ -171,3 +174,60 @@ def test_a_valid_markdown_record_reads(store: Store) -> None:
         role=AgentRole.WRITER,
     )
     assert store.read("manuscript/014.md", Draft).body == "The gate held.\n"
+
+
+# spec 001 / AC 4 — regression. Every Markdown-backed model must survive the *store's* round
+# trip, not only `model_dump`. `SceneDigest` is all frontmatter -- its prose is `delta`
+# (DR-11) -- so the body `parse_markdown` always produces had nowhere to go and every digest
+# file failed on read. The round-trip property in `commons/schemas/tests` could not see it:
+# it never goes through the Markdown path.
+@pytest.mark.parametrize(
+    ("relative", "record"),
+    [
+        (
+            "manuscript/digests/014.md",
+            SceneDigest(
+                scene_ref="014",
+                level=DigestLevel.SCENE,
+                povs=["mara"],
+                delta="Mara learns the gate was held for her.",
+                words=8,
+            ),
+        ),
+        (
+            "manuscript/014.md",
+            Draft(scene_ref="014", words=3, literal_tail="the gate held", body="The gate held.\n"),
+        ),
+    ],
+    ids=["digest-without-body", "draft-with-body"],
+)
+def test_markdown_records_survive_the_store_round_trip(
+    store: Store, relative: str, record: BaseModel
+) -> None:
+    role = AgentRole.WRITER
+    store.write(relative, record, role=role)
+    assert store.read(relative, type(record)) == record
+
+
+# spec 001 / AC 4 — but prose that has nowhere to go is refused, not dropped. Text someone
+# wrote that the system would never read is the divergence FR-STORE-06 exists to surface.
+def test_prose_under_a_model_with_no_body_is_refused(store: Store) -> None:
+    write_raw(
+        store,
+        "manuscript/digests/014.md",
+        "---\nschema_version: 1\nscene_ref: '014'\nlevel: scene\npovs: [mara]\n"
+        "delta: Something changed.\nwords: 3\n---\n\nProse nobody modelled.\n",
+    )
+    with pytest.raises(InvalidRecord, match="no `body` field"):
+        store.read("manuscript/digests/014.md", SceneDigest)
+
+
+# spec 001 / AC 5, DR-10 — regression. `Literal[1]` alone accepts `True`, because `True == 1`.
+# YAML `schema_version: true` would have been read as version 1.
+@pytest.mark.parametrize("value", ["true", "false"], ids=repr)
+def test_a_boolean_schema_version_is_rejected(store: Store, value: str) -> None:
+    mutated = VALID_SCENE.replace("schema_version: 1", f"schema_version: {value}")
+    write_raw(store, "scenes/014.yaml", mutated)
+    with pytest.raises(InvalidRecord) as raised:
+        store.read("scenes/014.yaml", Scene)
+    assert raised.value.as_body()["field"] == "schema_version"
