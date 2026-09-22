@@ -108,13 +108,28 @@ Paths are relative to the repository root. `backend/app/` is abbreviated `app/`.
 
 | Path | Change |
 |---|---|
-| `backend/tests/conftest.py` | Temp copy of the fixture repo per test, fake clients wired, network disabled |
+| `backend/conftest.py` | Temp copy of the fixture repo per test, fake clients wired, network disabled. **Root**, not `tests/` — see correction C1 |
 | `backend/tests/fixtures/repo/**` | The fixture novel: `CLAUDE.md` at the store root (protocol and permission table, as the storage layout lists), `canon/`, `cast/`, `structure/`, `scenes/`, `manuscript/` (scene, chapter and arc digests), `ledger/` (including one paid setup, one resolved violation and one resolved thread, so exclusion from context is testable) |
 | `backend/tests/fixtures/repo/README.md` | Planted violations, tempting scene, expected outputs (AC 28) |
 | `backend/tests/test_turn_selection_shared.py` | AC 12 (writer and auditor see the same list) |
 | `backend/tests/test_schemathesis.py` | AC 29 |
 | `backend/tests/test_boundaries_mirror.py` | Runs `tools/check_boundaries.py` (P8) |
+| `backend/tests/test_health.py` | Startup contract (FR-STORE-01) and `/health` — see correction C2 |
+| `backend/.agents/skills/fastapi/**`, `backend/.claude/skills/fastapi/**` | The managed FastAPI skill step 2 installs — see correction C3 |
 | `backend/tests/live/test_turn_live.py`, `test_extract_live.py` | AC 26, 27 (`--live`) |
+
+### Corrections to this list, made while implementing
+
+Three paths this list got wrong or left out. None changes the scope, the steps or an
+acceptance criterion, so the plan stays `approved`; they are recorded here rather than
+applied quietly, because a file list that disagrees with the tree is the thing this section
+exists to prevent.
+
+| # | Correction | Why |
+|---|---|---|
+| C1 | `backend/tests/conftest.py` → `backend/conftest.py` | pytest loads conftests from the rootdir down to each test file. Shared fixtures under `tests/` never reach the feature suites in `app/*/tests/`, and the spec puts feature tests in the feature. The `pytest_plugins` indirection was tried first and fails: pytest registers the module twice, once as a plugin and once as `tests/`' own conftest. |
+| C2 | `backend/tests/test_health.py` added | Step 2 has to leave the gate green, and `pytest` exits non-zero when it collects nothing. The file covers the FR-STORE-01 startup refusal and `/health`, and carries `# spec 001 / AC 30`. |
+| C3 | The managed FastAPI skill's files added | Step 2 already said to replace the vendored skill with the managed install; the list named only `.claude/skills/README.md`, not the files the install writes. `--copy` rather than the default symlink, which would point into the git-ignored `backend/.venv/`. |
 
 ---
 

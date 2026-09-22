@@ -1,0 +1,23 @@
+# The derived index, the embedding-model cache and the backend's operational records.
+# Nothing under `.index/` is a store: it is not governed by Figure 3 and no agent reads it
+# (architecture.md, "Storage layout"; spec 001 Decision R2-1).
+.index/
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+.coverage
+htmlcov/
+
+# Local configuration. `backend/.env.example` is committed; the real one is not.
+backend/.env
+
+# Node
+node_modules/
+dist/

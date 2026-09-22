@@ -6,7 +6,7 @@ third-party one.
 
 | Skill | Source | Official? | Licence | Added |
 |---|---|---|---|---|
-| `fastapi/` | `fastapi` 0.141.1 PyPI wheel, path `fastapi/.agents/skills/fastapi/` | Yes, by the FastAPI project | MIT | 2026-09-21 |
+| ~~`fastapi/`~~ | **Moved.** Now a managed install under `backend/`, see below | Yes, by the FastAPI project | MIT | 2026-09-21, replaced 2026-09-22 |
 | `react/` | Written for this repository | No, ours | This repo | 2026-09-21 |
 | `sqlite/` | Written for this repository | No, ours | This repo | 2026-09-21 |
 | `sqlite-vec/` | MCPmarket installer payload, skill files only (see below) | No, third party | Not stated | 2026-09-21 |
@@ -16,26 +16,35 @@ third-party one.
 
 The FastAPI skill is shipped **inside the Python package**, not in the GitHub repository,
 and is versioned in lockstep with the library. Upstream distributes it through
-[library-skills](https://github.com/tiangolo/library-skills), which symlinks the skill out
-of the installed dependency.
+[library-skills](https://github.com/tiangolo/library-skills), which reconciles the skill
+against the installed dependency.
 
-This copy was extracted from the wheel because the project has no `backend/` environment
-yet. Once `backend/` exists and declares `fastapi` as a dependency, prefer the managed
-route so the skill tracks the pinned version:
+**The vendored copy is gone.** `backend/` now exists and pins `fastapi==0.141.1`, so the
+skill is a managed install taken from that pinned wheel:
 
 ```bash
-uvx library-skills
+cd backend
+uvx library-skills --no-tool-skill install --claude --copy -s fastapi -y
 ```
 
-At that point delete this vendored copy rather than keeping two sources of truth. A
-vendored skill pinned to 0.141.1 while the code runs a different version is worse than no
-skill, because it states outdated patterns with full confidence.
+It lands in two places, which is the tool's own layout: `backend/.agents/skills/fastapi/`
+(the cross-agent standard location) and `backend/.claude/skills/fastapi/` (what Claude Code
+reads). Being under `backend/` is not an accident of where the virtualenv lives — it is
+correct: the skill applies to the backend and Claude Code picks it up as a directory-scoped
+skill, so it does not advertise itself while someone is working in `frontend/`.
 
-**Scheduled.** `backend/` is being built under
-[`specs/001-backend-foundation.md`](../../specs/001-backend-foundation.md), whose NFR-01
-requires exactly this swap once FastAPI is pinned. Step 2 of
-[the implementation plan](../../specs/001-backend-foundation-plan.md) replaces the vendored
-copy with `uvx library-skills` in the same commit that adds `pyproject.toml`.
+`--copy` rather than the default symlink, deliberately. A symlink would point into
+`backend/.venv/`, which is git-ignored: the skill would be present for whoever ran
+`uv sync` and a dangling link for everyone else, including CI. Copies are committed,
+reviewable and diffable, which is the property every other skill here has.
+
+The copy is byte-identical to the vendored one it replaced, which is the evidence that the
+hand-vendoring had been accurate. Drift is prevented by re-running the command and checking
+that git reports no change; CI does exactly that (plan step 19). When `fastapi` is bumped in
+`pyproject.toml`, re-run the command in the same commit.
+
+`LICENSE` is the one file in those directories that the wheel does not provide. It is added
+by us so the MIT terms travel with the copied files, and a drift check ignores it.
 
 ## sqlite-vec, and why only part of it was installed
 
