@@ -1,0 +1,32 @@
+# AC 17 — a role's tool set is derived from the write table, never written out by hand.
+#
+# FR-PERM-06: "The tool set is derived from FR-PERM-02 by code, not hand-listed, so the two
+# cannot diverge." A literal list of store paths under `agents/` is exactly that divergence,
+# and it is the kind that looks correct on the day it is written and stops being correct the
+# first time Figure 3 changes.
+#
+# What the derived sets must come out as, and what AC 17 asserts: the writer holds no tool
+# whose target matches `canon/**`; the auditor holds only `ledger/violations.yaml`; the
+# canoniser holds nothing under `manuscript/`.
+#
+# Mirrored by `tools/check_boundaries.py::check_hand_written_toolset` (plan P8).
+
+rules:
+  - id: hand-written-toolset
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Literal list of store paths under agents/. Build the tool set with toolset_for(role),
+      which derives it from WRITE_TABLE (FR-PERM-06), so a change to Figure 3 cannot leave a
+      role holding a tool the table no longer grants.
+    paths:
+      include:
+        - app/agents/
+      exclude:
+        - "**/tests/**"
+    patterns:
+      - pattern-either:
+          - pattern-regex: >-
+              \[\s*(["'](canon|cast|structure|scenes|manuscript|ledger)/[^"']*["']\s*,\s*){1,}["'](canon|cast|structure|scenes|manuscript|ledger)/[^"']*["']
+          - pattern-regex: >-
+              \(\s*(["'](canon|cast|structure|scenes|manuscript|ledger)/[^"']*["']\s*,\s*){1,}["'](canon|cast|structure|scenes|manuscript|ledger)/[^"']*["']

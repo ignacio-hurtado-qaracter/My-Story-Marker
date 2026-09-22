@@ -1,0 +1,84 @@
+# AC 3 — no file primitive applied to a store path outside `app/commons/stores/`.
+#
+# FR-STORE-02 is a rule about the whole codebase, and it is the one rule an import contract
+# cannot express: `import-linter` can see that a module imported `pathlib`, but not what path
+# it then opened. This is the check that closes that gap, and `tools/check_boundaries.py`
+# mirrors it with the stdlib `ast` module so the local gate is not blind on Windows, where
+# semgrep does not run natively (plan decision P8).
+#
+# A write path that bypasses the store layer is a bug even if it works: it skips the Figure 3
+# permission check (FR-STORE-03), skips the atomic rename (FR-STORE-07) and, worst of the
+# three, skips the provenance line (FR-STORE-04). The tree would then change with nothing
+# recording who changed it.
+
+rules:
+  - id: forbidden-store-write
+    languages: [python]
+    severity: ERROR
+    message: >-
+      File primitive used outside app/commons/stores/. Only the store layer opens, reads,
+      writes, renames or deletes files under the store root (FR-STORE-02). Call
+      `Store.read` / `Store.write` instead, which check the role against Figure 3, write
+      atomically and append provenance. If this touches `.index/` rather than a store, it
+      belongs in `agents/records.py` or `agents/lock.py`, which are the named exceptions.
+    paths:
+      include:
+        - app/
+      exclude:
+        - app/commons/stores/
+        - app/agents/records.py
+        - app/agents/lock.py
+        - "**/tests/**"
+    patterns:
+      - pattern-either:
+          # Mutating primitives, whatever the path.
+          - pattern: open($PATH, ...)
+          - pattern: $P.open($MODE, ...)
+          - pattern: $P.write_text(...)
+          - pattern: $P.write_bytes(...)
+          - pattern: $P.unlink(...)
+          # One argument, because `Path.replace(target)` takes one and
+          # `str.replace(old, new)` takes two. Without the arity every
+          # `path.replace("\\", "/")` in the codebase would be a finding.
+          - pattern: $P.rename($X)
+          - pattern: $P.replace($X)
+          - pattern: $P.mkdir(...)
+          - pattern: $P.rmdir(...)
+          - pattern: $P.touch(...)
+          - pattern: os.remove(...)
+          - pattern: os.unlink(...)
+          - pattern: os.rename(...)
+          - pattern: os.replace(...)
+          - pattern: os.makedirs(...)
+          - pattern: os.rmdir(...)
+          - pattern: shutil.copy(...)
+          - pattern: shutil.copy2(...)
+          - pattern: shutil.copyfile(...)
+          - pattern: shutil.copytree(...)
+          - pattern: shutil.move(...)
+          - pattern: shutil.rmtree(...)
+          # Reads too: FR-STORE-06 requires every read to be validated, so a module that
+          # reads a store file itself also bypasses the layer, just less destructively.
+          - pattern: $P.read_text(...)
+          - pattern: $P.read_bytes(...)
+
+  - id: store-path-built-by-hand
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Store path built outside app/commons/stores/paths.py. FR-STORE-05: paths derive from
+      identifiers inside the store layer, never from the client, so an id that would escape
+      the root or fails its grammar is rejected before it reaches a path. Use the helpers in
+      `app.commons.stores.paths`.
+    paths:
+      include:
+        - app/
+      exclude:
+        - app/commons/stores/
+        - app/commons/permissions/
+        - "**/tests/**"
+    patterns:
+      - pattern-either:
+          - pattern-regex: '"(canon|cast|structure|scenes|manuscript|ledger)/[^"]*"\s*%'
+          - pattern-regex: 'f"(canon|cast|structure|scenes|manuscript|ledger)/[^"]*\{'
+          - pattern-regex: "'(canon|cast|structure|scenes|manuscript|ledger)/[^']*'\\s*%"

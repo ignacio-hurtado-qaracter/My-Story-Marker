@@ -1,0 +1,44 @@
+# AC 13 — no code path under `ledger/` or `agents/` resolves a collision by writing canon.
+#
+# `promote` is "the return edge: the only write path into canon during drafting, and the sole
+# responsibility of the canoniser". When a proposed fact collides with an existing record it
+# is escalated rather than resolved silently, and only `rule`, carrying `actor: human`,
+# settles it (FR-OPS-06, FR-OPS-07).
+#
+# The failure this forbids is the one `architecture.md` names under ProposedFact: automatic
+# promotion with no review. Canon fills with improvised noise and stops being authoritative,
+# at which point it is no longer worth consulting -- and a harness whose canon is not worth
+# consulting has nothing left to offer.
+#
+# Mirrored by `tools/check_boundaries.py::check_canon_write_outside_promote` (plan P8).
+
+rules:
+  - id: canon-write-outside-promote
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Write to canon/ or cast/ from ledger/ or agents/ outside promote(), rule() or
+      reconcile(). Canon has exactly two inbound write edges (Figure 3) and during drafting
+      only the canoniser's promote() uses one of them. A collision is escalated to a human
+      ruling, never resolved in place.
+    paths:
+      include:
+        - app/ledger/
+        - app/agents/
+      exclude:
+        - "**/tests/**"
+    patterns:
+      - pattern-either:
+          - pattern: $STORE.write("canon/...", ...)
+          - pattern: $STORE.write("cast/...", ...)
+          - pattern: $STORE.write_text("canon/...", ...)
+          - pattern: $STORE.write_text("cast/...", ...)
+      - pattern-not-inside: |
+          def promote(...):
+            ...
+      - pattern-not-inside: |
+          def rule(...):
+            ...
+      - pattern-not-inside: |
+          def reconcile(...):
+            ...

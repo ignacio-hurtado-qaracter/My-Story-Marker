@@ -15,7 +15,6 @@ dependencies = [
     "pydantic==2.13.5",
     "pydantic-settings==2.15.0",
     "pyyaml==6.0.3",
-    "python-frontmatter==1.3.0",
     "anthropic==1.7.0",
     "fastembed==0.8.0",
     "sqlite-vec==0.1.9",
@@ -89,6 +88,10 @@ ignore = [
 # are what the spec, the plan and the HTTP error codes all call them; renaming them to
 # please a naming convention would make the code disagree with its own contract.
 "app/commons/errors/__init__.py" = ["N818"]
+# The planted rule fixtures are deliberately wrong code: `semgrep/tests/positive/`
+# exists so the boundary rules can be shown to fire. Linting it would mean fixing the
+# bug the fixture is made of.
+"semgrep/tests/positive/*.py" = ["ALL"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
@@ -111,7 +114,7 @@ exclude = ['^semgrep/tests/']
 
 [[tool.mypy.overrides]]
 # Third-party packages that ship no type information. Narrow, per-package, never global.
-module = ["fastembed.*", "sqlite_vec.*", "frontmatter.*"]
+module = ["fastembed.*", "sqlite_vec.*"]
 ignore_missing_imports = true
 
 [tool.pydantic-mypy]
