@@ -72,7 +72,7 @@ Paths are relative to the repository root. `backend/app/` is abbreviated `app/`.
 | `app/main.py` | App factory, feature routers, exception handlers, `/health` (`vector`, `embedding_model`, `store_root`) |
 | `app/commons/config.py` | Pydantic settings from environment; the 100k cap and `TURN_MAX_REVISIONS = 3` as **module constants**, not settings |
 | `app/commons/errors/__init__.py` | `InvalidRecord`, `NotFound`, `PermissionDenied`, `IndexBusy`, `TurnLocked`, `ContextBudgetExceeded`, `MalformedModelOutput`, `ModelRefused`, `OutputTruncated` and the handlers mapping them to IF-07 codes |
-| `app/commons/permissions/{__init__,roles,table,toolsets}.py` | `AgentRole`, `WRITE_TABLE`, `may_write`, `toolset_for(role)` derived from the table |
+| `app/commons/permissions/{__init__,roles,table,inputs,toolsets}.py` | `AgentRole`, `WRITE_TABLE`, `may_write`, `INPUT_TABLE` (Figure 3's `In` column as path globs per role), `toolset_for(role)` derived from the write table |
 | `app/commons/permissions/tests/test_table.py` | AC 2 |
 | `app/commons/permissions/tests/test_toolsets.py` | AC 17 |
 | `app/commons/schemas/{__init__,common,scene,knowledge,setup,thread,proposed,violation,draft,digest,change_event,relationship,lexicon,time,role_outputs}.py` | Shared Pydantic models (DR-01…12) |
@@ -102,14 +102,14 @@ Paths are relative to the repository root. `backend/app/` is abbreviated `app/`.
 | `app/ledger/tests/test_promote.py`, `test_audit_writes.py`, `test_audit_01.py` … `test_audit_10.py` | AC 13, 15, 16 |
 | `app/agents/{router,service,models,turn,lock,records,roles/__init__,roles/writer,roles/style_editor,roles/canoniser,roles/auditor,prompts/*.md}.py` | Roles as functions, orchestrator, lock, turn records, rulings, resume, SSE, rollup |
 | `app/agents/tests/scripts/*.yaml` | Scripted fake-model responses per scenario |
-| `app/agents/tests/test_turn_happy.py`, `test_turn_escalation.py`, `test_turn_ruling.py`, `test_turn_malformed.py`, `test_turn_budget.py`, `test_turn_resume.py`, `test_turn_provenance.py`, `test_prompts_as_data.py`, `test_rollup.py` | AC 18–24, 32 |
+| `app/agents/tests/test_turn_happy.py`, `test_turn_escalation.py`, `test_turn_ruling.py`, `test_turn_malformed.py`, `test_turn_budget.py`, `test_turn_resume.py`, `test_turn_provenance.py`, `test_prompts_as_data.py`, `test_role_inputs.py`, `test_handoff_through_stores.py`, `test_rollup.py` | AC 18–24, 32; FR-AGENT-09, FR-AGENT-11 |
 
 ### Cross-feature tests and fixtures
 
 | Path | Change |
 |---|---|
 | `backend/tests/conftest.py` | Temp copy of the fixture repo per test, fake clients wired, network disabled |
-| `backend/tests/fixtures/repo/**` | The fixture novel: `canon/`, `cast/`, `structure/`, `scenes/`, `manuscript/`, `ledger/` |
+| `backend/tests/fixtures/repo/**` | The fixture novel: `CLAUDE.md` at the store root (protocol and permission table, as the storage layout lists), `canon/`, `cast/`, `structure/`, `scenes/`, `manuscript/` (scene, chapter and arc digests), `ledger/` (including one paid setup, one resolved violation and one resolved thread, so exclusion from context is testable) |
 | `backend/tests/fixtures/repo/README.md` | Planted violations, tempting scene, expected outputs (AC 28) |
 | `backend/tests/test_turn_selection_shared.py` | AC 12 (writer and auditor see the same list) |
 | `backend/tests/test_schemathesis.py` | AC 29 |
@@ -129,21 +129,21 @@ criterion is *satisfied* only when its verification in the mapping below passes.
 | 1 | `chore:` | Correct the stale vector assumption in the `sqlite` skill; note in `.claude/skills/README.md` that the vendored `fastapi` skill is replaced by `uvx library-skills` in step 2. | — |
 | 2 | `backend:` | `pyproject.toml` with every pinned dependency, `uv.lock`, tool configuration, `import-linter` contracts (NFR-04), package skeleton with empty feature folders, `app/main.py` with `/health`, `config.py`, `errors/`, `gate.ps1`/`gate.sh`, `.gitignore`, `.env.example`, `README.md`. Gate passes on an empty app. Replace the vendored `fastapi` skill with the managed install. | AC 1, 30 |
 | 3 | `backend:` | Shared Pydantic models and enums (`commons/schemas/`), `export_schemas.py`, committed `schemas/*.v1.json`; enum and round-trip tests. | AC 4 (model half), 5 |
-| 4 | `backend:` | Fixture repository and its `README.md`: three characters, two locations with a parent, four axioms (one pinned by tag), lexicon with forbidden variants, six scenes in non-monotonic discourse order, two drafts, one registered and one unregistered body change, setups (one overdue), threads (one over latency), and the tempting scene. | AC 28 (draft), enables 15, 26, 27 |
-| 5 | `backend:` | Permission table, `AgentRole`, `may_write`, `/permissions` route; table test. | AC 2 |
+| 4 | `backend:` | Fixture repository and its `README.md`: store-root `CLAUDE.md`, three characters, two locations with a parent, four axioms (one pinned by tag), lexicon with forbidden variants and `used_by`, six scenes in non-monotonic discourse order across two chapters, two drafts, scene and chapter digests (one chapter digest whose `povs` excludes a later scene's POV, one covering a scene later in story time than the tempting scene), one registered and one unregistered body change, setups (one overdue, one paid), threads (one over latency, one resolved), one resolved violation, and the tempting scene. | AC 28 (draft), enables 12, 15, 26, 27 |
+| 5 | `backend:` | Permission table, `AgentRole`, `may_write`, `INPUT_TABLE` (Figure 3 `In` column), `/permissions` route exporting both tables; table test. | AC 2 |
 | 6 | `backend:` | Store layer: paths, frontmatter, validate-on-read, atomic role-named writes, provenance JSONL; `semgrep` rule for forbidden store writes plus the AST mirror; store tests. | AC 3, 4 (read half), 32 (store half) |
 | 7 | `backend:` | Feature read and write routers for `canon`, `cast`, `structure`, `scenes`, `manuscript`, `ledger` (IF-03, IF-04) with `X-Agent-Role` / `X-Actor` handling; `export_openapi.py` and first committed `openapi.json`. | AC 29 (partial) |
 | 8 | `backend:` | Embedder protocol, fake, `FastEmbedEmbedder` with fallback and cache dir; tests (`model` marker for the real one). | AC 9 |
-| 9 | `backend:` | SQLite layer: connection, migrations, FTS5, optional `vec0`, `rebuild`, incremental update, `/index/rebuild`, `/index/status`, `/health.vector`; rebuild, migration, optional-vec and busy tests. | AC 6, 7, 8 |
+| 9 | `backend:` | SQLite layer: connection, migrations, FTS5, optional `vec0`, `rebuild` over `canon/` (one row per entity file, and **one row per term** of `lexicon.yaml`), `cast/` and **chapter-level digests only** (scene and arc digests are not rows), incremental update, `/index/rebuild`, `/index/status`, `/health.vector`; rebuild, migration, optional-vec and busy tests, plus a test that a scene digest never becomes a row. | AC 6, 7, 8 |
 | 10 | `backend:` | `dossier(character, at)` and `/cast/{id}/dossier?at=`; unit and property tests. | AC 10 |
 | 11 | `backend:` | `select_entities` with BM25 + cosine fused by reciprocal rank, pins first, POV excluded; `/scenes/{id}/select`. | AC 11 |
-| 12 | `backend:` | `assemble_context`: fixed block, POV dossier, literal tail, ranked as-of loading, 100k stop, `truncated_at`, fixed-block warning; token counting through the `ModelClient` protocol (fake only at this step); `/scenes/{id}/assemble`. | AC 12 (assembly half) |
+| 12 | `backend:` | `assemble_context`: fixed block, POV dossier, literal tail, ranked as-of loading (chapter digests only when every covered scene is `<= T`, labelled "not witnessed" when `povs` lacks the POV; lexicon through `used_by`; open setups under a *may collect* label; resolved violations, paid setups and closed threads excluded), 100k stop, `truncated_at`, fixed-block warning; token counting through the `ModelClient` protocol (fake only at this step); `/scenes/{id}/assemble`. Tests include: no raw `manuscript/NNN.md` text in the context except the previous scene's tail. | AC 12 (assembly half) |
 | 13 | `backend:` | `promote`, `rule`, `reconcile`; `semgrep` rule and mirror for canon writes outside `promote`/`rule`; routes. | AC 13, 14 |
 | 14 | `backend:` | Mechanical audit, one module per invariant, `/scenes/{id}/audit?semantic=false`, persistence only under auditor + `persist=true`; golden tests on the fixture and the write-scope test. | AC 15, 16 |
 | 15 | `backend:` | Model client: protocol, `AnthropicModelClient` (Haiku defaults, `budget_tokens` by model family, streaming, `parse()` structured output, `stop_reason` handling, `count_tokens`, typed error chain, `cache_control` on the prefix), `FakeModelClient` with scripts and call log; unit tests. | AC 21, 22 (unit) |
-| 16 | `backend:` | Tool sets derived from the permission table; prompt assembly with store content as delimited data and nothing from the stores in `system`; role prompt files; `semgrep` rule and mirror against hand-written tool lists. | AC 17, 23 |
+| 16 | `backend:` | Tool sets derived from the write table; prompt assembly with store content as delimited data, each document tagged with its source path, and nothing from the stores in `system`; the assembler refuses a document whose path is outside the role's `INPUT_TABLE` row; role prompt files (the writer's states dramatic function only and offers setups, never assigns one); `semgrep` rule and mirror against hand-written tool lists. | AC 17, 23; FR-AGENT-09 |
 | 17 | `backend:` | Roles as functions: writer `write`/`revise`/`digest`/`rollup`, style editor `polish`, canoniser `extract_facts`, auditor `audit_semantic`; combined `audit`; `/scenes/{id}/audit` full; `/agents/digests/rollup`. Tests with scripted fakes. | AC 15 (skipped list), 21 |
-| 18 | `backend:` | Turn orchestrator: state machine, lock, turn records after each step, revise scope guard, extraction on the accepted draft, promotion, `awaiting_ruling`, `rulings`, `resume`, SSE progress, `dry_run`. Scenario tests (happy, escalation after 3, revise rejected, collision and rulings, malformed, refusal, budget, resume, provenance). Cross-feature test that writer and auditor receive the same selected list. | AC 12 (turn half), 18–24, 32 |
+| 18 | `backend:` | Turn orchestrator: state machine, lock, turn records after each step, hand-off **through the stores** (audit reads the draft back from `manuscript/`, revise reads blocking violations back from `ledger/violations.yaml`; the orchestrator passes ids only), revise scope guard, extraction on the accepted draft, promotion followed by `reconcile` on each promoted target, `words` vs `budget` and digest length vs level target on the record, chapter-complete hint, `awaiting_ruling`, `rulings` (also running `reconcile` on `accept`), `resume`, SSE progress, `dry_run`. Scenario tests (happy, escalation after 3, revise rejected, collision and rulings, malformed, refusal, budget, resume, provenance), plus: after a merged turn, a `dry_run` of the next scene in discourse order contains the promoted fact ("canon is updated before the next scene is assembled"); the fake call log shows the revise step's violations equal to the file's content and each role's documents inside its `INPUT_TABLE` row. Cross-feature test that writer and auditor receive the same selected list. | AC 12 (turn half), 18–24, 32; FR-AGENT-09, FR-AGENT-11, FR-TURN-04 |
 | 19 | `contract:` | Regenerate `openapi.json`; `schemathesis` test; CI workflow with the `vec` matrix, static gate, `semgrep`, contract freshness. | AC 7 (matrix), 29 |
 | 20 | `backend:` | Live tests behind `--live`: one full turn on the tempting scene and one extraction; run once locally with credentials, output saved to `backend/tests/live/last_run.md` for the PR. | AC 26, 27 |
 | 21 | — | Human review of the fixture `README.md` against the actual audit output (AC 28). Run the full gate, paste the output, open the PR `spec(001): Backend v1 — …` listing every criterion with its verification. | AC 28, 30 |
@@ -167,20 +167,22 @@ this order so that every commit passes the gate on its own.
 | 7 | T | With `sqlite_vec` import patched to fail: startup ok, `/health.vector == "unavailable"`, FTS5 results; with it: fused results, `vec0` dim 384. CI matrix runs both cells for real | `commons/db/tests/test_vec_optional.py`; `.github/workflows/backend.yml` |
 | 8 | T | Two `multiprocessing` writers, 200 writes each → row count exact, `PRAGMA integrity_check` ok; forced busy → `503` after timeout | `commons/db/tests/test_busy.py` |
 | 9 | T | Fake: 384-d, unit norm, deterministic. Real (`model` marker): loads primary or falls back, 384-d, same vector across two processes; changed `embedding_model` metadata forces rebuild | `commons/embeddings/tests/test_fake.py`, `test_fastembed.py` |
-| 10 | T | Fixture cases + `hypothesis` over generated knowledge/valence tables: nothing dated after `at` | `cast/tests/test_dossier.py` |
+| 10 | T | Fixture cases + `hypothesis` over generated knowledge, valence and arc tables: nothing dated after `at`; the arc entry is the latest anchored at or before `at` | `cast/tests/test_dossier.py` |
 | 11 | T | Result type has no text field; pins first in order; POV absent | `scenes/tests/test_select.py` |
-| 12 | T | Property: no `acquired_in` later than scene; token stop before cap; no partial entry; turn record list == auditor input | `scenes/tests/test_assemble.py`, `tests/test_turn_selection_shared.py` |
+| 12 | T | Property: no `acquired_in` later than scene; no chapter digest covering a scene later than `T`; "not witnessed" label when `povs` lacks the POV; paid setup, resolved violation and resolved thread absent; no raw manuscript text but the tail; token stop before cap; no partial entry; turn record list == auditor input | `scenes/tests/test_assemble.py`, `tests/test_turn_selection_shared.py` |
 | 13 | T, A | Promote non-conflict → record changed, status `promoted`; conflict → `Escalation`, tree byte-identical, `conflict=True`; `semgrep` + mirror: no canon write under `ledger/`/`agents/` outside `promote`/`rule` | `ledger/tests/test_promote.py`, `semgrep/canon-write-outside-promote.yaml` |
 | 14 | T | Superset of hand-labelled dependents for the three fixture entities; property over generated scenes | `canon/tests/test_reconcile.py` |
 | 15 | T | Golden violations per planted case, correct severities, clean control scene empty; `skipped` list when the model step is disabled | `ledger/tests/test_audit_0N.py`, `agents/tests/test_turn_happy.py` |
 | 16 | T | Tree hash before/after: only `ledger/violations.yaml` differs and only under auditor + `persist=true`; other roles → `403`, hash equal | `ledger/tests/test_audit_writes.py` |
 | 17 | T, A | Enumerate `toolset_for(role)`: writer has no `canon/**`, auditor only `ledger/violations.yaml`, canoniser nothing under `manuscript/`; `semgrep` + mirror: no literal tool lists in `agents/` | `commons/permissions/tests/test_toolsets.py`, `semgrep/hand-written-toolset.yaml` |
-| 18 | T | Fake happy-path script → `merged`; draft, digest, proposed facts, turn record on disk; provenance role per file matches Figure 4 | `agents/tests/test_turn_happy.py` |
+| 18 | T | Fake happy-path script → `merged`; draft, digest, proposed facts, turn record (with `reconcile` results, `words` vs `budget`, chapter hint) on disk; provenance role per file matches Figure 4; next scene's `dry_run` sees the promoted fact | `agents/tests/test_turn_happy.py` |
+| FR-AGENT-09 | T | Every document in every fake call has a source path inside the calling role's `INPUT_TABLE` row; a planted out-of-row document is refused by the assembler | `agents/tests/test_role_inputs.py` |
+| FR-AGENT-11 | T | The revise call's violations document equals `ledger/violations.yaml` as written by the auditor step; the audit call's draft document equals `manuscript/NNN.md` as written by the writer step; the orchestrator's step inputs are ids only (type check + log) | `agents/tests/test_handoff_through_stores.py` |
 | 19 | T | Always-blocking script → `escalated` after exactly 3 revisions, last draft and violations on disk; 60 %-change script → rejected twice → `escalated` | `agents/tests/test_turn_escalation.py` |
 | 20 | T | Colliding extraction → `awaiting_ruling`; `accept` → promoted + `merged`; `reject` → `rejected` + `merged`; second turn while pending → `409` | `agents/tests/test_turn_ruling.py` |
 | 21 | T | Schema-invalid script → one retry, then `MalformedModelOutput`, `manuscript/` untouched; refusal script → `escalated` with category | `agents/tests/test_turn_malformed.py`, `commons/llm/tests/test_refusal.py` |
 | 22 | T | Fake `count_tokens` > 100k → zero `complete` calls in the log, `ContextBudgetExceeded`, `escalated` | `agents/tests/test_turn_budget.py` |
-| 23 | T | Inspect every recorded fake call: `system` contains no substring of any store file; every document block delimited and labelled | `agents/tests/test_prompts_as_data.py` |
+| 23 | T | Inspect every recorded fake call: `system` contains no substring of any store file; every document block delimited and labelled with its path; no call carries a previous call's output except as a store-backed document; the writer's instruction offers setups under *may collect* and names none as required | `agents/tests/test_prompts_as_data.py` |
 | 24 | T | Kill after write step (script raises), resume → audit onward, exactly one `write` call in the log | `agents/tests/test_turn_resume.py` |
 | 25 | U | Registered | `docs/verification.md` U register (`95e0cd5`) |
 | 26 | D | `--live` full turn on the tempting scene; assert the axiom violation and the unregistered body change are flagged, the registered one is not; record shows real model ids, cache-read tokens, every step < 100k; output committed as evidence | `tests/live/test_turn_live.py`, `tests/live/last_run.md` |
@@ -193,6 +195,78 @@ this order so that every commit passes the gate on its own.
 
 Every **T** test is shown to fail before its step's code exists (Process 3 rule 15): the
 commit message of each step names the test and states that it was red on the parent commit.
+
+---
+
+## Coverage of `architecture.md`
+
+Section by section, where each mechanism the doc describes lands in this plan. The gap the
+user asked to drive to zero is the set of rows that are neither *covered* nor *deferred
+by name*; after two passes it is the three "residual" rows at the end, each of which is a
+tension inside the docs or a decision the approved spec already took, not something the
+plan can close.
+
+| Architecture section | Mechanism | Plan | Status |
+|---|---|---|---|
+| Governing principle | Manuscript never in context beyond tail and digests | Step 12 test | Covered |
+| Governing principle | Prose cannot edit canon | Steps 5, 6, 16; AC 2, 3, 17 | Covered |
+| Figure 1 | assemble · write · extract · promote · audit · revise | Step 18 | Covered |
+| Figure 1 | "escalate ruling" dotted edge | `PUT /ledger/violations` as auditor + `X-Actor: human` (spec IF-04); step 7 | Covered |
+| Figure 1 | Auditor reports, never repairs | AC 16 | Covered |
+| L4 · Draft | `words` against budget; `literal_tail` 500 words | Steps 17, 18; `manuscript/tests/test_literal_tail.py` | Covered |
+| L4 · SceneDigest | Levels and word targets; `povs` filters; chapter level indexed | Steps 9, 12, 17, 18 | Covered |
+| L4 · ProposedFact | No automatic promotion on conflict | AC 13, 20 | Covered |
+| L4 · Violation | Evidence with position; severity; resolution | Steps 14, 17; IF-04 | Covered |
+| Operations | `dossier` as-of | AC 10 | Covered |
+| Operations | `select_entities` ids only, pins first, POV by id | AC 11 | Covered |
+| Operations | `select_entities` embeds "any free text the architect wrote" | Embeds every string field of the record | **Residual 1** |
+| Operations | `assemble_context` ranked as-of loading to the cap | AC 12 | Covered |
+| Operations | `extract_facts` "runs unconditionally, including on discarded drafts" | Accepted draft only; writer proposals from all iterations kept (spec FR-TURN-03) | **Residual 2** — spec decision |
+| Operations | `promote` escalates collisions | AC 13, 20 | Covered |
+| Operations | `reconcile` on retroactive change | Step 13; wired into promotion and rulings, step 18 | Covered |
+| Memory tiers | Agents stateless; no transcript between roles | FR-AGENT-11 test; AC 23 | Covered |
+| Memory tiers | `promote` the only write into canon during drafting | AC 13, 17 | Covered |
+| Memory tiers | Forgetting by rollup at boundaries | Manual `rollup` route + chapter-complete hint on the record | Covered (trigger manual, per spec) |
+| Memory tiers | Closed items leave the working tier | Step 12 exclusion tests | Covered |
+| Memory tiers | Index derived; orphan = bug | AC 6 | Covered |
+| Memory tiers | 100k cap, per call, never accumulated | AC 12, 22 | Covered |
+| Memory tiers | Selection not reproducible; ids traced | Turn record; AC 12 | Covered |
+| Figure 2 | Fixed block < 800 tokens | FR-OPS-04 warning; step 12 | Covered |
+| Figure 2 | Parent chain for locations; lexicon by `used_by` | Step 12 | Covered |
+| Figure 2 | Setups offered, not assigned | Step 16 prompt; AC 23 test | Covered |
+| Figure 3 | Write table; two inbound edges into canon | AC 2, 13, 17 | Covered |
+| Figure 3 | `In` column: nothing else available | `INPUT_TABLE`; FR-AGENT-09 test | Covered |
+| Figure 3 | `write` vs `revise` not interchangeable | Revise scope guard; AC 19 | Covered |
+| Figure 3 | Architect and world builder | Human under the role via CRUD (spec Decision 5) | Covered, model-invoked deferred |
+| Figure 3 | Human ruling on collisions | AC 20 | Covered |
+| Figure 4 | Order of steps; audit before extraction | Step 18 | Covered |
+| Figure 4 | Canon updated before next scene | Step 18 next-scene `dry_run` test | Covered |
+| Figure 4 | Bounded revise loop | AC 19 | Covered |
+| Storage layout | Every path; `.index/` | Steps 4, 6; spec FR-STORE, FR-TURN-07 | Covered |
+| Storage layout | Stable identifiers; renaming breaks the graph | FR-STORE-05 id grammar; DR-08 no rename; step 6 | Covered |
+| Storage layout | Git gives canon versioning and continuity diffs | Tree is a git working tree the human commits; backend runs no git (spec Out) | Covered, automation deferred to branch-per-turn spec |
+| Operations · index | One row per entity, including one per lexicon term and per chapter digest | Step 9 | Covered |
+| Storage layout | Store-root `CLAUDE.md` | Fixture file, step 4 (informational: enforcement is in the backend) | Covered |
+| Stack | Backend the only process on the stores; frontend via API | NFR-04 contracts; frontend deferred to its own spec | Covered |
+| Package by feature | Rules 1–5 | `import-linter` contracts (independence, layers, acyclicity); AC 1 | Covered |
+| Package by feature | Tests live in the feature; `backend/tests/` cross-feature only | File list follows it; `tests/` holds conftest, fixture, shared-selection, schemathesis, live | Covered |
+| Package by feature | Frontend rules 6–8 | Frontend deferred to its own spec | Deferred by name |
+| Over-constraint | Flag, don't repair; function, not how | AC 16; writer prompt, step 16; fixture review AC 28 | Covered |
+| TemporalSystem (via `transit_matrix`) | `dilation_factor` per character | Not applied in the transit check | **Residual 3** — later spec |
+
+**Residuals, named so nobody mistakes them for coverage:**
+
+1. **Free text on the scene record.** `architecture.md` says selection embeds "any free
+   text the architect wrote", but `definitions.md` gives Scene no free-text field. The plan
+   embeds every string field the record has; if a `notes` field is wanted it is a
+   `definitions.md` change (Process 1), not a plan change.
+2. **Extraction on discarded drafts.** The Operations section says extraction runs on every
+   draft; Figure 4 puts it on the accepted path. The approved spec chose Figure 4 and kept
+   the writer's own proposals from every iteration as the compromise. The doc tension
+   itself is a Process 1 note, recorded here.
+3. **Relativistic dilation.** `dilation_factor` exists in `TemporalSystem` but the v1
+   transit check compares raw `story_time`. Deferred to the spec that makes invariant 5
+   character-relative.
 
 ---
 
