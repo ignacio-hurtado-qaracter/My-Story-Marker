@@ -102,6 +102,7 @@ erDiagram
     json    entry_state       "world before"
     json    exit_state        "world after"
     array   tags              "optional pins for axioms and lexicon"
+    string  notes             "optional free text; feeds selection"
     int     budget            "assigned words"
   }
 

@@ -162,7 +162,7 @@ corresponding point on their arc. Everything else is built on top of this as-of 
 ### `select_entities(scene) → EntityRef[]`
 
 Embeds the full scene record — `goal`, `conflict`, `value_change`, `pov`, `location`,
-`entry_state`, `exit_state` and any free text the architect wrote — and queries the entity
+`entry_state`, `exit_state` and the architect's free-text `notes` — and queries the entity
 index for the nearest characters, locations, axioms, lexicon entries and chapter digests.
 Returns **identifiers ranked by relevance, never text**. The POV is not part of the result:
 it enters by identifier from the scene record, unconditionally. Entities the architect

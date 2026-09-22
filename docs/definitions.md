@@ -353,6 +353,7 @@ no other?*
 | `value_change` | Which value moves, and in which direction |
 | `entry_state` / `exit_state` | Verifiable delta to the world |
 | `tags[]` | Optional pins: axioms and lexicon that enter context regardless of selection |
+| `notes` | Optional free text for what the structured fields cannot hold; feeds selection, never binds the writer |
 | `budget` | Assigned words |
 
 **Failure mode.** Specifying the *how* as well as the *what*. An over-prescriptive scene
