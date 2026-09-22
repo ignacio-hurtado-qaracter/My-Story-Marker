@@ -35,6 +35,8 @@ erDiagram
 
   CHARACTER ||--|| VOICE_PROFILE : "speaks with"
   CHARACTER ||--o{ KNOWLEDGE_STATE : "holds"
+  CHARACTER ||--o{ CHANGE_EVENT : "registers"
+  CHANGE_EVENT }o--|| SCENE : "happens in"
   CHARACTER }o--o{ CHARACTER : "directed relationship"
   KNOWLEDGE_STATE }o--|| SCENE : "acquired in"
   KNOWLEDGE_STATE }o--|| HISTORICAL_EVENT : "about"
@@ -61,8 +63,9 @@ relationships are recursive *and* many-to-many *and* directed, because the inter
 narrative case is exactly the asymmetric one — A trusts B, B despises A.
 
 **Everything dated runs through `SCENE`.** `KNOWLEDGE_STATE` is acquired in a scene.
-`SETUP` is planted in a scene and paid in a scene. `PLOT_THREAD` advances in scenes. This
-is what makes consistency checkable: the model has no free-floating "later" or "by then",
+`SETUP` is planted in a scene and paid in a scene. `PLOT_THREAD` advances in scenes.
+`CHANGE_EVENT` happens in a scene, which is what lets a body or a memory change without
+the checker calling it an error. This is what makes consistency checkable: the model has no free-floating "later" or "by then",
 only scene identifiers that resolve to a position on the story-time axis.
 
 **`AXIOM` has unusually high out-degree.** It constrains technology, conditions the

@@ -244,6 +244,25 @@ which is precisely what the writer has to resolve on the page.
 **Failure mode.** An arc written as a prose summary. Without scene anchors you cannot
 answer "where is she at chapter 19?".
 
+### ChangeEvent
+
+A registered change to something the model otherwise treats as fixed: an
+`immutable_physical` attribute of a character, or knowledge they held and no longer do
+(the `Knows → Unaware` edge in `domain-knowledge.md` Figure 4). It exists so that a scar,
+an amputation, a memory wipe or a conditioning can be told apart from a continuity error.
+Without the record the two are indistinguishable on the page.
+
+| Field | Meaning |
+|---|---|
+| `character` | Whose body or memory changed |
+| `attribute` | The `immutable_physical` key, or the `fact_ref` forgotten |
+| `from` / `to` | The value before and after; `to` is empty for a forgotten fact |
+| `scene` | Where it happens; before it, the old value holds |
+| `cause` | What did it; a change with no cause is a plot hole with a receipt |
+
+**Failure mode.** Registering the change after the checker complains. A ChangeEvent is a
+decision taken before the prose, not an excuse written after it.
+
 ### VoiceProfile
 
 Kept separate from the dossier because it is consulted at a different moment: when
