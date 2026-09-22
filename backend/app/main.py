@@ -18,6 +18,7 @@ from pydantic import BaseModel, Field
 from app.commons.config import Settings, get_settings
 from app.commons.db.connection import vector_extension_available
 from app.commons.errors import register_exception_handlers
+from app.commons.permissions import AgentRole, readable_patterns, writable_patterns
 
 STORE_ROOT_MARKER = Path("canon") / "project.md"
 """FR-STORE-01. The file whose absence means this directory is not a story."""
@@ -31,6 +32,26 @@ class HealthResponse(BaseModel):
     vector: str = Field(description="`available` or `unavailable`, per FR-IDX-03.")
     embedding_model: str = Field(description="The configured 384-d model name, FR-EMB-02.")
     store_root: str = Field(description="The store root this process is bound to.")
+
+
+class RolePermissions(BaseModel):
+    """One row of Figure 3, as the API reports it."""
+
+    role: AgentRole
+    writes: list[str] = Field(description="FR-PERM-02. Store globs this role may write.")
+    inputs: list[str] = Field(
+        description=(
+            "FR-AGENT-09, Figure 3's `In` column. Stricter than `writes`: anything not "
+            "listed here is not available to the role, whatever it may read in principle."
+        )
+    )
+
+
+class PermissionsResponse(BaseModel):
+    """FR-PERM-04. The table, exported so a reviewer can read what the process enforces
+    rather than what a document says it should."""
+
+    roles: list[RolePermissions]
 
 
 def verify_store_root(settings: Settings) -> None:
@@ -76,6 +97,19 @@ def create_app() -> FastAPI:
             vector="available" if vector_extension_available() else "unavailable",
             embedding_model=settings.embed_model,
             store_root=str(settings.story_root),
+        )
+
+    @app.get("/permissions", response_model=PermissionsResponse, tags=["meta"])
+    async def permissions() -> PermissionsResponse:
+        return PermissionsResponse(
+            roles=[
+                RolePermissions(
+                    role=role,
+                    writes=list(writable_patterns(role)),
+                    inputs=list(readable_patterns(role)),
+                )
+                for role in AgentRole
+            ]
         )
 
     return app
