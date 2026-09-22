@@ -1,6 +1,6 @@
 ---
 spec: 001                 # the approved spec this plan implements
-status: draft             # draft · approved · done
+status: approved          # draft · approved · done
 ---
 
 Implementation plan for [`001-backend-foundation.md`](./001-backend-foundation.md)
@@ -22,7 +22,7 @@ without touching the spec.
 
 | # | Decision | Why |
 |---|---|---|
-| P1 | **`uv`** manages the environment and lockfile (`pyproject.toml` + `uv.lock`); Python 3.12 via the `py -3.12` launcher already on this machine. `uv` is not yet installed and is installed in step 1 with the official standalone installer. | `CLAUDE.md` already assumes `uvx`; one lockfile for the gate. |
+| P1 | **`uv`** manages the environment and lockfile (`pyproject.toml` + `uv.lock`); Python 3.12 via the `py -3.12` launcher already on this machine. `uv` is not yet installed and is installed in step 0 with `py -3.12 -m pip install --user uv`, the user’s choice at approval; no remote installer script is run. | `CLAUDE.md` already assumes `uvx`; one lockfile for the gate. |
 | P2 | YAML through **PyYAML `safe_load`/`safe_dump`**; Markdown frontmatter through **`python-frontmatter`**. No `ruamel`. | Spec NFR-03; comment preservation is not a requirement. |
 | P3 | **`sqlite-vec`** via its PyPI package (`sqlite_vec.load(conn)`), requiring `sqlite3.enable_load_extension`. The python.org 3.12 Windows build supports it; if a platform does not, FR-IDX-03's fallback path is exactly what runs. | Spec FR-IDX-03. |
 | P4 | **`fastembed`** pinned; `EMBED_MODEL` default `sentence-transformers/all-MiniLM-L6-v2`; cache under `.index/models/`. | Spec FR-EMB. |
