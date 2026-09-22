@@ -468,6 +468,11 @@ of this document; the sections above justify it.
 | The selected-entity list of each turn is recorded and the auditor reads the same list | Integration test comparing writer and auditor inputs on one turn | T |
 | No invocation exceeds 100k context tokens | Static cap in the assembler; per-call token count in the Langfuse trace | A, D |
 | Digests can be dropped and regenerated from `manuscript/` with no loss to assembly | Regenerate-and-compare test | T |
+| A model-invoked role holds no tool that writes outside its Figure 3 row | Tool sets derived from the permission table by code; enumeration test per role; SAST rule against hand-written tool lists | A, T |
+| Every writing turn ends `merged` or `escalated` within a bounded number of revisions | Turn state-machine tests with a scripted fake model that never passes audit | T |
+| Store content enters a prompt as data, never as a system instruction | Inspection of every recorded fake-client call: nothing from the stores in `system`, every document delimited | T |
+| A collision is promoted only by a human ruling | `promote` returns an escalation and changes nothing; SAST rule that no code path under `ledger/` or `agents/` writes `canon/` outside `promote` and `rule` | T, A |
+| Body and memory changes are registered, not improvised | Invariant 3 check against `cast/{id}/changes.yaml` on a fixture with one registered and one unregistered change | T |
 | Chapter forty lands | — | **U** |
 
 The last row is deliberate. Whether the novel is *good* is not something any method here
@@ -488,6 +493,8 @@ Every **U** is listed here with a reason. An unlisted U is a defect.
 | Mutants accepted as equivalent | Manual judgement | Listed per module with a reason, re-reviewed quarterly |
 | Model provider behaviour change | Outside our control | Pinned model versions; golden evals re-run on any version bump |
 | Reproducibility of semantic selection | A vector index may rank differently across runs and embedding versions; no method here proves two selections equal | Selected ids are traced per turn so what entered a context is always recoverable; pins through `tags` for anything a scene must not miss; pinned embedding model |
+| The agent role on an API write is trusted, not authenticated | The backend is a local, single-operator tool with no network beyond the model API; a caller can claim any role | Every write is recorded with its role and actor in the provenance log; the store tree is a git working tree the operator reviews; authentication is a later spec, triggered by a second user or a network |
+| Turn records and the provenance log under `.index/` are not rebuildable | They are operational history, not derived from the tree; losing `.index/` loses how the tree came to be, though not the tree | Git history of the tree preserves what changed; role and actor are also in structured application logs; tracing to Langfuse (adoption step 3) moves them off disk |
 
 ---
 
