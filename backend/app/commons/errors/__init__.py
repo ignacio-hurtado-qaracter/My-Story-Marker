@@ -72,6 +72,25 @@ class NotFound(HarnessError):
         super().__init__(message, kind=kind, id=identifier)
 
 
+class InvalidRole(HarnessError):
+    """IF-02. The `X-Agent-Role` header is missing or names no role.
+
+    A 400 rather than a 403: the caller has not been refused, it has not said who it is. The
+    distinction matters because a 403 is a fact about Figure 3 and this is a fact about the
+    request, and conflating them would make a malformed client look like a permission
+    problem in the logs.
+
+    There is no default role. Guessing one would mean the provenance log recorded a guess
+    (FR-STORE-04), and a log that records guesses is not evidence.
+    """
+
+    code = "invalid_role"
+    status_code = 400
+
+    def __init__(self, message: str, *, supplied: str | None = None) -> None:
+        super().__init__(message, supplied=supplied)
+
+
 class PermissionDenied(HarnessError):
     """FR-STORE-03, IF-02. Figure 3 forbids this role on this path.
 
@@ -170,6 +189,7 @@ __all__ = [
     "HarnessError",
     "IndexBusy",
     "InvalidRecord",
+    "InvalidRole",
     "MalformedModelOutput",
     "ModelRefused",
     "NotFound",

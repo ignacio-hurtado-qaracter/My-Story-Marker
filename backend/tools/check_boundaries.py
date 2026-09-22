@@ -38,9 +38,24 @@ APP = "app"
 STORE_LAYER = ("app/commons/stores",)
 """The only place a file primitive may be applied to a store path (FR-STORE-02)."""
 
-INDEX_WRITERS = ("app/agents/records.py", "app/agents/lock.py")
-"""`.index/` is not a store: it is not governed by Figure 3 and no agent reads it
-(Decision R2-1). The orchestrator's own records are written by these two modules."""
+INDEX_WRITERS = (
+    "app/agents/records.py",
+    "app/agents/lock.py",
+    "app/commons/db/",
+    "app/commons/embeddings/",
+)
+"""The modules that own paths under `.index/`, which is **not** a store: it is not governed by
+Figure 3 and no agent reads it (Decision R2-1).
+
+`agents/records.py` and `agents/lock.py` hold the turn records and the turn lock;
+`commons/db/` owns `index.sqlite`; `commons/embeddings/` owns the model cache
+(`EMBED_CACHE_DIR`, FR-EMB-03).
+
+The exemption is coarse, and that is a real limit rather than an oversight: this rule matches
+file primitives by name and cannot see which path they are applied to, so a module allowed to
+touch `.index/` is allowed to touch anything. The narrower guarantee comes from elsewhere --
+`import-linter` keeps these modules out of the features, and none of them imports
+`commons.stores.paths`, so they have no way to build a store path in the first place."""
 
 STORE_FAMILIES = ("canon", "cast", "structure", "scenes", "manuscript", "ledger")
 
@@ -117,7 +132,11 @@ def _enclosing_functions(tree: ast.Module) -> dict[int, str]:
 
 def check_forbidden_store_write(relative: str, tree: ast.Module) -> list[Finding]:
     """Rule 1, AC 3."""
-    if relative.startswith(STORE_LAYER) or relative in INDEX_WRITERS or _is_test(relative):
+    if (
+        relative.startswith(STORE_LAYER)
+        or relative.startswith(INDEX_WRITERS)
+        or _is_test(relative)
+    ):
         return []
 
     findings: list[Finding] = []

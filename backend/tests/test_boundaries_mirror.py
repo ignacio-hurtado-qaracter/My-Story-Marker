@@ -119,3 +119,30 @@ def test_string_replace_is_not_a_file_primitive() -> None:
 def test_path_replace_is_a_file_primitive() -> None:
     source = "def move(temporary, target):\n    temporary.replace(target)\n"
     assert check_source("app/canon/service.py", source)
+
+
+# spec 001 / AC 3 — the `.index/` exemption is by module, and coarse. It is worth pinning
+# that it does not leak: a feature is still caught, and so is a commons module that owns no
+# `.index/` path.
+@pytest.mark.parametrize(
+    "scope",
+    ["app/canon/repository.py", "app/commons/permissions/table.py", "app/commons/llm/client.py"],
+)
+def test_the_index_exemption_does_not_leak(scope: str) -> None:
+    source = (FIXTURES / "positive" / "writes_store_directly.py").read_text(encoding="utf-8")
+    assert [f for f in check_source(scope, source) if f.rule == "forbidden-store-write"]
+
+
+# spec 001 / AC 3 — and that it does cover the four modules that own `.index/`.
+@pytest.mark.parametrize(
+    "scope",
+    [
+        "app/agents/records.py",
+        "app/agents/lock.py",
+        "app/commons/db/rebuild.py",
+        "app/commons/embeddings/fastembed_impl.py",
+    ],
+)
+def test_the_index_owners_are_exempt(scope: str) -> None:
+    source = (FIXTURES / "positive" / "writes_store_directly.py").read_text(encoding="utf-8")
+    assert not [f for f in check_source(scope, source) if f.rule == "forbidden-store-write"]

@@ -89,8 +89,8 @@ def create_app() -> FastAPI:
     )
     register_exception_handlers(app)
 
-    @app.get("/health", response_model=HealthResponse, tags=["meta"])
-    async def health() -> HealthResponse:
+    @app.get("/health", tags=["meta"])
+    def health() -> HealthResponse:
         settings = get_settings()
         return HealthResponse(
             status="ok",
@@ -99,8 +99,8 @@ def create_app() -> FastAPI:
             store_root=str(settings.story_root),
         )
 
-    @app.get("/permissions", response_model=PermissionsResponse, tags=["meta"])
-    async def permissions() -> PermissionsResponse:
+    @app.get("/permissions", tags=["meta"])
+    def permissions() -> PermissionsResponse:
         return PermissionsResponse(
             roles=[
                 RolePermissions(

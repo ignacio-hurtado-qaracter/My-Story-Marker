@@ -26,8 +26,13 @@ rules:
         - app/
       exclude:
         - app/commons/stores/
+        # The modules that own paths under `.index/`, which is not a store and is not
+        # governed by Figure 3 (Decision R2-1): the turn records and lock, the index file
+        # itself, and the embedding-model cache of FR-EMB-03.
         - app/agents/records.py
         - app/agents/lock.py
+        - app/commons/db/
+        - app/commons/embeddings/
         - "**/tests/**"
     patterns:
       - pattern-either:
