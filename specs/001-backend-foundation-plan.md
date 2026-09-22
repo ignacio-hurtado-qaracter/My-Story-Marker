@@ -1,0 +1,244 @@
+---
+spec: 001                 # the approved spec this plan implements
+status: draft             # draft · approved · done
+---
+
+Implementation plan for [`001-backend-foundation.md`](./001-backend-foundation.md)
+(status `approved`, 2026-09-22). The spec says *what* and *why*; this file says *how* and
+*in what order*. Anything not listed under "Files to touch" is out of scope; a file that
+turns out to be needed means this plan is wrong and goes back to `draft`.
+
+Branch: `spec/001-backend`. Commit prefixes: `backend:`, `contract:`, `chore:`. Every step
+is one commit, small enough to review alone, and names the acceptance criteria it advances.
+Every test added carries `# spec 001 / AC n`.
+
+---
+
+## Implementation decisions taken while planning
+
+The spec leaves these open at the level of implementation. Each is resolved here with the
+plain default; approving the plan approves them. Any one can be changed before approval
+without touching the spec.
+
+| # | Decision | Why |
+|---|---|---|
+| P1 | **`uv`** manages the environment and lockfile (`pyproject.toml` + `uv.lock`); Python 3.12 via the `py -3.12` launcher already on this machine. `uv` is not yet installed and is installed in step 1 with the official standalone installer. | `CLAUDE.md` already assumes `uvx`; one lockfile for the gate. |
+| P2 | YAML through **PyYAML `safe_load`/`safe_dump`**; Markdown frontmatter through **`python-frontmatter`**. No `ruamel`. | Spec NFR-03; comment preservation is not a requirement. |
+| P3 | **`sqlite-vec`** via its PyPI package (`sqlite_vec.load(conn)`), requiring `sqlite3.enable_load_extension`. The python.org 3.12 Windows build supports it; if a platform does not, FR-IDX-03's fallback path is exactly what runs. | Spec FR-IDX-03. |
+| P4 | **`fastembed`** pinned; `EMBED_MODEL` default `sentence-transformers/all-MiniLM-L6-v2`; cache under `.index/models/`. | Spec FR-EMB. |
+| P5 | Server-Sent Events via **`sse-starlette`**; the turn runs synchronously inside the request on a **single uvicorn worker**. The lock file makes a second worker pointless. | Spec IF-06, FR-TURN-05. |
+| P6 | Provenance is **JSON Lines** (`.index/provenance.jsonl`, one object per write); turn records are **YAML** (`.index/turns/NNN-<n>.yaml`, rewritten after each step). | Append-only vs. update-in-place shapes. |
+| P7 | The fake model client's `count_tokens` is `len(text) // 4`; the live one calls `messages.count_tokens`. | Spec FR-LLM-07. |
+| P8 | **`semgrep` does not run natively on Windows.** The rules of record for AC 3, 13 and 17 are `semgrep` and run in CI (Linux). A local mirror, `backend/tools/check_boundaries.py` (stdlib `ast`, same three rules), runs inside `pytest` on every platform so the local gate is not blind. Both must pass; a disagreement between them is a bug in the mirror. | Developer is on Windows 11. |
+| P9 | The fixture novel is written in **English**, so the default embedder is the right one for the fixture and the docs' language matches. Nothing in the fixture depends on the prose language. | Spec R2-3 note. |
+| P10 | Structured output uses the SDK's typed `messages.parse()` against each DR-12 Pydantic model; role prompts are Markdown files loaded at import time with a `prompt_version` equal to their content hash. | Spec FR-LLM-04, FR-AGENT-10. |
+| P11 | `import-linter` contracts are the enforcement of NFR-04; `mypy --strict` runs with `pydantic.mypy` plugin; `bandit` at default profile with `B506`. | Spec NFR-01…04. |
+| P12 | The CI file is a single GitHub Actions workflow with a two-cell matrix `vec: [present, absent]`, the `absent` cell uninstalling `sqlite-vec` before tests. Live tests never run in CI. | Spec AC 7, NFR-09. |
+| P13 | The stale assumption in `.claude/skills/sqlite/references/vectors.md` (that vector search is not the retrieval path for assembly) is corrected as a `chore:` commit in step 1, so the skill does not argue with the spec while code is written. | `AGENTS.md` layer rule: skill docs must not contradict `docs/`. |
+
+---
+
+## Files to touch
+
+Paths are relative to the repository root. `backend/app/` is abbreviated `app/`.
+
+### Tooling and root
+
+| Path | Change |
+|---|---|
+| `backend/pyproject.toml` | Project metadata, pinned dependencies, `ruff`, `mypy --strict` (+ pydantic plugin), `bandit`, `import-linter` contracts, `pytest` markers (`live`, `model`) |
+| `backend/uv.lock` | Lockfile |
+| `backend/README.md` | Run, test, gate, environment variables |
+| `backend/.env.example` | `STORY_ROOT`, `STORY_INDEX`, `EMBED_MODEL`, `EMBED_CACHE_DIR`, `EMBED_OFFLINE`, `MODEL_<ROLE>`, `THINKING_BUDGET_<ROLE>`, `TURN_REVISE_MAX_CHANGED_RATIO`; `ANTHROPIC_API_KEY` as a placeholder only |
+| `backend/gate.ps1`, `backend/gate.sh` | The one-command local gate (AC 30) |
+| `backend/scripts/export_openapi.py` | Writes `backend/openapi.json` from the app |
+| `backend/scripts/export_schemas.py` | Writes `backend/schemas/*.v1.json` from the Pydantic models |
+| `backend/openapi.json` | Committed contract (IF-08) |
+| `backend/schemas/*.v1.json` | Committed JSON Schemas (DR-01) |
+| `backend/semgrep/forbidden-store-write.yaml` | AC 3 rule |
+| `backend/semgrep/canon-write-outside-promote.yaml` | AC 13 rule |
+| `backend/semgrep/hand-written-toolset.yaml` | AC 17 rule |
+| `backend/semgrep/tests/{positive,negative}/*.py` | Rule fixtures |
+| `backend/tools/check_boundaries.py` | Local AST mirror of the three rules (P8) |
+| `.github/workflows/backend.yml` | Static, tests (vec matrix), contract freshness, semgrep |
+| `.gitignore` | `.index/`, `.venv/`, `backend/.env` |
+| `.claude/skills/sqlite/references/vectors.md` | Correct the stale assumption (P13) |
+| `.claude/skills/README.md` | Note the correction; note replacement of the vendored `fastapi` skill by `uvx library-skills` once pinned |
+
+### `app/commons/`
+
+| Path | Change |
+|---|---|
+| `app/main.py` | App factory, feature routers, exception handlers, `/health` (`vector`, `embedding_model`, `store_root`) |
+| `app/commons/config.py` | Pydantic settings from environment; the 100k cap and `TURN_MAX_REVISIONS = 3` as **module constants**, not settings |
+| `app/commons/errors/__init__.py` | `InvalidRecord`, `NotFound`, `PermissionDenied`, `IndexBusy`, `TurnLocked`, `ContextBudgetExceeded`, `MalformedModelOutput`, `ModelRefused`, `OutputTruncated` and the handlers mapping them to IF-07 codes |
+| `app/commons/permissions/{__init__,roles,table,toolsets}.py` | `AgentRole`, `WRITE_TABLE`, `may_write`, `toolset_for(role)` derived from the table |
+| `app/commons/permissions/tests/test_table.py` | AC 2 |
+| `app/commons/permissions/tests/test_toolsets.py` | AC 17 |
+| `app/commons/schemas/{__init__,common,scene,knowledge,setup,thread,proposed,violation,draft,digest,change_event,relationship,lexicon,time,role_outputs}.py` | Shared Pydantic models (DR-01…12) |
+| `app/commons/schemas/tests/test_enums.py`, `test_roundtrip.py`, `test_json_schema_export.py` | AC 4, 5 |
+| `app/commons/stores/{__init__,paths,reader,writer,provenance,frontmatter}.py` | The only file-touching module: id → path, validate-on-read, atomic role-named writes, provenance append |
+| `app/commons/stores/tests/test_paths.py`, `test_validate_on_read.py`, `test_atomic_write.py`, `test_permission_refusal.py`, `test_provenance.py` | AC 2 (integration side), 4, 32 |
+| `app/commons/db/{__init__,connection,migrations.py,migrations/0001_init.sql,0002_fts.sql,0003_vec.sql,index,rebuild}.py` | SQLite connection (WAL, busy timeout), migrations, FTS5, optional `vec0`, rebuild, status, incremental update |
+| `app/commons/db/tests/test_rebuild.py`, `test_migrations.py`, `test_vec_optional.py`, `test_busy.py` | AC 6, 7, 8 |
+| `app/commons/embeddings/{__init__,protocol,fake,fastembed_impl}.py` | `Embedder` protocol, `FakeEmbedder`, `FastEmbedEmbedder` with fallback |
+| `app/commons/embeddings/tests/test_fake.py`, `test_fastembed.py` (marker `model`) | AC 9 |
+| `app/commons/llm/{__init__,protocol,anthropic_client,fake,tokens,errors}.py` | `ModelClient` protocol, live client, fake with scripted responses and call log, token counting, typed error chain |
+| `app/commons/llm/tests/test_fake.py`, `test_structured_output.py`, `test_refusal.py`, `test_budget.py`, `test_thinking_config.py` | AC 21, 22 (unit level) |
+
+### Features
+
+| Path | Change |
+|---|---|
+| `app/canon/{router,service,models,repository}.py` | Project, style, kinds, lexicon, time; `reconcile` |
+| `app/canon/tests/test_read_write.py`, `test_reconcile.py` | AC 14, 29 |
+| `app/cast/{router,service,models,repository}.py` | Dossiers, voice, knowledge, changes, relationships; `dossier(at)` |
+| `app/cast/tests/test_dossier.py`, `test_read_write.py` | AC 10 |
+| `app/scenes/{router,service,models,repository,select,assemble}.py` | Scene CRUD, structure, `select_entities`, `assemble_context` |
+| `app/scenes/tests/test_select.py`, `test_assemble.py` | AC 11, 12 |
+| `app/manuscript/{router,service,models,repository}.py` | Drafts, digests, `literal_tail` derivation |
+| `app/manuscript/tests/test_read_write.py`, `test_literal_tail.py` | DR-11 |
+| `app/ledger/{router,service,models,repository,promote,audit/__init__,audit/inv_01,…,inv_10}.py` | Setups, threads, timeline, proposed, violations; `promote`, `rule`; mechanical audit, one module per invariant |
+| `app/ledger/tests/test_promote.py`, `test_audit_writes.py`, `test_audit_01.py` … `test_audit_10.py` | AC 13, 15, 16 |
+| `app/agents/{router,service,models,turn,lock,records,roles/__init__,roles/writer,roles/style_editor,roles/canoniser,roles/auditor,prompts/*.md}.py` | Roles as functions, orchestrator, lock, turn records, rulings, resume, SSE, rollup |
+| `app/agents/tests/scripts/*.yaml` | Scripted fake-model responses per scenario |
+| `app/agents/tests/test_turn_happy.py`, `test_turn_escalation.py`, `test_turn_ruling.py`, `test_turn_malformed.py`, `test_turn_budget.py`, `test_turn_resume.py`, `test_turn_provenance.py`, `test_prompts_as_data.py`, `test_rollup.py` | AC 18–24, 32 |
+
+### Cross-feature tests and fixtures
+
+| Path | Change |
+|---|---|
+| `backend/tests/conftest.py` | Temp copy of the fixture repo per test, fake clients wired, network disabled |
+| `backend/tests/fixtures/repo/**` | The fixture novel: `canon/`, `cast/`, `structure/`, `scenes/`, `manuscript/`, `ledger/` |
+| `backend/tests/fixtures/repo/README.md` | Planted violations, tempting scene, expected outputs (AC 28) |
+| `backend/tests/test_turn_selection_shared.py` | AC 12 (writer and auditor see the same list) |
+| `backend/tests/test_schemathesis.py` | AC 29 |
+| `backend/tests/test_boundaries_mirror.py` | Runs `tools/check_boundaries.py` (P8) |
+| `backend/tests/live/test_turn_live.py`, `test_extract_live.py` | AC 26, 27 (`--live`) |
+
+---
+
+## Steps
+
+Each step is one commit. "Advances" names the acceptance criteria the step moves; a
+criterion is *satisfied* only when its verification in the mapping below passes.
+
+| # | Commit | What | Advances |
+|---|---|---|---|
+| 0 | — | Confirm the branch is `spec/001-backend` and the tree is clean. Install `uv`. | — |
+| 1 | `chore:` | Correct the stale vector assumption in the `sqlite` skill; note in `.claude/skills/README.md` that the vendored `fastapi` skill is replaced by `uvx library-skills` in step 2. | — |
+| 2 | `backend:` | `pyproject.toml` with every pinned dependency, `uv.lock`, tool configuration, `import-linter` contracts (NFR-04), package skeleton with empty feature folders, `app/main.py` with `/health`, `config.py`, `errors/`, `gate.ps1`/`gate.sh`, `.gitignore`, `.env.example`, `README.md`. Gate passes on an empty app. Replace the vendored `fastapi` skill with the managed install. | AC 1, 30 |
+| 3 | `backend:` | Shared Pydantic models and enums (`commons/schemas/`), `export_schemas.py`, committed `schemas/*.v1.json`; enum and round-trip tests. | AC 4 (model half), 5 |
+| 4 | `backend:` | Fixture repository and its `README.md`: three characters, two locations with a parent, four axioms (one pinned by tag), lexicon with forbidden variants, six scenes in non-monotonic discourse order, two drafts, one registered and one unregistered body change, setups (one overdue), threads (one over latency), and the tempting scene. | AC 28 (draft), enables 15, 26, 27 |
+| 5 | `backend:` | Permission table, `AgentRole`, `may_write`, `/permissions` route; table test. | AC 2 |
+| 6 | `backend:` | Store layer: paths, frontmatter, validate-on-read, atomic role-named writes, provenance JSONL; `semgrep` rule for forbidden store writes plus the AST mirror; store tests. | AC 3, 4 (read half), 32 (store half) |
+| 7 | `backend:` | Feature read and write routers for `canon`, `cast`, `structure`, `scenes`, `manuscript`, `ledger` (IF-03, IF-04) with `X-Agent-Role` / `X-Actor` handling; `export_openapi.py` and first committed `openapi.json`. | AC 29 (partial) |
+| 8 | `backend:` | Embedder protocol, fake, `FastEmbedEmbedder` with fallback and cache dir; tests (`model` marker for the real one). | AC 9 |
+| 9 | `backend:` | SQLite layer: connection, migrations, FTS5, optional `vec0`, `rebuild`, incremental update, `/index/rebuild`, `/index/status`, `/health.vector`; rebuild, migration, optional-vec and busy tests. | AC 6, 7, 8 |
+| 10 | `backend:` | `dossier(character, at)` and `/cast/{id}/dossier?at=`; unit and property tests. | AC 10 |
+| 11 | `backend:` | `select_entities` with BM25 + cosine fused by reciprocal rank, pins first, POV excluded; `/scenes/{id}/select`. | AC 11 |
+| 12 | `backend:` | `assemble_context`: fixed block, POV dossier, literal tail, ranked as-of loading, 100k stop, `truncated_at`, fixed-block warning; token counting through the `ModelClient` protocol (fake only at this step); `/scenes/{id}/assemble`. | AC 12 (assembly half) |
+| 13 | `backend:` | `promote`, `rule`, `reconcile`; `semgrep` rule and mirror for canon writes outside `promote`/`rule`; routes. | AC 13, 14 |
+| 14 | `backend:` | Mechanical audit, one module per invariant, `/scenes/{id}/audit?semantic=false`, persistence only under auditor + `persist=true`; golden tests on the fixture and the write-scope test. | AC 15, 16 |
+| 15 | `backend:` | Model client: protocol, `AnthropicModelClient` (Haiku defaults, `budget_tokens` by model family, streaming, `parse()` structured output, `stop_reason` handling, `count_tokens`, typed error chain, `cache_control` on the prefix), `FakeModelClient` with scripts and call log; unit tests. | AC 21, 22 (unit) |
+| 16 | `backend:` | Tool sets derived from the permission table; prompt assembly with store content as delimited data and nothing from the stores in `system`; role prompt files; `semgrep` rule and mirror against hand-written tool lists. | AC 17, 23 |
+| 17 | `backend:` | Roles as functions: writer `write`/`revise`/`digest`/`rollup`, style editor `polish`, canoniser `extract_facts`, auditor `audit_semantic`; combined `audit`; `/scenes/{id}/audit` full; `/agents/digests/rollup`. Tests with scripted fakes. | AC 15 (skipped list), 21 |
+| 18 | `backend:` | Turn orchestrator: state machine, lock, turn records after each step, revise scope guard, extraction on the accepted draft, promotion, `awaiting_ruling`, `rulings`, `resume`, SSE progress, `dry_run`. Scenario tests (happy, escalation after 3, revise rejected, collision and rulings, malformed, refusal, budget, resume, provenance). Cross-feature test that writer and auditor receive the same selected list. | AC 12 (turn half), 18–24, 32 |
+| 19 | `contract:` | Regenerate `openapi.json`; `schemathesis` test; CI workflow with the `vec` matrix, static gate, `semgrep`, contract freshness. | AC 7 (matrix), 29 |
+| 20 | `backend:` | Live tests behind `--live`: one full turn on the tempting scene and one extraction; run once locally with credentials, output saved to `backend/tests/live/last_run.md` for the PR. | AC 26, 27 |
+| 21 | — | Human review of the fixture `README.md` against the actual audit output (AC 28). Run the full gate, paste the output, open the PR `spec(001): Backend v1 — …` listing every criterion with its verification. | AC 28, 30 |
+| 22 | `spec(001):` | After merge: spec to `implemented`, this plan to `done`, listing per criterion the test, check or run that satisfied it. | — |
+
+Steps 3–6 can be developed in parallel branches off `spec/001-backend` but are merged in
+this order so that every commit passes the gate on its own.
+
+---
+
+## Verification mapping
+
+| AC | Letter | Verification | Lives in |
+|---|---|---|---|
+| 1 | A | `ruff check`, `mypy --strict`, `bandit -r`, `lint-imports` all zero findings | `pyproject.toml`; CI `static` |
+| 2 | T | Parametrised test: 6 roles × 7 store families → exactly Figure 3's outcomes; integration: `PUT` with each forbidden role → `403`, tree unchanged | `commons/permissions/tests/test_table.py`, `commons/stores/tests/test_permission_refusal.py` |
+| 3 | A | `semgrep` rule fires on `semgrep/tests/positive/`, silent on `app/`; AST mirror agrees | `semgrep/forbidden-store-write.yaml`, `tests/test_boundaries_mirror.py` |
+| 4 | T | Every fixture file validates; mutated copy → `InvalidRecord(file, field)`; `hypothesis` round-trip per model | `commons/schemas/tests/test_roundtrip.py`, `commons/stores/tests/test_validate_on_read.py` |
+| 5 | T | Each enum rejects out-of-enum strings and `True`/`False` | `commons/schemas/tests/test_enums.py` |
+| 6 | T | Rebuild twice → identical rows and vectors; delete + rebuild → same; orphans 0; migrate v0 copy → schema equals fresh | `commons/db/tests/test_rebuild.py`, `test_migrations.py` |
+| 7 | T | With `sqlite_vec` import patched to fail: startup ok, `/health.vector == "unavailable"`, FTS5 results; with it: fused results, `vec0` dim 384. CI matrix runs both cells for real | `commons/db/tests/test_vec_optional.py`; `.github/workflows/backend.yml` |
+| 8 | T | Two `multiprocessing` writers, 200 writes each → row count exact, `PRAGMA integrity_check` ok; forced busy → `503` after timeout | `commons/db/tests/test_busy.py` |
+| 9 | T | Fake: 384-d, unit norm, deterministic. Real (`model` marker): loads primary or falls back, 384-d, same vector across two processes; changed `embedding_model` metadata forces rebuild | `commons/embeddings/tests/test_fake.py`, `test_fastembed.py` |
+| 10 | T | Fixture cases + `hypothesis` over generated knowledge/valence tables: nothing dated after `at` | `cast/tests/test_dossier.py` |
+| 11 | T | Result type has no text field; pins first in order; POV absent | `scenes/tests/test_select.py` |
+| 12 | T | Property: no `acquired_in` later than scene; token stop before cap; no partial entry; turn record list == auditor input | `scenes/tests/test_assemble.py`, `tests/test_turn_selection_shared.py` |
+| 13 | T, A | Promote non-conflict → record changed, status `promoted`; conflict → `Escalation`, tree byte-identical, `conflict=True`; `semgrep` + mirror: no canon write under `ledger/`/`agents/` outside `promote`/`rule` | `ledger/tests/test_promote.py`, `semgrep/canon-write-outside-promote.yaml` |
+| 14 | T | Superset of hand-labelled dependents for the three fixture entities; property over generated scenes | `canon/tests/test_reconcile.py` |
+| 15 | T | Golden violations per planted case, correct severities, clean control scene empty; `skipped` list when the model step is disabled | `ledger/tests/test_audit_0N.py`, `agents/tests/test_turn_happy.py` |
+| 16 | T | Tree hash before/after: only `ledger/violations.yaml` differs and only under auditor + `persist=true`; other roles → `403`, hash equal | `ledger/tests/test_audit_writes.py` |
+| 17 | T, A | Enumerate `toolset_for(role)`: writer has no `canon/**`, auditor only `ledger/violations.yaml`, canoniser nothing under `manuscript/`; `semgrep` + mirror: no literal tool lists in `agents/` | `commons/permissions/tests/test_toolsets.py`, `semgrep/hand-written-toolset.yaml` |
+| 18 | T | Fake happy-path script → `merged`; draft, digest, proposed facts, turn record on disk; provenance role per file matches Figure 4 | `agents/tests/test_turn_happy.py` |
+| 19 | T | Always-blocking script → `escalated` after exactly 3 revisions, last draft and violations on disk; 60 %-change script → rejected twice → `escalated` | `agents/tests/test_turn_escalation.py` |
+| 20 | T | Colliding extraction → `awaiting_ruling`; `accept` → promoted + `merged`; `reject` → `rejected` + `merged`; second turn while pending → `409` | `agents/tests/test_turn_ruling.py` |
+| 21 | T | Schema-invalid script → one retry, then `MalformedModelOutput`, `manuscript/` untouched; refusal script → `escalated` with category | `agents/tests/test_turn_malformed.py`, `commons/llm/tests/test_refusal.py` |
+| 22 | T | Fake `count_tokens` > 100k → zero `complete` calls in the log, `ContextBudgetExceeded`, `escalated` | `agents/tests/test_turn_budget.py` |
+| 23 | T | Inspect every recorded fake call: `system` contains no substring of any store file; every document block delimited and labelled | `agents/tests/test_prompts_as_data.py` |
+| 24 | T | Kill after write step (script raises), resume → audit onward, exactly one `write` call in the log | `agents/tests/test_turn_resume.py` |
+| 25 | U | Registered | `docs/verification.md` U register (`95e0cd5`) |
+| 26 | D | `--live` full turn on the tempting scene; assert the axiom violation and the unregistered body change are flagged, the registered one is not; record shows real model ids, cache-read tokens, every step < 100k; output committed as evidence | `tests/live/test_turn_live.py`, `tests/live/last_run.md` |
+| 27 | D | `--live` extraction returns the two hand-labelled invented facts | `tests/live/test_extract_live.py` |
+| 28 | I | Human reads the fixture `README.md` against actual audit output; note in the PR | `tests/fixtures/repo/README.md` |
+| 29 | T | `export_openapi.py` output equals committed file (CI fails on diff); `schemathesis` run yields no `5xx` | `tests/test_schemathesis.py`; CI `contract` |
+| 30 | D | `gate.ps1` / `gate.sh` green; output pasted in the PR | PR description |
+| 31 | U | Registered | `docs/verification.md` U register (`95e0cd5`) |
+| 32 | T | After the fake turn, one provenance line per store write with the Figure 4 role and `actor: agent`; `PUT` with `X-Actor: human` → line with `actor: human` | `commons/stores/tests/test_provenance.py`, `agents/tests/test_turn_provenance.py` |
+
+Every **T** test is shown to fail before its step's code exists (Process 3 rule 15): the
+commit message of each step names the test and states that it was red on the parent commit.
+
+---
+
+## Risks and stop conditions
+
+What could make this plan wrong, and what the agent does if it happens. Any of the first
+group **reopens Process 0**: the plan returns to `draft`, the new fact is asked with a
+recommendation, and coding stops until the plan is re-approved.
+
+**Reopen Process 0 if:**
+
+- A role needs to write a path its Figure 3 row does not allow. This is a permission
+  change and goes to Process 1, never into code (Process 3 rule 12).
+- A store record needs a field `definitions.md` does not list, or a file the storage
+  layout does not name.
+- A step needs a file outside "Files to touch".
+- `sqlite3.enable_load_extension` is unavailable on the developer's Python **and** the
+  fallback path is judged insufficient for v1 (the spec says it is sufficient; if the user
+  disagrees on seeing it, that is a decision, not a fact).
+- `fastembed` cannot load either 384-d model on the developer's machine. The fallback
+  chain would then need a third model or a different dimension, which changes FR-IDX-03.
+- Haiku 4.5's structured output rejects a DR-12 schema shape (for example a deeply nested
+  union). Flattening a schema is a spec change to DR-12.
+- The revise scope guard (35 %) rejects every live revision. That is data the spec asked
+  for (R2-8) and the threshold is a spec value.
+
+**Handle inside the plan, with a note in the commit:**
+
+- `semgrep` unavailable locally → the AST mirror is the local check; CI is authoritative
+  (P8).
+- A `hypothesis` property finds an input the fixture did not anticipate → fix the code if
+  the property is right, or narrow the strategy with a comment linking the invariant if the
+  input is out of domain; never delete the property.
+- Live run (AC 26/27) misses a planted item → record the miss in `last_run.md`; the
+  criterion is **D** and the miss is the finding. Raising a role's model via
+  `MODEL_<ROLE>` is allowed by the spec; changing the default is not.
+- Model provider returns an unexpected `stop_reason` → surfaces as a typed error, turn
+  escalates; add the case to the fake scripts.
+- `SQLITE_BUSY` test flaky on CI → increase the busy timeout in the test fixture only,
+  never in production config, and record why.
+
+**Known constraints carried from the environment:**
+
+- Windows developer machine: `python3` resolves to the Microsoft Store stub; use
+  `py -3.12` or `uv run`. The `gate.ps1` script uses `uv run` throughout.
+- `.index/` records are not rebuildable (AC 31). Tests never write to a real `.index/`;
+  `conftest.py` points `STORY_INDEX` and `EMBED_CACHE_DIR` at the temp copy, except the
+  `model`-marked embedder test, which reuses the real model cache to avoid a download per
+  run.
