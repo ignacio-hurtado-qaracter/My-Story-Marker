@@ -146,3 +146,49 @@ def test_the_index_exemption_does_not_leak(scope: str) -> None:
 def test_the_index_owners_are_exempt(scope: str) -> None:
     source = (FIXTURES / "positive" / "writes_store_directly.py").read_text(encoding="utf-8")
     assert not [f for f in check_source(scope, source) if f.rule == "forbidden-store-write"]
+
+
+# spec 001 / AC 3, FR-STORE-05 — the mirror implements the rule of record's SECOND rule too.
+# It did not, for a while: an adversarial review planted `f"cast/{character}/..."` in a
+# feature repository and the local gate stayed green while the semgrep rule would have
+# fired. A mirror weaker than the rule it mirrors is worse than no mirror, because it is
+# trusted.
+@pytest.mark.parametrize(
+    "source",
+    [
+        'def p(c: str) -> str:\n    return f"cast/{c}/voice.md"\n',
+        'def p(c: str) -> str:\n    return "cast/%s/voice.md" % c\n',
+        'def p(c: str) -> str:\n    return "manuscript/" + c + ".md"\n',
+        'def p(s: str) -> str:\n    return f"scenes/{s}.yaml"\n',
+    ],
+    ids=["fstring", "percent", "concat", "scenes"],
+)
+def test_a_store_path_built_by_hand_is_caught(source: str) -> None:
+    findings = check_source("app/cast/repository.py", source)
+    assert [f for f in findings if f.rule == "store-path-built-by-hand"], source
+
+
+# spec 001 / AC 3 — but the store layer and the permission layer build and match those paths
+# for a living, so neither is a finding there.
+@pytest.mark.parametrize(
+    "scope", ["app/commons/stores/paths.py", "app/commons/permissions/table.py"]
+)
+def test_the_path_builders_are_exempt(scope: str) -> None:
+    source = 'def p(c: str) -> str:\n    return f"cast/{c}/voice.md"\n'
+    assert not [f for f in check_source(scope, source) if f.rule == "store-path-built-by-hand"]
+
+
+# spec 001 / AC 3 — and a string that merely mentions a family is not a path.
+@pytest.mark.parametrize(
+    "source",
+    [
+        'MESSAGE = f"canon has {n} entries"\n',
+        'def p(x: str) -> str:\n    return f"notes/{x}.md"\n',
+    ],
+    ids=["prose", "not-a-store-family"],
+)
+def test_no_false_positive_on_ordinary_strings(source: str) -> None:
+    assert not [
+        f for f in check_source("app/cast/repository.py", source)
+        if f.rule == "store-path-built-by-hand"
+    ]

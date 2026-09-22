@@ -17,7 +17,12 @@ The three rules:
 2. **canon-write-outside-promote** (AC 13) - nothing under `ledger/` or `agents/` writes
    canon except `promote` and `rule`. `promote` is the only write path into canon during
    drafting, and a collision is escalated to a human rather than resolved silently.
-3. **hand-written-toolset** (AC 17) - no literal list of store paths in `agents/`. FR-PERM-06
+3. **store-path-built-by-hand** (AC 3, FR-STORE-05) - no feature builds a store path by
+   interpolation or concatenation. Paths derive from identifiers inside the store layer, so an
+   id that would escape the root, or that fails its grammar, is rejected before it can become
+   a path. A module that writes `f"cast/{character}/voice.md"` has taken that check out of the
+   loop even though it never opens the file itself.
+4. **hand-written-toolset** (AC 17) - no literal list of store paths in `agents/`. FR-PERM-06
    derives each role's tools from the write table by code, so the two cannot diverge; a
    hand-written list is precisely that divergence waiting to happen.
 
@@ -218,6 +223,57 @@ def check_canon_write_outside_promote(relative: str, tree: ast.Module) -> list[F
     return findings
 
 
+def check_store_path_built_by_hand(relative: str, tree: ast.Module) -> list[Finding]:
+    """Rule 3, AC 3 and FR-STORE-05.
+
+    Catches a store path assembled in a feature rather than derived in
+    `commons/stores/paths.py`: an f-string or a concatenation or a `%` format whose literal
+    head names a store family. The store layer and the permission layer are exempt, because
+    building and matching those paths is exactly their job.
+
+    This rule was missing from the mirror while the semgrep rule of record had it, which an
+    adversarial review found by planting `f"cast/{character}/..."` in a feature repository and
+    watching the local gate stay green. A mirror that is weaker than the rule it mirrors is
+    worse than no mirror, because it is trusted.
+    """
+    if relative.startswith((*STORE_LAYER, "app/commons/permissions/")) or _is_test(relative):
+        return []
+
+    findings: list[Finding] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.expr):
+            continue
+        head = _literal_head(node)
+        if head is None:
+            continue
+        first = head.split("/")[0]
+        if first in STORE_FAMILIES and "/" in head:
+            findings.append(
+                Finding(
+                    "store-path-built-by-hand",
+                    relative,
+                    node.lineno,
+                    f"store path built from {head!r}; derive it in "
+                    "app.commons.stores.paths, which rejects an identifier that would "
+                    "escape the root or fail its grammar (FR-STORE-05)",
+                )
+            )
+    return findings
+
+
+def _literal_head(node: ast.expr) -> str | None:
+    """The constant prefix of an interpolated or concatenated string, if it has one."""
+    if isinstance(node, ast.JoinedStr):
+        for part in node.values:
+            if isinstance(part, ast.Constant) and isinstance(part.value, str):
+                return part.value
+            return None
+        return None
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Add | ast.Mod):
+        return _string_of(node.left)
+    return None
+
+
 def check_hand_written_toolset(relative: str, tree: ast.Module) -> list[Finding]:
     """Rule 3, AC 17.
 
@@ -267,6 +323,7 @@ def check_tree(root: Path) -> list[Finding]:
             continue
         findings.extend(check_forbidden_store_write(relative, tree))
         findings.extend(check_canon_write_outside_promote(relative, tree))
+        findings.extend(check_store_path_built_by_hand(relative, tree))
         findings.extend(check_hand_written_toolset(relative, tree))
     return sorted(findings, key=lambda finding: (finding.path, finding.line, finding.rule))
 
@@ -277,6 +334,7 @@ def check_source(relative: str, source: str) -> list[Finding]:
     return [
         *check_forbidden_store_write(relative, tree),
         *check_canon_write_outside_promote(relative, tree),
+        *check_store_path_built_by_hand(relative, tree),
         *check_hand_written_toolset(relative, tree),
     ]
 
