@@ -224,7 +224,7 @@ Source: [definitions.md](../docs/definitions.md), [domain-knowledge Figure 2](..
 |---|---|
 | DR-01 | Every file type under the stores has a Pydantic v2 model and an exported JSON Schema (`backend/schemas/<type>.v1.json`). Models used by one feature live in that feature's `models.py`; models used by two or more live in `commons/schemas/`. |
 | DR-02 | Markdown-with-frontmatter files parse into typed frontmatter plus `body: str`. |
-| DR-03 | `Scene` has the Figure 2 fields — `id`, `pov`, `story_time: int` (hours since `epoch_zero`, Decision 8), `discourse_order: int`, `location`, `goal`, `conflict`, `outcome` (four-value enum), `value_change`, `entry_state`, `exit_state`, `tags`, `budget`, `notes: str | None` — and `participants: list[str]` (Decision 9). |
+| DR-03 | `Scene` has the Figure 2 fields — `id`, `pov`, `story_time: int` (hours since `epoch_zero`, Decision 8), `discourse_order: int`, `location`, `goal`, `conflict`, `outcome` (four-value enum), `value_change`, `entry_state`, `exit_state`, `tags: list[str]` (free-text domain tags, intersected with `Axiom.scope`), `pins: list[EntityId]` (entities pinned by identifier), `budget`, `notes: str | None` — and `participants: list[str]`, required, possibly empty, disjoint from `pov` and without duplicates (Decision 9, clarified `aa05ee9`). |
 | DR-04 | `KnowledgeState.certainty` is the five-value enum; `via` is `witnessed · was_told · deduced · suspects`. Booleans are rejected. |
 | DR-05 | `Setup.resolution` is `paid · subverted · deliberately_abandoned`, optional while `paid_in` is empty; `due_by` required. |
 | DR-06 | `PlotThread.state` is the five-value enum; `max_latency: int` required. |
@@ -232,7 +232,7 @@ Source: [definitions.md](../docs/definitions.md), [domain-knowledge Figure 2](..
 | DR-08 | Identifiers are stable; the backend never renames. `Relationship` is directed with `valence` as a dated list. `ChangeEvent` (`character`, `attribute`, `from`, `to`, `scene`, `cause`) lives in `cast/{id}/changes.yaml` as [definitions.md](../docs/definitions.md#changeevent) and the storage layout now state. |
 | DR-09 | `CanonicalTerm.forbidden_variants` present (may be empty). `TemporalSystem.epoch_zero` and `transit_matrix` required. |
 | DR-10 | Every JSON Schema is versioned in its filename and via `schema_version`; unknown versions fail validation. |
-| DR-11 | `Draft`: `scene_ref`, `words`, `literal_tail` (last 500 words, derived on write), `body`. `SceneDigest`: `scene_ref` (or range), `level` (`scene · chapter · arc`), `povs`, `delta`, `words`. |
+| DR-11 | `Draft`: `scene_ref`, `words`, `literal_tail` (last 500 words, derived on write), `body`; no `version`, because git's diffs are the continuity record (`aa05ee9`). `SceneDigest`: `scene_ref` matching `^\d{3}(-\d{3})?$` — one scene, or a contiguous range at chapter and arc level, so FR-OPS-03 can decide whether every covered scene is at or before `T` — plus `level` (`scene · chapter · arc`), `povs`, `delta`, `words`. |
 | DR-12 | Every model-role output has a Pydantic schema used as the request's structured-output format: `WriterOutput {body, proposed_facts[]}`, `ReviseOutput {body}` (full scene text with only flagged spans changed), `PolishOutput {body}`, `ExtractOutput {facts[]}`, `SemanticAuditOutput {violations[]}`, `DigestOutput {delta, povs}`. |
 
 ### FR-IDX — Derived index
@@ -268,7 +268,7 @@ Source: [Operations](../docs/architecture.md#operations), [Figure 2](../docs/arc
 | Id | Requirement |
 |---|---|
 | FR-OPS-01 | `dossier(character_id, at)` returns identity, competences, the arc entry anchored to the latest scene with `story_time <= at`, `KnowledgeState` rows whose `acquired_in` scene has `story_time <= at`, and per relationship the latest valence dated `<= at`. Nothing later appears. |
-| FR-OPS-02 | `select_entities(scene)` builds the query text from `goal`, `conflict`, `value_change`, `pov`, `location`, `entry_state`, `exit_state` and `notes`; ranks by FTS5 BM25 and, when available, by vector cosine, fused by reciprocal rank; prepends entities named in `tags`; excludes the POV. Returns identifiers, kinds and scores — never record text. |
+| FR-OPS-02 | `select_entities(scene)` builds the query text from `goal`, `conflict`, `value_change`, `pov`, `location`, `entry_state`, `exit_state` and `notes`; ranks by FTS5 BM25 and, when available, by vector cosine, fused by reciprocal rank; prepends the entities named in `pins` and every axiom whose `scope` intersects `tags`; excludes the POV. Returns identifiers, kinds and scores — never record text. |
 | FR-OPS-03 | `assemble_context(scene)` loads in order: fixed block (`canon/project.md`, `canon/style.md`); `dossier(pov, at=story_time)`; `literal_tail` of the previous scene in `discourse_order`; then each selected id in ranking order in its as-of form (dossier for characters; full record for axioms, technology, locations with parent chain, factions; chapter-level digest for prose; lexicon bound to loaded entities through `used_by`; open setups with `due_by >= scene`). It stops before the entry that would exceed **100 000 tokens** and records `truncated_at`; it never truncates inside an entry. **As-of forms.** A chapter digest is loaded only if every scene it covers has `story_time <= T`; a digest whose `povs` does not include the POV is labelled in the prompt as events the POV did not witness, so `povs` does the filtering job [SceneDigest](../docs/architecture.md#scenedigest) gives it. A setup is "open" when `paid_in` and `resolution` are empty and its `planted_in` scene has `story_time <= T`; a violation with a `resolution` set and a thread `resolved` or `abandoned` never enter the context (they "leave the working tier as they close"). Setups are presented under a *may collect* label, never as an instruction to pay a specific one. Raw `manuscript/NNN.md` prose never enters the context except as the previous scene's `literal_tail`. |
 | FR-OPS-04 | If the fixed block exceeds 800 tokens the response carries `warnings: ["fixed_block_over_budget"]`. |
 | FR-OPS-05 | The selected-id list is persisted in the turn record (FR-TURN-07) so the auditor of the same turn reads the same list. |
@@ -575,7 +575,19 @@ Every Process 0 decision, so the spec is self-contained. Answered by the user on
 
 ## Open questions
 
-None open. The interrogation is closed and the docs this spec cites say what it assumes.
+Three clarifications were folded in after approval, each recorded here rather than left to be
+rediscovered. None changes the scope or an acceptance criterion, so the status stays
+`approved`; all three came from implementation finding that the code could not satisfy the
+documents as written.
+
+- **`tags` split into `tags` and `pins`** (docs `aa05ee9`, DR-03, FR-OPS-02). One field could
+  not both intersect `Axiom.scope` as free text and name an entity by identifier; an axiom
+  scoped `FTL` was unpinnable by any scene.
+- **`SceneDigest.scene_ref` has a grammar**, `^\d{3}(-\d{3})?$` (DR-11). It had none, so it
+  accepted `banana` and `../../canon/project`, and FR-OPS-03 has to parse it at assembly time
+  to decide whether every covered scene is at or before `T`.
+- **`participants` is required and disjoint from `pov`** (DR-03). Optional, it let invariants
+  4 and 5 narrow to the POV alone with nothing recording that they had.
 
 Two things are recorded here for the reviewer rather than asked:
 
