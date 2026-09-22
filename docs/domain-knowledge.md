@@ -91,7 +91,7 @@ erDiagram
   SCENE {
     string  id                "NNN, stable forever"
     string  pov               "a single character"
-    array   participants      "characters present besides the pov"
+    array   participants      "characters present besides the pov; required, may be empty"
     int     story_time        "hours since epoch_zero"
     int     discourse_order   "when the reader receives it"
     string  location          "leaf of the location tree"
@@ -101,7 +101,8 @@ erDiagram
     string  value_change      "which value moves, and its sign"
     json    entry_state       "world before"
     json    exit_state        "world after"
-    array   tags              "optional pins for axioms and lexicon"
+    array   tags              "optional domain tags; intersect an axiom scope"
+    array   pins              "optional entity ids pinned by name"
     string  notes             "optional free text; feeds selection"
     int     budget            "assigned words"
   }

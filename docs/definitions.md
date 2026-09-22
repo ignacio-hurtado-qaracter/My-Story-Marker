@@ -104,7 +104,7 @@ of canonical sample prose the writer can imitate directly.
 ## Layer 1 — World
 
 Stable canon, loaded by **selection**: the entries nearest to the scene record under
-semantic search enter context, plus any the architect pinned through the scene's `tags`
+semantic search enter context, plus any the architect pinned through the scene's `tags` or `pins`
 (see `select_entities` in `architecture.md`). This is the layer that grows most, so its
 indexing determines whether the model still holds together at chapter forty.
 
@@ -343,7 +343,7 @@ no other?*
 |---|---|
 | `id` | `NNN`, stable forever |
 | `pov` | A single character; determines the knowledge trim |
-| `participants[]` | Characters present besides the POV; the spatial and transit invariants run over `pov` plus this list |
+| `participants[]` | Characters present besides the POV; the spatial and transit invariants run over `pov` plus this list. Required, and may be empty: an omitted field would let invariants 4 and 5 run over the POV alone without anything saying so. The POV is never repeated here, and no character appears twice |
 | `story_time` | When it happens in the world, as an integer count of hours since `epoch_zero` (see TemporalSystem) |
 | `discourse_order` | Where the reader encounters it |
 | `location` | A leaf of the location tree |
@@ -352,13 +352,21 @@ no other?*
 | `outcome` | `yes` · `no` · `yes-but` · `no-and-furthermore` |
 | `value_change` | Which value moves, and in which direction |
 | `entry_state` / `exit_state` | Verifiable delta to the world |
-| `tags[]` | Optional pins: axioms and lexicon that enter context regardless of selection |
+| `tags[]` | Optional domain tags, free text. A scene whose tags intersect an Axiom's `scope` pins that axiom into context regardless of ranking |
+| `pins[]` | Optional identifiers of entities that enter context regardless of ranking, named directly rather than matched |
 | `notes` | Optional free text for what the structured fields cannot hold; feeds selection, never binds the writer |
 | `budget` | Assigned words |
 
 **Failure mode.** Specifying the *how* as well as the *what*. An over-prescriptive scene
 record produces dead prose: the writer writes to satisfy the record rather than to write
 well. Scene records specify dramatic function and leave execution free.
+
+**Why `tags` and `pins` are two fields.** They are two different pinning mechanisms and
+collapsing them makes one of them unusable. `tags` are *domain* tags and match an Axiom's
+`scope` by intersection, so they are free text in whatever vocabulary the world uses.
+`pins` name an entity *by identifier*, so they must obey the identifier grammar. A single
+field cannot be both: constrained to identifiers it can never intersect a scope written as
+`FTL`, and left free it can never be resolved to a record.
 
 ### PlotThread
 
@@ -424,7 +432,7 @@ is described in `architecture.md`. All of them evaluate against the **story-time
 4. **Spatial uniqueness.** No character occupies two locations at the same `story_time`.
 5. **Possible transits.** Every movement respects the `transit_matrix`.
 6. **Axiomatic respect.** No scene violates an axiom selected for its context, whether
-   pinned through `tags` or retrieved by `select_entities`; the selected list recorded in
+   pinned through `tags` or `pins`, or retrieved by `select_entities`; the selected list recorded in
    the turn is the authority on which axioms those are.
 7. **Canonical lexicon.** Zero occurrences of any `forbidden_variants` in the manuscript.
 8. **No inert scenes.** Every scene declares a signed `value_change`, and the prose delivers it.

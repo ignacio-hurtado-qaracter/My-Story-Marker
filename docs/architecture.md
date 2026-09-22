@@ -79,10 +79,13 @@ which is why they are documented here rather than in `definitions.md`.
 
 The prose of one scene, versioned. Subordinate to canon.
 
+Versioning is git's, not the record's: the tree is a working tree and the diffs between
+commits *are* the continuity record, so a `version` field on the record would be a second,
+weaker answer to a question git already answers exactly.
+
 | Field | Meaning |
 |---|---|
 | `scene_ref` | One scene, one file |
-| `version` | Git history; diffs are the continuity record |
 | `words` | Against the assigned budget |
 | `literal_tail` | Last ~500 words, passed forward to the next scene |
 
@@ -166,7 +169,8 @@ Embeds the full scene record — `goal`, `conflict`, `value_change`, `pov`, `loc
 index for the nearest characters, locations, axioms, lexicon entries and chapter digests.
 Returns **identifiers ranked by relevance, never text**. The POV is not part of the result:
 it enters by identifier from the scene record, unconditionally. Entities the architect
-pinned through `tags` are prepended to the ranking.
+pinned through `pins`, and axioms whose `scope` intersects the scene's `tags`, are prepended
+to the ranking.
 
 The list this returns is written to the turn's trace, and the auditor reads the same list:
 "which axioms apply to this scene" has one answer per turn, shared by writer and auditor.
@@ -283,7 +287,7 @@ recoverable, even when why it was chosen is not.
 
 ```mermaid
 flowchart TB
-  S["Scene record 214<br/>pov · story_time · goal · conflict<br/>location · delta · tags (pins)"]
+  S["Scene record 214<br/>pov · story_time · goal · conflict<br/>location · delta · tags · pins"]
   SEL["select_entities(scene)<br/>semantic search → ranked ids"]
 
   subgraph FIXED["Always present — under 800 tokens"]
@@ -303,7 +307,7 @@ flowchart TB
     direction LR
     D2["dossier(cast, at=T)<br/>for retrieved characters"]
     E["Retrieved locations<br/>+ parent chain"]
-    F["Retrieved axioms<br/>+ pinned by tags"]
+    F["Retrieved axioms<br/>+ pinned by tags or pins"]
     L["Lexicon bound<br/>to those entities"]
     H["Open setups<br/>collectable here"]
     I["Chapter digests<br/>retrieved as relevant"]
@@ -332,8 +336,10 @@ whole record — what the POV wants, what stops them, where, what changes — an
 returns the characters, locations, axioms, lexicon entries and chapter digests nearest to
 it. This is why the record's dramatic fields must be written with care: a vague `goal` and
 `conflict` produce a vague selection, and a scene with an empty record gets a context with
-no world in it. `tags` survive as an optional **pin**: anything the architect tags enters
-regardless of ranking, so a rule the scene *must* honour is never left to similarity.
+no world in it. Two optional **pins** survive alongside it, and they work differently on
+purpose: `pins` name entities by identifier, and `tags` are domain tags that pin an axiom by
+intersecting its `scope`. Either way a rule the scene *must* honour is never left to
+similarity.
 
 **Selection returns identifiers, not text.** What the index knows about a character is one
 embedding of their record; what the writer receives is `dossier(id, at=T)`, loaded by the
@@ -443,7 +449,7 @@ fills with improvised noise and stops being worth consulting.
 
 **The architect's dramatic fields matter beyond their own record.** `goal`, `conflict`,
 `value_change` and the states are what `select_entities` embeds, so a scene record with
-vague dramatic fields produces a vague selection and a thin world. `tags` are the
+vague dramatic fields produces a vague selection and a thin world. `tags` and `pins` are the
 architect's pin: an axiom or lexicon entry tagged on the record enters the context
 regardless of ranking, which is how a rule the scene must honour is kept out of the hands
 of similarity.
