@@ -31,6 +31,12 @@ At that point delete this vendored copy rather than keeping two sources of truth
 vendored skill pinned to 0.141.1 while the code runs a different version is worse than no
 skill, because it states outdated patterns with full confidence.
 
+**Scheduled.** `backend/` is being built under
+[`specs/001-backend-foundation.md`](../../specs/001-backend-foundation.md), whose NFR-01
+requires exactly this swap once FastAPI is pinned. Step 2 of
+[the implementation plan](../../specs/001-backend-foundation-plan.md) replaces the vendored
+copy with `uvx library-skills` in the same commit that adds `pyproject.toml`.
+
 ## sqlite-vec, and why only part of it was installed
 
 `sqlite-vec/` came from an MCPmarket install link of the form
@@ -112,7 +118,14 @@ the skill against the current documentation rather than trusting it.
 `sqlite-vec` is pre-v1 and its authors say to expect breaking changes, so it is the entry
 most likely to go stale.
 
-`sqlite/references/vectors.md` contains an **assumption**, flagged in the text: that vector
-search is a secondary tool and not the retrieval path for `assemble_context`, because
-`architecture.md` rules out semantic similarity for context assembly. If that reading is
-wrong, `architecture.md` is what changes first, then the skill.
+`sqlite/references/vectors.md` used to carry an **assumption**, flagged in its own text:
+that vector search was a secondary tool and not the retrieval path for `assemble_context`,
+because `architecture.md` was read as ruling out semantic similarity for context assembly.
+
+**That reading was wrong and the page has been corrected.** `architecture.md` splits
+assembly into a semantic `select_entities` and a deterministic as-of load: vector search,
+fused with FTS5, *is* the selection path, and what it returns is identifiers, never text.
+The line it may not cross is the load. The page now states that split, the two hard
+constraints that come with it (the extension is optional; 384 dimensions fixed), and why
+unreproducible selection is an accepted risk rather than a defect. The docs did not change;
+the skill had been arguing with them.

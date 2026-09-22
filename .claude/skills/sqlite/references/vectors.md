@@ -11,24 +11,45 @@ architecture.
 
 ## Read this before using it
 
-`architecture.md` rules that context assembly walks the entity graph rather than searching
-by semantic similarity, on the grounds that the relations are known in advance, so explicit
-traversal is faster and reproducible.
+`architecture.md` splits assembly into **two** operations, and the line between them is
+what this page is about:
 
-**Vector search must therefore not become the retrieval path for `assemble_context`.** If it
-does, the assembled context stops being reproducible, and the argument the architecture is
-built on no longer holds.
+- **`select_entities(scene)` — semantic, not reproducible.** It embeds the scene record
+  (`goal`, `conflict`, `value_change`, `pov`, `location`, `entry_state`, `exit_state`,
+  `notes`) and queries the entity index for the nearest entities. Vector search **is** this
+  path, fused with FTS5 BM25. It returns **identifiers ranked by relevance, never text**.
+- **The load — deterministic and reproducible.** Each returned identifier is fetched
+  through the store layer in its as-of form (`dossier(id, at=T)` for characters, the full
+  record for axioms and locations, the chapter digest for prose) in ranking order until the
+  100k cap.
 
-Uses that do not conflict with that ruling:
+**The rule vector search must not cross is the load, not the selection.** Similarity chooses
+*which* records are considered; it never produces the text handed to a role and it never
+decides *which version* of a record that is. Retrieval therefore cannot introduce a fact —
+it can only choose among facts that already exist in the stores. The index is derived and
+rebuildable; a row with no backing record is a bug.
+
+Selection being unreproducible is accepted, not accidental: two runs may rank differently.
+It is registered in [`verification.md`](../../../../docs/verification.md#accepted-risks-u-register),
+and it is why the selected identifiers are written to the turn record — what entered a
+context is always recoverable, even when *why* it was chosen is not. The auditor of a turn
+reads that same recorded list, so "which axioms apply to this scene" has one answer per turn.
+
+Two hard constraints on the vector side:
+
+- **The extension is optional.** The backend must start, and selection must still work, when
+  `sqlite-vec` does not load: FTS5-only ranking, `/health` reporting `vector: unavailable`.
+  No code path may fail for a missing extension.
+- **384 dimensions, fixed.** Only 384-d embedding models are accepted so the `vec0` schema
+  never changes.
+
+Uses beyond selection that remain sound:
 
 - Finding probable duplicates or near-collisions in `ledger/proposed.yaml` before a fact is
   promoted.
 - Human-facing search over the manuscript, where the result is shown to a person rather than
   fed to a model.
 - Suggesting candidate links for a human to confirm, never committing them.
-
-If vector search is wanted for assembly itself, that is a design change and
-`architecture.md` is what has to change first.
 
 ## Status
 
