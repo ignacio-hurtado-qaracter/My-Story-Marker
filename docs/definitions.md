@@ -324,7 +324,8 @@ no other?*
 |---|---|
 | `id` | `NNN`, stable forever |
 | `pov` | A single character; determines the knowledge trim |
-| `story_time` | When it happens in the world |
+| `participants[]` | Characters present besides the POV; the spatial and transit invariants run over `pov` plus this list |
+| `story_time` | When it happens in the world, as an integer count of hours since `epoch_zero` (see TemporalSystem) |
 | `discourse_order` | Where the reader encounters it |
 | `location` | A leaf of the location tree |
 | `goal` | What the POV wants on entering |

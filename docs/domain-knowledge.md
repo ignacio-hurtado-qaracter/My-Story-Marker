@@ -88,7 +88,8 @@ erDiagram
   SCENE {
     string  id                "NNN, stable forever"
     string  pov               "a single character"
-    int     story_time        "when it happens in the world"
+    array   participants      "characters present besides the pov"
+    int     story_time        "hours since epoch_zero"
     int     discourse_order   "when the reader receives it"
     string  location          "leaf of the location tree"
     string  goal              "what the pov wants"
