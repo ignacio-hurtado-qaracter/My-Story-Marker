@@ -1,0 +1,22 @@
+schema_version: 1
+
+id: "005"
+pov: quiej
+participants:
+  - vance
+# Hour 318 in the gallery, while scene 004 has vance in the pump vault at the same hour.
+story_time: 318
+discourse_order: 5
+location: kestrel_deep
+goal: "Quiej wants the sealing order executed on schedule, inside the window."
+conflict: "The only diver who can execute it is the one she refused, and the shelf has moved the window forward."
+outcome: yes-but
+# Non-empty and readable, and carrying no direction: the one scene in the fixture whose
+# value_change states a subject without stating which way it moves.
+value_change: "authority over the vault"
+entry_state: "The order is signed and the window opens in six hours."
+exit_state: "The order stands, and Quiej has understood it will not hold."
+tags:
+  - ax_calving_window
+notes: "She is right about the schedule and wrong about the people; write the first and let the reader find the second."
+budget: 800

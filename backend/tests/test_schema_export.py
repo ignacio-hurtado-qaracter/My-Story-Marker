@@ -54,6 +54,7 @@ STORAGE_LAYOUT_TYPES = {
     # ledger/
     "setups",
     "threads",
+    "timeline",
     "proposed",
     "violations",
 }

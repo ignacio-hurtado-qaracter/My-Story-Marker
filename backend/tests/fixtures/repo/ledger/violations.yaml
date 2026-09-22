@@ -1,0 +1,72 @@
+schema_version: 1
+
+# DR-07. The auditor's only output, and its only writable path. A violation is a REPORT: it
+# names the invariant, quotes the offending text and stops. The auditor never repairs, and
+# only a human sets `resolution`, through the auditor's route with `X-Actor: human`.
+#
+# Two entries, one resolved and one open, because exclusion from an assembled context is only
+# observable as a difference between them: FR-OPS-03 drops a violation that carries a
+# `resolution` from the working tier and keeps one that does not. A test that assembles scene
+# 003 or scene 006 and finds vi_002 present and vi_001 absent has proved the rule.
+#
+# ---------------------------------------------------------------------------------------
+# EVIDENCE OFFSETS ARE DERIVED FROM THE DRAFTS.
+#
+# `offset` is the character offset of `quote` inside the draft BODY (the prose after the
+# frontmatter), not inside the file. Both values below are recomputed, not guessed, whenever
+# manuscript/002.md or manuscript/003.md changes. From `backend/`:
+#
+#   uv run python -c "
+#   from pathlib import Path
+#   from app.commons.stores import Store
+#   from app.commons.schemas.draft import Draft
+#   s = Store(root=Path('tests/fixtures/repo'), index_dir=Path('.scratch'))
+#   for rel, quote in [('manuscript/002.md', '<vi_001 quote>'), ('manuscript/003.md', 'readkey')]:
+#       print(rel, s.read(rel, Draft).body.find(quote))
+#   "
+#
+# A `-1` from that command means the quote no longer appears and the entry is stale.
+# ---------------------------------------------------------------------------------------
+violations:
+
+  # -----------------------------------------------------------------------------------
+  # RESOLVED - the negative case for the working-tier rule.
+  #
+  # The story behind it is real and ties the fixture together. The semantic auditor once read
+  # Draft A's four-hour line as contradicting ax_cold_soak, whose `exceptions` list is empty,
+  # and a human - acting as the auditor with X-Actor: human - accepted it with a reason,
+  # because the indemnity cut is an exception the canon has not recorded yet. That is exactly
+  # what invented fact F2 proposes, and why AC 27 expects the extraction to find it.
+  #
+  # Deliberately `source: model` on invariant 6. Neither is produced by any of the eight
+  # mechanical checks, so this prior report cannot be confused with live audit output and does
+  # not disturb scene 002's standing as the clean control: the mechanical audit of 002 is
+  # still empty.
+  - id: vi_001
+    scene: "002"
+    invariant: 6
+    evidence:
+      # Verbatim from manuscript/002.md, and `offset` is its character offset in the draft
+      # BODY, recomputed with the command above. Both are recomputed whenever Draft A moves.
+      quote: "A cold soak may be cut to four hours on a co-op indemnity dive,"
+      offset: 396
+    severity: reviewable
+    resolution: accept_with_reason
+    source: model
+
+  # -----------------------------------------------------------------------------------
+  # OPEN - stays in the working tier and DOES enter a context.
+  #
+  # It is the same finding the mechanical audit reports for the planted invariant-7 violation
+  # (`readkey`, the first forbidden variant of lx_readkey, once in Draft B), written down as a
+  # prior report so the fixture is self-consistent rather than contradicting its own checker.
+  - id: vi_002
+    scene: "003"
+    invariant: 7
+    evidence:
+      quote: "readkey"
+      # Character offset of the single occurrence in the body of manuscript/003.md.
+      offset: 2403
+    severity: blocking
+    resolution: null
+    source: mechanical

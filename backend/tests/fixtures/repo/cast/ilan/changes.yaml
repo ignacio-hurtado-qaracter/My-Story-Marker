@@ -1,0 +1,8 @@
+schema_version: 1
+changes:
+  - character: ilan
+    attribute: left_hand
+    from: "flesh; the hand he splices with"
+    to: "graft-steel prosthesis, five digits, no sensation below the wrist"
+    scene: "002"
+    cause: "the soak-lock throat cycled closed on it during the indemnity dive"

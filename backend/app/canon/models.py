@@ -18,6 +18,8 @@ and the auditor as well as by this feature, so DR-01 puts them in `commons/schem
 
 from __future__ import annotations
 
+from typing import Annotated
+
 from pydantic import ConfigDict, Field
 
 from app.commons.schemas.common import (
@@ -27,6 +29,15 @@ from app.commons.schemas.common import (
     StoreDocument,
     StoryHours,
 )
+
+StyleMetric = Annotated[float, Field(strict=True)]
+"""A target prose metric, strict for the same reason every integer in a store record is
+(`commons/schemas/common.py`): pydantic's lax mode reads `true` as `1.0`, and a
+`mean_sentence_length: true` that silently becomes a one-word target is exactly the quiet
+nonsense strictness exists to catch. `commons` has no float alias - these two fields and
+`TemporalSystem.dilation_factor` are the only floats in the stores - so it is declared here.
+Strict still admits an integer literal, so `variance: 4` in a YAML file is read as `4.0`.
+"""
 
 # --------------------------------------------------------------------------------------
 # Layer 0 - the project. Present in every call, without filtering.
@@ -176,11 +187,11 @@ class StyleMetrics(HarnessModel):
     later report the prose as deviating from.
     """
 
-    mean_sentence_length: float | None = Field(
+    mean_sentence_length: StyleMetric | None = Field(
         default=None,
         description="Target mean sentence length in words; `None` when no target was set.",
     )
-    variance: float | None = Field(
+    variance: StyleMetric | None = Field(
         default=None,
         description="Target variance of sentence length. Uniform sentences read as machine prose,"
         " which is what a variance target exists to prevent; `None` when no target was set.",
@@ -543,6 +554,7 @@ __all__ = [
     "Premise",
     "Project",
     "StyleBible",
+    "StyleMetric",
     "StyleMetrics",
     "Technology",
     "ThematicThesis",

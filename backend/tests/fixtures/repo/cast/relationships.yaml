@@ -1,0 +1,99 @@
+schema_version: 1
+relationships:
+  - from: vance
+    to: ilan
+    valence:
+      - scene: "001"
+        value: 2
+      - scene: "003"
+        value: 1
+      - scene: "006"
+        value: 2
+      - scene: "004"
+        value: 3
+    shared_history: |-
+      Four years ago she put his name forward for the indemnity dive, because he was the
+      better splicer and because she wanted the slot to go to somebody she trusted. He
+      remembers being asked. She remembers recommending. Neither of them has ever put the
+      two accounts side by side.
+    unspoken: |-
+      That she has been costing him, deliberately and by arithmetic, since the sealing
+      order was posted, and that she worked out what it would cost before she started.
+  - from: ilan
+    to: vance
+    valence:
+      - scene: "002"
+        value: 2
+      - scene: "006"
+        value: 1
+      - scene: "004"
+        value: -1
+    shared_history: |-
+      The same four years, and the same dive, seen from the deck of the lock. He kept the
+      certification. She kept the shaft. They have divided everything since along that
+      line without once agreeing to it out loud.
+    unspoken: |-
+      That he knows she needs something out of him and has been waiting, without much
+      hope, to find out whether she will ask for it or take it.
+  - from: vance
+    to: quiej
+    valence:
+      - scene: "001"
+        value: -2
+      - scene: "003"
+        value: -1
+      - scene: "005"
+        value: -2
+    shared_history: |-
+      Nineteen years of slots signed and refused across the same board, and one exchanger
+      fire that both of them worked and neither describes the same way.
+    unspoken: |-
+      That Vance has never asked her directly whether she chose Ilan for the dive or
+      merely witnessed it, because she does not want the answer while she still needs the
+      slot.
+  - from: quiej
+    to: vance
+    valence:
+      - scene: "002"
+        value: 0
+      - scene: "001"
+        value: 1
+      - scene: "005"
+        value: 2
+    shared_history: |-
+      She has signed more of Vance's hours than of anybody else's, and has refused more of
+      them too. The refusals are the ones Vance counts.
+    unspoken: |-
+      That she refuses the slots because she intends Vance to be alive when the shaft is
+      sealed, and that saying so would sound, from a steward, exactly like the thing she
+      is trying not to say.
+  - from: quiej
+    to: ilan
+    valence:
+      - scene: "002"
+        value: -1
+      - scene: "005"
+        value: -2
+    shared_history: |-
+      She witnessed his indemnity on the deck of the soak lock and countersigned it while
+      his hand was still being packed. She has read the document perhaps forty times
+      since; he has never read it once.
+    unspoken: |-
+      That she is the person he is legally forbidden to be told by, and that she has been
+      in the same gallery as him for four years without addressing him once.
+  - from: ilan
+    to: quiej
+    valence:
+      - scene: "002"
+        value: -1
+      - scene: "006"
+        value: -2
+      - scene: "004"
+        value: -3
+    shared_history: |-
+      A signature, taken from him on the deck of the lock, witnessed by her. It is the
+      only transaction they have ever had and it is the whole of what is between them.
+    unspoken: |-
+      That he has worked out roughly what she did and cannot prove it, and that the
+      proving would cost her the certification he still, obscurely, does not want her to
+      lose.

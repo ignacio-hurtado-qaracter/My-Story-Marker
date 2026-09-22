@@ -1,0 +1,22 @@
+schema_version: 1
+
+id: "002"
+pov: ilan
+participants:
+  - quiej
+# The analepsis: hour 120, one hundred and eighty hours before scene 001, read second.
+story_time: 120
+discourse_order: 2
+location: pump_vault
+goal: "Ilan wants to finish the seating and come back up with his certification intact."
+conflict: "The throat runs on a co-op cycle he did not set, and the seating is not where the co-op's paper says it is."
+outcome: no-and-furthermore
+value_change: "Ilan's usefulness to the co-op: certified → indemnified (-)"
+entry_state: "Ilan is on the vault side with his soak behind him and a witness he did not ask for."
+exit_state: "The seating is found, the hand is gone, and Quiej has a signature that was never given aloud."
+tags:
+  - ax_cold_soak
+  - ax_indemnity_burn
+  - lx_soak
+notes: "One hundred and eighty hours before the sealing order. The reader meets the hand before they meet the man who has it."
+budget: 1100

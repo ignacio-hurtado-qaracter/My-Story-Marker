@@ -1,0 +1,47 @@
+schema_version: 1
+
+# DR-06. Two plot lines. `scenes` is in DISCOURSE order in both, because latency is a
+# reading-order distance: FR-AUD-08 measures the gap in `discourse_order` since the thread's
+# last scene, not the gap in story_time. A subplot set in the past can still be fresh on the
+# page, and one set yesterday can still have vanished for eighty pages.
+threads:
+
+  # ---------------------------------------------------------------------------------
+  # OVER ITS max_latency - the invariant-10 plant (FR-AUD-08, reviewable).
+  #
+  # Appears at discourse_order 1 (scene 001) and 6 (scene 006), and tolerates a gap of 2.
+  # Gap by scene, in discourse order:
+  #
+  #   001 -> 0   clean
+  #   002 -> 1   clean
+  #   003 -> 2   clean (equal to max_latency is not over it - the boundary is inclusive)
+  #   004 -> 3   REPORTED, reviewable
+  #   005 -> 4   REPORTED, reviewable
+  #   006 -> 0   clean (the thread reappears here)
+  #
+  # Two findings, at 004 and 005. Scene 006 is in the list on purpose, twice over: it is what
+  # keeps the tempting scene free of mechanical findings for the live run of AC 26, and it is
+  # narratively true - the surface debt is what Vance is really settling when she goes for
+  # the seal ring.
+  - id: th_surface_debt
+    state: developing
+    scenes:
+      - "001"
+      - "006"
+    max_latency: 2
+    depends_on: []
+
+  # ---------------------------------------------------------------------------------
+  # RESOLVED - the negative case. FR-AUD-08's population is `planted` and `developing` only,
+  # so a resolved thread is never late; and FR-OPS-03 drops `resolved` and `abandoned` from
+  # the working tier, so it never enters a context. Set beside th_surface_debt that exclusion
+  # is testable: assemble any scene and one thread is present, the other is not.
+  #
+  # It resolves in scene 004, consistently with su_graft being paid in 004.
+  - id: th_graft
+    state: resolved
+    scenes:
+      - "002"
+      - "004"
+    max_latency: 3
+    depends_on: []

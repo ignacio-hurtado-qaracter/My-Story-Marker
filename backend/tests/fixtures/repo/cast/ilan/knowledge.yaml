@@ -1,0 +1,15 @@
+schema_version: 1
+knowledge:
+  - character: ilan
+    fact_ref: pump_vault
+    acquired_in: "002"
+    via: witnessed
+    certainty: knows
+    may_tell:
+      - vance
+  - character: ilan
+    fact_ref: ax_indemnity_burn
+    acquired_in: "002"
+    via: was_told
+    certainty: believes_falsely
+    may_tell: []

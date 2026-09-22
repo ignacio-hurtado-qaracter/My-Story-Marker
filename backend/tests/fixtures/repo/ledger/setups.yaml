@@ -1,0 +1,45 @@
+schema_version: 1
+
+# DR-05. Two reader debts, chosen so that the difference between an open one and a closed
+# one is observable in two places at once: FR-AUD-02 reports only the open one, and
+# FR-OPS-03 offers only the open one to the writer.
+#
+# "Open" is a computed state, not a field: `paid_in` empty AND `resolution` empty. That is
+# why su_graft carries both - a setup with `paid_in` set and `resolution` missing would be
+# half-closed, and the fixture must not leave the checker guessing.
+setups:
+
+  # ---------------------------------------------------------------------------------
+  # OVERDUE - the invariant-2 plant (FR-AUD-02, reviewable).
+  #
+  # `due_by` is scene 005, whose story_time is 318. The debt is therefore due at or before
+  # every scene at hour 318 or later, and is still open, so FR-AUD-02 reports a LooseEnd at
+  # scene 004 (318) and scene 005 (318) - and nowhere else: 001 is at 300, 002 at 120,
+  # 003 at 302 and 006 at 310, all strictly earlier.
+  #
+  # Severity stays `reviewable` rather than escalating to `blocking`, because the last scene
+  # by discourse_order is 006, not 005. The "blocking at the last scene" branch of FR-AUD-02
+  # is deliberately NOT exercised by this fixture.
+  #
+  # Keeping 006 clear of this finding is what lets the live turn of AC 26 run on the tempting
+  # scene without fighting a mechanical report it was not written to provoke.
+  - id: su_readkey
+    planted_in: "001"
+    promise: "The reader expects to learn what the read-key actually is, and whether Ilan can still give it up."
+    paid_in: null
+    due_by: "005"
+    resolution: null
+
+  # ---------------------------------------------------------------------------------
+  # PAID - the negative case. `paid_in` and `resolution` are both set, so it is closed:
+  # FR-AUD-02 never reports it, and FR-OPS-03 never puts it in a context ("closed items
+  # leave the working tier"). Assemble any scene and su_readkey is offered under the
+  # *may collect* label while su_graft is absent; that difference is the test.
+  #
+  # `resolution` is the bare enum value `paid` - not `true`, not "true", not "yes".
+  - id: su_graft
+    planted_in: "002"
+    promise: "The reader expects the crushed hand to be answered for by whoever signed the indemnity."
+    paid_in: "004"
+    due_by: "005"
+    resolution: paid

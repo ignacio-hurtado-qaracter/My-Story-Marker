@@ -1,0 +1,21 @@
+schema_version: 1
+
+id: "004"
+pov: vance
+participants:
+  - ilan
+# Hour 318, the only story_time this fixture uses twice; scene 005 is the other.
+story_time: 318
+discourse_order: 4
+location: pump_vault
+goal: "Vance wants Ilan to tell her what his hands know, since his memory cannot."
+conflict: "The indemnity forbids the telling, and Ilan does not believe there is anything left in him to tell."
+outcome: yes-but
+value_change: "truth between the siblings: withheld → spoken (+)"
+entry_state: "Both of them are on the vault side. Ilan has been told nothing."
+exit_state: "Ilan's graft hand finds the seating sequence without him, and he learns that the co-op took something out of him."
+tags:
+  - ax_indemnity_burn
+  - lx_readkey
+notes: "The hand remembers; procedural habit is outside the indemnity. That is the scene's whole mechanism."
+budget: 1000

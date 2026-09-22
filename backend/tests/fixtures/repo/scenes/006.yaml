@@ -1,0 +1,21 @@
+schema_version: 1
+
+id: "006"
+pov: vance
+participants:
+  - ilan
+# Hour 310: read last, and set eight hours before scenes 004 and 005. The second analepsis.
+story_time: 310
+discourse_order: 6
+location: pump_vault
+goal: "Vance wants to be certain, before the shelf works again, that the seal ring on the Kestrel core is unbroken."
+conflict: "The ring is eleven metres out across open brine, and the only certainty worth carrying back is one she can defend."
+outcome: yes-but
+value_change: "Vance's certainty about the core: guessed → known (+)"
+entry_state: "Vance and Ilan are both on the vault side of the throat, which has closed behind them. Ilan has his soak and his graft hand and no dive rig."
+exit_state: "Vance knows whether the ring is intact, and Ilan is at the cradle with her when the shelf works overhead and the throat seals."
+tags:
+  - ax_brine_dark
+  - lx_vault
+notes: "Everything she needs to know is at the far end of the vault, and the vault is eleven metres long. What Ilan can do down here, he can do because of what the co-op did to him once; what closed behind them opens only from this side."
+budget: 1200

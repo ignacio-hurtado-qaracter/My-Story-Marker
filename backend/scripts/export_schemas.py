@@ -43,6 +43,7 @@ from app.commons.schemas.setup import SetupsFile
 from app.commons.schemas.thread import ThreadsFile
 from app.commons.schemas.time import TemporalSystem
 from app.commons.schemas.violation import ViolationsFile
+from app.ledger.models import TimelineFile
 from app.scenes.models import ArcsFile, ChaptersFile
 
 SCHEMA_VERSION_SUFFIX = "v1"
@@ -75,6 +76,7 @@ DOCUMENT_MODELS: dict[str, type[BaseModel]] = {
     # ledger/
     "setups": SetupsFile,
     "threads": ThreadsFile,
+    "timeline": TimelineFile,
     "proposed": ProposedFile,
     "violations": ViolationsFile,
 }
@@ -107,6 +109,7 @@ DOCUMENT_FORMATS: dict[str, str] = {
     "scene": ".yaml",
     "setups": ".yaml",
     "threads": ".yaml",
+    "timeline": ".yaml",
     "proposed": ".yaml",
     "violations": ".yaml",
 }

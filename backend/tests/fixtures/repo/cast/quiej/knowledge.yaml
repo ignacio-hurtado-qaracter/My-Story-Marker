@@ -1,0 +1,21 @@
+schema_version: 1
+knowledge:
+  - character: quiej
+    fact_ref: ax_indemnity_burn
+    acquired_in: "002"
+    via: witnessed
+    certainty: knows
+    may_tell: []
+  - character: quiej
+    fact_ref: ax_calving_window
+    acquired_in: "001"
+    via: deduced
+    certainty: believes
+    may_tell:
+      - vance
+  - character: quiej
+    fact_ref: ax_brine_dark
+    acquired_in: "004"
+    via: witnessed
+    certainty: knows
+    may_tell: []

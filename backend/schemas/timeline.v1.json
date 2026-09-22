@@ -1,0 +1,72 @@
+{
+  "$defs": {
+    "TimelineEntry": {
+      "additionalProperties": false,
+      "description": "`definitions.md` TemporalAxes `mapping`: one scene's place on both axes at once.\n\nThe three fields are the correspondence itself. `story_time` says when the scene happens\nand `discourse_order` says when the reader meets it, and holding them side by side is what\nmakes the distance between the two measurable rather than felt.",
+      "properties": {
+        "discourse_order": {
+          "description": "1-based position in reading order. FR-AUD-08 measures thread latency as a distance in this number, because a subplot vanishes from the page, not from history.",
+          "minimum": 1,
+          "title": "Discourse Order",
+          "type": "integer"
+        },
+        "scene": {
+          "description": "The scene this entry places on both axes.",
+          "pattern": "^\\d{3}$",
+          "title": "Scene",
+          "type": "string"
+        },
+        "story_time": {
+          "description": "Hours since `epoch_zero` in `canon/time.yaml` (Decision 8). May be negative: a prequel scene happens before the origin without being unreadable.",
+          "title": "Story Time",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "scene",
+        "story_time",
+        "discourse_order"
+      ],
+      "title": "TimelineEntry",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "DR-10. The whole of `ledger/timeline.yaml`: the story axis, the discourse axis, and the\nmapping between them.\n\n**Failure mode** (`definitions.md` TemporalAxes): a single axis. The moment the first\nflashback or the first relativistic ship appears, nothing can be validated any more -- a\nscene set two hundred hours earlier reads as a contradiction if the only order the system\nknows is the reader's, and a chapter that withholds an event reads as a gap in causality if\nthe only order it knows is the world's. Consistency is verified against story time; tension\nis designed on discourse time; the two are kept apart here so that neither question can be\nasked of the wrong one.\n\n**Derived, and authoritative about nothing.** `story_time` and `discourse_order` live on\n`scenes/NNN.yaml` (DR-03), and those records are the authority. This file is the projection\nthe auditor is handed (Figure 3) and the one page a reviewer can see both axes on. That is\nalso why no route writes it: Figure 3's `Out` column names no role for `ledger/timeline.yaml`\n-- as it names none for `setups.yaml` or `threads.yaml` -- so IF-03 lists it as a read and\nIF-04 opens no write.\n\nThe two axis lists are orderings of the same scenes and are stated rather than derived, so\nthat a reader and a checker disagree in the open. That they really are permutations of\n`mapping`, sorted by `story_time` and by `discourse_order`, is a cross-record consistency\nquestion and belongs to `reconcile` (FR-OPS-08) and to the mechanical audit, not to a\nschema: refusing the file here would make it unwritable during the window in which a scene\nis being inserted.",
+  "properties": {
+    "discourse_axis": {
+      "description": "Scene ids in reading order. Admits jumps, ellipsis and analepsis, which is exactly why it cannot double as the causal one.",
+      "items": {
+        "pattern": "^\\d{3}$",
+        "type": "string"
+      },
+      "title": "Discourse Axis",
+      "type": "array"
+    },
+    "mapping": {
+      "description": "The correspondence, scene by scene. Empty is legitimate for a book whose scenes have not been planned yet.",
+      "items": {
+        "$ref": "#/$defs/TimelineEntry"
+      },
+      "title": "Mapping",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "story_axis": {
+      "description": "Scene ids in causal order, earliest `story_time` first. Every invariant of `definitions.md` runs over this axis.",
+      "items": {
+        "pattern": "^\\d{3}$",
+        "type": "string"
+      },
+      "title": "Story Axis",
+      "type": "array"
+    }
+  },
+  "title": "TimelineFile",
+  "type": "object"
+}

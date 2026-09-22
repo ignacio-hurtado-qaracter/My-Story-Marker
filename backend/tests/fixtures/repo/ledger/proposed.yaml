@@ -1,0 +1,45 @@
+schema_version: 1
+
+# DR-07. The canonisation queue: every detail invented mid-draft waits here before it is
+# allowed to become canon. Nothing is promoted automatically (FR-OPS-06), and only a human
+# ruling settles a collision (FR-OPS-07).
+#
+# Two entries, and both are deliberately about something OTHER than the fixture's two
+# hand-labelled invented facts F1 (the throat releases only from the vault side) and F2 (a
+# cold soak may be cut to four hours on a co-op indemnity dive). AC 27 runs `extract_facts`
+# against manuscript/002.md and expects to get F1 and F2 back; if either were already queued
+# here, a reviewer could not tell a fresh extraction from a pre-existing row.
+#
+# Neither entry carries `conflict: true`, so FR-TURN-05 blocks no turn on any scene. In
+# particular the live turn of AC 26 on scene 006 starts cleanly.
+proposed:
+
+  # PENDING and not colliding. Read out of the dirty draft, waiting for a canoniser.
+  - id: pf_001
+    extracted_from: "manuscript/003.md"
+    target_entity: vance
+    target_field: competences
+    payload: "certified for unaccompanied vault work since the shaft collapse"
+    source_scene: "003"
+    conflict: false
+    existing_value: null
+    status: pending
+    ruling: null
+
+  # REJECTED, with the ruling on the record. Facts are kept after they are settled rather
+  # than deleted: the record of what was refused, and why, is what stops the same invention
+  # being proposed and argued about again twenty scenes later.
+  - id: pf_002
+    extracted_from: "manuscript/002.md"
+    target_entity: quiej
+    target_field: wants
+    payload: "to have the indemnity witnessed by someone who cannot later be asked about it"
+    source_scene: "002"
+    conflict: false
+    existing_value: null
+    status: rejected
+    ruling:
+      by: "operator"
+      ruling: reject
+      reason: "The draft shows Quiej's motive, it does not establish it as canon; the scene is deliberately ambiguous about whether she chose the witness."
+      at: "2287-03-14T09:20:00Z"

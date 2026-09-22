@@ -1,0 +1,37 @@
+schema_version: 1
+
+# Two chapters, three scenes each, both in ar_descent. `scenes` is in DISCOURSE order - the
+# order the reader meets them - which is not the order they happen in: ch01 runs 001 (hour
+# 300), 002 (hour 120) and 003 (hour 302), and ch02 runs 004 and 005 (hour 318) before 006
+# (hour 310). The story axis lives on the scene records; tension is designed on this one.
+#
+# The tension curve is continuous: 2 -> 6 across ch01, 6 -> 9 across ch02, so the pair meets
+# the arc's 2 -> 9 with no discontinuity. Budgets: 900 + 1100 + 950 = 2950, and
+# 1000 + 800 + 1200 = 3000.
+chapters:
+  - id: ch01
+    function: '"The Sealed Half": every lawful way into the vault is closed to Vance, and the reader learns through Ilan what the co-op takes from the people who go down for it.'
+    budget: 2950
+    target_tension_in: 2
+    target_tension_out: 6
+    active_threads:
+      - th_surface_debt
+      - th_graft
+    scenes:
+      - "001"
+      - "002"
+      - "003"
+    arc: ar_descent
+
+  - id: ch02
+    function: '"The Calving Window": the sealing order stops being paper and becomes a clock, and what Vance recovers from the vault she recovers out of her brother rather than out of the co-op.'
+    budget: 3000
+    target_tension_in: 6
+    target_tension_out: 9
+    active_threads:
+      - th_surface_debt
+    scenes:
+      - "004"
+      - "005"
+      - "006"
+    arc: ar_descent

@@ -1,0 +1,58 @@
+schema_version: 1
+
+# TemporalAxes (definitions.md). Two axes that must never be merged: story time is when
+# events happen, discourse time is the order the reader receives them. Every invariant runs
+# over the first; tension is designed on the second.
+#
+# This file is a derived, human-readable projection of the scene records: `story_time` and
+# `discourse_order` live on `scenes/NNN.yaml`, and those records are the authority. It exists
+# because the auditor is given it as an input (architecture.md Figure 3) and because a
+# reviewer should be able to see both axes on one page without opening six files.
+#
+# The fixture's whole point is that the two axes disagree. Reading order is 001…006; causal
+# order is 002, 001, 003, 006, 004, 005. Two scenes are analepses: 002 (hour 120, one hundred
+# and eighty hours before the sealing order) and 006 (hour 310, eight hours before 004/005
+# although it is read last).
+
+# Causal order: scene ids sorted by story_time ascending. 004 and 005 are both at hour 318;
+# they are listed 004 then 005, and nothing in the fixture depends on which way that tie is
+# broken (see README.md, "Why the tie at hour 318 is safe").
+story_axis:
+  - "002"   # hour 120
+  - "001"   # hour 300
+  - "003"   # hour 302
+  - "006"   # hour 310
+  - "004"   # hour 318
+  - "005"   # hour 318
+
+# Reading order: scene ids sorted by discourse_order ascending.
+discourse_axis:
+  - "001"
+  - "002"
+  - "003"
+  - "004"
+  - "005"
+  - "006"
+
+# The correspondence, scene by scene. `story_time` is an integer count of hours since
+# `epoch_zero` in canon/time.yaml ("2287-03-01T00:00, the hour the Kestrel shaft was
+# capped"); `discourse_order` is 1-based.
+mapping:
+  - scene: "001"
+    story_time: 300
+    discourse_order: 1
+  - scene: "002"
+    story_time: 120
+    discourse_order: 2
+  - scene: "003"
+    story_time: 302
+    discourse_order: 3
+  - scene: "004"
+    story_time: 318
+    discourse_order: 4
+  - scene: "005"
+    story_time: 318
+    discourse_order: 5
+  - scene: "006"
+    story_time: 310
+    discourse_order: 6

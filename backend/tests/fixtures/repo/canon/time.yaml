@@ -1,0 +1,19 @@
+schema_version: 1
+
+epoch_zero: "2287-03-01T00:00, the hour the Kestrel shaft was capped"
+
+calendars:
+  - id: coop_reckoning
+    name: "Co-op reckoning"
+    conversion: "Hour 0 is the capping of the shaft; the co-op counts in fifty-two-hour shifts, so shift n opens at hour 52(n-1)."
+
+# Minimum travel time in hours, transit_matrix[from][to]. Complete and symmetric with a zero
+# diagonal, so FR-AUD-04 never takes its missing-entry branch on this fixture. The 6 is the
+# cold soak of ax_cold_soak: the table and the axiom say the same thing.
+transit_matrix:
+  kestrel_deep:
+    kestrel_deep: 0
+    pump_vault: 6
+  pump_vault:
+    kestrel_deep: 6
+    pump_vault: 0

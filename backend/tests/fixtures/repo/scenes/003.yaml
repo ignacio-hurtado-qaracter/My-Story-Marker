@@ -1,0 +1,23 @@
+schema_version: 1
+
+id: "003"
+pov: vance
+# Alone: an empty participant list is a decision, not an omission. Invariants 4 and 5 run
+# over pov plus this list, so the checks here run on vance and on nobody else.
+participants: []
+# Hour 302, two hours after scene 001 in the gallery, against a six-hour cold soak. The
+# transit that cannot have happened is arithmetic on this number; the prose never says so.
+story_time: 302
+discourse_order: 3
+location: pump_vault
+goal: "Vance wants a hand on the core cradle and an answer to whether the read-key seating is still in it."
+conflict: "Nothing is visible at that depth, and the one person who could name what is missing by touch is the one the co-op emptied."
+outcome: yes-but
+value_change: "hope of a clean recovery: intact → spent (-)"
+entry_state: "Vance is in the vault with no signed slot and no witness."
+exit_state: "She has the shape of the seating under her palm and no way to name what is missing from it."
+tags:
+  - ax_brine_dark
+  - lx_readkey
+notes: "She is alone and it is entirely dark; everything she learns she learns with her hands."
+budget: 950

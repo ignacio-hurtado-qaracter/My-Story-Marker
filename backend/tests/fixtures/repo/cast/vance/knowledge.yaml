@@ -1,0 +1,31 @@
+schema_version: 1
+knowledge:
+  - character: vance
+    fact_ref: ax_calving_window
+    acquired_in: "001"
+    via: was_told
+    certainty: knows
+    may_tell:
+      - ilan
+  - character: vance
+    fact_ref: ax_indemnity_burn
+    acquired_in: "001"
+    via: deduced
+    certainty: believes_falsely
+    may_tell: []
+  - character: vance
+    fact_ref: pump_vault
+    acquired_in: "003"
+    via: witnessed
+    certainty: suspects
+    may_tell:
+      - ilan
+      - quiej
+  - character: vance
+    fact_ref: ax_brine_dark
+    acquired_in: "006"
+    via: witnessed
+    certainty: knows
+    may_tell:
+      - ilan
+      - quiej

@@ -2,8 +2,13 @@
 
 `main.py` composes; it does not implement. It builds the app, mounts each feature's router
 and registers the exception handlers, and every other line of behaviour lives in a feature
-or in `commons/`. Feature routers arrive at plan step 7; until then the app serves
-`/health` alone, which is enough to prove the startup contract of FR-STORE-01.
+or in `commons/`.
+
+The feature routers of IF-01 are mounted at the bottom of `create_app` and implemented
+nowhere near it. That is the point: a rule written here would be a rule outside the feature
+that owns the store family it touches, and outside the store layer that asks Figure 3
+whether the write is allowed (FR-PERM-03). `main.py` therefore knows six router objects and
+not one store path.
 """
 
 from __future__ import annotations
@@ -15,10 +20,16 @@ from pathlib import Path
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
+from app.canon.router import router as canon_router
+from app.cast.router import router as cast_router
 from app.commons.config import Settings, get_settings
 from app.commons.db.connection import vector_extension_available
 from app.commons.errors import register_exception_handlers
 from app.commons.permissions import AgentRole, readable_patterns, writable_patterns
+from app.ledger.router import router as ledger_router
+from app.manuscript.router import router as manuscript_router
+from app.scenes.router import router as scenes_router
+from app.scenes.router import structure_router
 
 STORE_ROOT_MARKER = Path("canon") / "project.md"
 """FR-STORE-01. The file whose absence means this directory is not a story."""
@@ -111,6 +122,21 @@ def create_app() -> FastAPI:
                 for role in AgentRole
             ]
         )
+
+    # IF-01. The six store families, each mounted from the feature that owns it. Prefixes
+    # and tags are declared on the routers themselves, so this list stays a list of owners
+    # rather than a second, drifting copy of the route table.
+    #
+    # `scenes` exports two routers because it owns two store families: `scenes/` holds the
+    # per-scene records and `structure/` the arcs and chapters they hang from, and Figure 3
+    # gives both to the architect. Splitting the feature to match the URL prefixes would put
+    # one role's two outputs in two places for no reason a reader could name.
+    app.include_router(canon_router)
+    app.include_router(cast_router)
+    app.include_router(structure_router)
+    app.include_router(scenes_router)
+    app.include_router(manuscript_router)
+    app.include_router(ledger_router)
 
     return app
 

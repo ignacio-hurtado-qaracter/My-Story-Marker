@@ -1,0 +1,52 @@
+schema_version: 1
+
+terms:
+  - id: lx_soak
+    canonical_form: "cold soak"
+    plural: "cold soaks"
+    forbidden_variants:
+      - "coldsoak"
+      - "cold-soak"
+      - "soak-down"
+    used_by:
+      - vance
+      - ilan
+      - quiej
+    pronunciation: "KOHLD sohk"
+
+  - id: lx_calving
+    canonical_form: "calving window"
+    plural: "calving windows"
+    forbidden_variants:
+      - "calve window"
+      - "ice window"
+      - "calving gap"
+    used_by:
+      - quiej
+      - vance
+    pronunciation: "KAHV-ing WIN-doh"
+
+  - id: lx_readkey
+    canonical_form: "read-key"
+    plural: "read-keys"
+    forbidden_variants:
+      - "readkey"
+      - "read key"
+      - "reader key"
+    used_by:
+      - vance
+      - quiej
+    pronunciation: "REED-kee"
+
+  - id: lx_vault
+    canonical_form: "the pump vault"
+    plural: null
+    forbidden_variants:
+      - "pumpvault"
+      - "pump-vault"
+      - "vault room"
+    used_by:
+      - vance
+      - ilan
+      - quiej
+    pronunciation: "PUMP vawlt"
