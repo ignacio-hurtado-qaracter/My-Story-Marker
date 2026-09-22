@@ -181,8 +181,11 @@ reached. Described in Figure 2 below.
 ### `extract_facts(draft) → ProposedFact[]`
 
 Walks freshly written prose and isolates every assertion about the world that was not
-already in canon. Runs unconditionally, including on drafts that will be discarded —
-a rejected draft can still have invented a good name for something.
+already in canon. Runs on the draft the turn finally accepts (Figure 4), so that what
+enters the canonisation queue describes prose that exists. Inventions from drafts that
+were revised away are not lost for that: the writer's own proposals from every iteration
+stay in `ledger/proposed.yaml`, because a rejected draft can still have invented a good
+name for something.
 
 ### `promote(fact) → canon`
 
