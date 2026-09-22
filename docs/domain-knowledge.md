@@ -97,7 +97,7 @@ erDiagram
     string  value_change      "which value moves, and its sign"
     json    entry_state       "world before"
     json    exit_state        "world after"
-    array   tags              "triggers axiom and lexicon loading"
+    array   tags              "optional pins for axioms and lexicon"
     int     budget            "assigned words"
   }
 

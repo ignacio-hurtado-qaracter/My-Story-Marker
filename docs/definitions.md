@@ -103,9 +103,10 @@ of canonical sample prose the writer can imitate directly.
 
 ## Layer 1 — World
 
-Stable canon, loaded by **scope**: only entries whose tags intersect the current scene's
-tags enter context. This is the layer that grows most, so its indexing determines whether
-the model still holds together at chapter forty.
+Stable canon, loaded by **selection**: the entries nearest to the scene record under
+semantic search enter context, plus any the architect pinned through the scene's `tags`
+(see `select_entities` in `architecture.md`). This is the layer that grows most, so its
+indexing determines whether the model still holds together at chapter forty.
 
 ### Axiom
 
@@ -118,7 +119,7 @@ without anyone noticing.
 | Field | Meaning |
 |---|---|
 | `statement` | The rule, phrased positively |
-| `scope[]` | Domain tags that trigger loading |
+| `scope[]` | Domain tags; a scene whose `tags` intersect them pins the axiom into context |
 | `consequences[]` | What necessarily follows; what becomes impossible |
 | `exceptions[]` | Closed and numbered, or they are not exceptions |
 | `cost` | What it costs to use this; conflict comes from here |
@@ -331,7 +332,7 @@ no other?*
 | `outcome` | `yes` · `no` · `yes-but` · `no-and-furthermore` |
 | `value_change` | Which value moves, and in which direction |
 | `entry_state` / `exit_state` | Verifiable delta to the world |
-| `tags[]` | What triggers loading of axioms and lexicon |
+| `tags[]` | Optional pins: axioms and lexicon that enter context regardless of selection |
 | `budget` | Assigned words |
 
 **Failure mode.** Specifying the *how* as well as the *what*. An over-prescriptive scene
@@ -401,7 +402,9 @@ is described in `architecture.md`. All of them evaluate against the **story-time
    ChangeEvent.
 4. **Spatial uniqueness.** No character occupies two locations at the same `story_time`.
 5. **Possible transits.** Every movement respects the `transit_matrix`.
-6. **Axiomatic respect.** No scene violates an axiom whose `scope` intersects its `tags`.
+6. **Axiomatic respect.** No scene violates an axiom selected for its context, whether
+   pinned through `tags` or retrieved by `select_entities`; the selected list recorded in
+   the turn is the authority on which axioms those are.
 7. **Canonical lexicon.** Zero occurrences of any `forbidden_variants` in the manuscript.
 8. **No inert scenes.** Every scene declares a signed `value_change`, and the prose delivers it.
 9. **Recognisable voice.** No dialogue contains material marked `never_says` for that speaker.

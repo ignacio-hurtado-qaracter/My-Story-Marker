@@ -18,8 +18,10 @@ disposable and subordinate.
 Two consequences follow, and everything else in this document is downstream of them.
 
 **The manuscript is never loaded into context.** Not in summary form beyond what is
-explicitly assembled, and never in full. Context is built by walking the entity graph, not
-by retrieving similar text.
+explicitly assembled, and never in full. Context is built in two steps: semantic search over
+the scene record **selects** which entities are relevant, and the store **loads** each one
+in the version that holds at the scene's instant. Retrieval decides *what* enters; it never
+decides *which version*. See [Memory and context budget](#memory-and-context-budget).
 
 **Prose cannot edit canon.** When the draft contradicts a record, the draft is rewritten,
 not the record — unless a designated agent rules otherwise, explicitly.
@@ -91,6 +93,27 @@ resetting to the model's default voice.
 **Failure mode.** Letting the writer edit canon to justify what it has just written. That
 is the precise mechanism by which drift begins.
 
+### SceneDigest
+
+A compressed record of what one scene changed, produced when the scene closes and rolled
+up at chapter and arc boundaries. Derived from prose; regenerable; never authoritative.
+
+| Field | Meaning |
+|---|---|
+| `scene_ref` | The scene it summarises; at chapter or arc level, the range |
+| `level` | `scene` · `chapter` · `arc` |
+| `povs[]` | Whose scenes are covered, so the assembler can filter by POV |
+| `delta` | What changed in the world, who learned what, which setups were paid |
+| `words` | Roughly 100 at scene level, 250 at chapter, 400 at arc |
+
+Digests are the only form in which past prose reaches a later scene, apart from the
+`literal_tail` of the immediately preceding one. They live under `manuscript/digests/`
+and are indexed for retrieval at chapter level (Figure 2). The ladder is what keeps the
+cost of assembling scene 200 close to that of scene 20.
+
+**Failure mode.** Treating the digest as canon. A digest records what the prose *said*;
+whether that becomes true of the world is decided by `promote`, not by summarisation.
+
 ### ProposedFact
 
 A detail invented mid-draft, queued for canonisation. This is the entity most systems
@@ -125,9 +148,10 @@ that made the scene work, because those are the ones that deviate from the plan.
 
 ## Operations
 
-The verbs of the system. Assembly walks the graph rather than searching by semantic
-similarity: the relations here are known in advance, so an explicit traversal outperforms
-a vector index and is reproducible besides.
+The verbs of the system. Assembly is two operations, not one: a semantic **selection** that
+decides which entities a scene needs, and a deterministic **load** that fetches each one as
+of the scene's instant. Keeping them apart is what lets retrieval find what the tags would
+have missed without letting it leak facts the POV has not yet learned.
 
 ### `dossier(character, at=story_time) → trimmed record`
 
@@ -135,9 +159,24 @@ The primitive operation. Returns the character as they were at that instant: onl
 facts already acquired, the valence of their relationships on that date, and the
 corresponding point on their arc. Everything else is built on top of this as-of query.
 
+### `select_entities(scene) → EntityRef[]`
+
+Embeds the full scene record — `goal`, `conflict`, `value_change`, `pov`, `location`,
+`entry_state`, `exit_state` and any free text the architect wrote — and queries the entity
+index for the nearest characters, locations, axioms, lexicon entries and chapter digests.
+Returns **identifiers ranked by relevance, never text**. The POV is not part of the result:
+it enters by identifier from the scene record, unconditionally. Entities the architect
+pinned through `tags` are prepended to the ranking.
+
+The list this returns is written to the turn's trace, and the auditor reads the same list:
+"which axioms apply to this scene" has one answer per turn, shared by writer and auditor.
+
 ### `assemble_context(scene) → prompt`
 
-Described in Figure 2 below.
+Calls `select_entities`, then loads each returned identifier through the store in as-of
+form — `dossier(id, at=T)` for characters, the full record for axioms and locations, the
+chapter-level `SceneDigest` for prose — in ranking order until the context budget is
+reached. Described in Figure 2 below.
 
 ### `extract_facts(draft) → ProposedFact[]`
 
@@ -163,11 +202,86 @@ re-read of the entire book, which in practice means late decisions stop being ma
 
 ---
 
+## Memory and context budget
+
+The system has no "memory" as a single thing. It has four tiers with different owners,
+write paths and forgetting policies, and the failures this section prevents all come from
+collapsing two of them — most often by letting an agent "remember" the previous turn
+outside the stores.
+
+```mermaid
+flowchart TB
+  subgraph T0["Turn — ephemeral, dies with the call"]
+    CTX["Assembled context<br/>+ the agent's output"]
+  end
+  subgraph T1["Working — the live loop"]
+    LED["ledger/<br/>setups · threads · timeline<br/>proposed · violations"]
+  end
+  subgraph T2["Episodic — derived, compressible"]
+    DIG["manuscript/digests/<br/>scene → chapter → arc<br/>+ literal_tail"]
+    MS[("manuscript/<br/>never enters context")]
+  end
+  subgraph T3["Normative — curated, exact"]
+    CAN[("canon/ · cast/ · structure/")]
+  end
+  IDX[["Entity index<br/>sqlite-vec · derived · rebuildable"]]
+
+  CTX -->|extract_facts| LED
+  LED -->|promote · canoniser| CAN
+  MS -->|summarise| DIG
+  CAN -.->|embed| IDX
+  DIG -.->|embed| IDX
+  IDX -->|select_entities| CTX
+  CAN -->|load as-of| CTX
+  DIG -->|load| CTX
+  LED -->|load| CTX
+```
+
+### Reading it
+
+**Agents are stateless functions over the stores.** There is no transcript, no
+conversation history and no hand-off of context between roles. The writer and the auditor
+communicate through `manuscript/NNN.md` and `ledger/violations.yaml`, never by passing
+messages. This is the stronger form of the `In`/`Out` contract in Figure 3: an agent's
+context is built from stores at the start of its call and discarded at the end.
+
+**`promote` is the only write into long-term memory.** Everything the writer invents goes
+to `ledger/proposed.yaml` first and reaches `canon/` only through the canoniser, with a
+human ruling on collisions. Memory consolidation is reviewed, not accumulated.
+
+**Forgetting is explicit and happens by rollup.** A scene digest is written when the scene
+closes; chapter and arc digests are rolled up from it at their boundaries. The assembler
+never loads raw prose from earlier scenes: it loads the chapter digests that
+`select_entities` ranked as relevant, plus the `literal_tail` of the immediately preceding
+scene for tonal continuity. Paid setups, resolved violations and closed threads leave the
+working tier as they close.
+
+**The entity index is derived, never a source.** It is built from `canon/`, `cast/` and
+`manuscript/digests/`, one row per entity, and can be dropped and rebuilt with no loss. An
+index entry with no backing record in the stores is a bug. Retrieval therefore cannot
+introduce a fact; it can only choose among facts that exist.
+
+**One hard cap: 100k tokens per invocation, for every role.** Roles run sequentially, each
+in a fresh window, and no window is inherited, so the cap is per call and never
+accumulates across the turn. There are no per-role targets below it. `assemble_context`
+loads selected entities in ranking order and stops at the cap; a call that would exceed it
+is stopped and traced, never silently truncated (see the budget guardrail in
+[`verification.md`](./verification.md#guardrails--a-structural--t-behavioural)).
+
+**Selection is not reproducible; loading is.** Two runs of `select_entities` over the same
+stores may rank differently. This is accepted and registered in
+[`verification.md`](./verification.md#accepted-risks-u-register), and it is why the
+selected identifiers are written to the trace: what entered a context is always
+recoverable, even when why it was chosen is not.
+
+---
+
 ## Figure 2 — Assembling the context for one scene
 
 ```mermaid
 flowchart TB
-  S["Scene record 214<br/>pov · story_time · tags"]
+  S["Scene record 214<br/>pov · story_time · goal · conflict<br/>location · delta · tags (pins)"]
+  SEL["select_entities(scene)<br/>semantic search → ranked ids"]
 
   subgraph FIXED["Always present — under 800 tokens"]
     direction LR
@@ -176,40 +290,58 @@ flowchart TB
     G["Style bible<br/>+ canonical sample"]
   end
 
-  subgraph FILTERED["Loaded by scene scope"]
+  subgraph BYID["Loaded by identifier — unconditional"]
     direction LR
     D["dossier(pov, at=T)<br/>trimmed to knowledge in force"]
-    E["Location<br/>+ parent chain"]
-    F["Axioms whose scope<br/>intersects the tags"]
-    L["Lexicon bound<br/>to those entities"]
-    H["Open setups<br/>collectable here"]
-    I["Summary of prior scenes<br/>for these POVs"]
     J["Literal tail<br/>previous 500 words"]
   end
 
-  S --> FILTERED
+  subgraph SELECTED["Loaded from the selection — in ranking order, up to the cap"]
+    direction LR
+    D2["dossier(cast, at=T)<br/>for retrieved characters"]
+    E["Retrieved locations<br/>+ parent chain"]
+    F["Retrieved axioms<br/>+ pinned by tags"]
+    L["Lexicon bound<br/>to those entities"]
+    H["Open setups<br/>collectable here"]
+    I["Chapter digests<br/>retrieved as relevant"]
+  end
+
+  S --> SEL --> SELECTED
+  S --> BYID
   FIXED --> Q{{"Assembler"}}
-  FILTERED --> Q
+  BYID --> Q
+  SELECTED --> Q
   Q --> R["Writer prompt"]
   R --> W["Draft of scene 214"]
 ```
 
 ### Reading it
 
-The split between the two subgraphs is a budget decision. The fixed block is paid on every
-single call for the length of the book, so it is capped hard — if the project layer does
-not fit in roughly 800 tokens it has been written as prose when it should have been
-written as constraints. Everything else is paid only when the scene actually needs it.
+The split between the three subgraphs is a budget decision. The fixed block is paid on
+every single call for the length of the book, so it is capped hard — if the project layer
+does not fit in roughly 800 tokens it has been written as prose when it should have been
+written as constraints. The by-identifier block is small and mandatory. Everything else is
+paid only when the selection says the scene needs it, and is loaded in ranking order until
+the 100k cap is reached.
 
-**The scene record drives the filter, not the prose.** `tags` is what selects which axioms
-and which lexicon entries load. This is why tags are a required field rather than a
-convenience: they are the index into the world layer, and a scene with no tags gets a
-context with no world in it.
+**The scene record drives the selection, not the prose.** `select_entities` embeds the
+whole record — what the POV wants, what stops them, where, what changes — and the index
+returns the characters, locations, axioms, lexicon entries and chapter digests nearest to
+it. This is why the record's dramatic fields must be written with care: a vague `goal` and
+`conflict` produce a vague selection, and a scene with an empty record gets a context with
+no world in it. `tags` survive as an optional **pin**: anything the architect tags enters
+regardless of ranking, so a rule the scene *must* honour is never left to similarity.
+
+**Selection returns identifiers, not text.** What the index knows about a character is one
+embedding of their record; what the writer receives is `dossier(id, at=T)`, loaded by the
+store after selection. The two steps are kept apart so that retrieval can never hand the
+writer a version of a record that the scene's instant forbids.
 
 **`dossier(pov, at=T)` is the load-bearing call.** The trim is not an optimisation. A
 writer handed the complete character record will use facts the character has not yet
 learned, because there is nothing in the text marking them as future. Withholding them is
-more reliable than instructing the model to ignore them.
+more reliable than instructing the model to ignore them. The POV never goes through
+selection: it is read from the record and loaded unconditionally.
 
 **Open setups are offered, not assigned.** The assembler includes setups whose `due_by` is
 approaching, so the writer *can* collect one if the scene affords it. It does not instruct
@@ -269,9 +401,9 @@ Thick edges are writes, dotted edges are reads.
 |---|---|---|---|---|---|---|---|
 | Architect | `plan(canon, structure, intent) → scene records` | read | **write** | — | `canon/project.md` · `canon/axioms/` · `canon/factions/` · `canon/history/` · `canon/locations/` · `cast/{id}/dossier.md` · `ledger/setups.yaml` · `ledger/threads.yaml` | `structure/arcs.yaml` · `structure/chapters.yaml` · `scenes/NNN.yaml` | Scene records, tension curve, budgets |
 | World builder | `build(intent, structure) → canon records` | **write** | read | — | `canon/project.md` · `canon/` · `structure/` | `canon/axioms/*.md` · `canon/technology/*.md` · `canon/locations/*.md` · `canon/factions/*.md` · `canon/history/*.md` · `canon/lexicon.yaml` · `canon/time.yaml` | Axioms, technology, locations, lexicon |
-| Writer | `write(assembled_context) → Draft, ProposedFact[]`<br/>`revise(draft, Violation[]) → Draft` | read only | read | **write** | `assemble_context(scene)` (Figure 2), which resolves to `canon/project.md` · `canon/style.md` · `cast/{id}/` · `canon/` · `ledger/setups.yaml` · `manuscript/` · `scenes/NNN.yaml`; on revision also `ledger/violations.yaml` | `manuscript/NNN.md` · `ledger/proposed.yaml` | One scene per turn, from assembled context |
+| Writer | `write(assembled_context) → Draft, ProposedFact[]`<br/>`revise(draft, Violation[]) → Draft` | read only | read | **write** | `assemble_context(scene)` (Figure 2): the fixed block (`canon/project.md` · `canon/style.md`), the POV's `cast/{id}/` as-of and the previous scene's tail, plus whatever `select_entities` ranked within the cap from `cast/` · `canon/` · `ledger/setups.yaml` · `manuscript/digests/`, the selected ids being recorded in the turn trace; on revision also `ledger/violations.yaml` | `manuscript/NNN.md` · `manuscript/digests/NNN.md` · `ledger/proposed.yaml` | One scene per turn, from assembled context |
 | Style editor | `polish(draft, style) → Draft` | read | — | **write** | `manuscript/NNN.md` · `canon/style.md` · `canon/lexicon.yaml` · `cast/{id}/voice.md` | `manuscript/NNN.md` | Voice, rhythm, metrics, forbidden tics |
-| Auditor | `audit(scene) → Violation[]` | read | read | read | `manuscript/NNN.md` · `scenes/NNN.yaml` · `canon/axioms/` · `canon/time.yaml` · `canon/lexicon.yaml` · `cast/{id}/knowledge.yaml` · `cast/relationships.yaml` · `ledger/timeline.yaml` | `ledger/violations.yaml` | Runs invariants, issues violations |
+| Auditor | `audit(scene) → Violation[]` | read | read | read | `manuscript/NNN.md` · `scenes/NNN.yaml` · the turn's selected-entity list (the axioms it names are the ones in force for invariant 6) · `canon/axioms/` · `canon/time.yaml` · `canon/lexicon.yaml` · `cast/{id}/knowledge.yaml` · `cast/relationships.yaml` · `ledger/timeline.yaml` | `ledger/violations.yaml` | Runs invariants, issues violations |
 | Canoniser | `promote(fact) → canon` | **write** | — | read | `ledger/proposed.yaml` · `manuscript/NNN.md` · `canon/` | `canon/` · `cast/` · `ledger/proposed.yaml` | Promotes proposed facts, resolves conflicts |
 
 `In` and `Out` are a stricter statement than the permission columns: a store an agent is
@@ -306,9 +438,12 @@ canon worth trusting. Its human ruling is not optional decoration: a canoniser t
 resolves every collision by itself is the failure mode named under `ProposedFact` — canon
 fills with improvised noise and stops being worth consulting.
 
-**The architect's `tags` matter beyond their own record.** They are the index the
-assembler uses to select axioms and lexicon, so a scene record emitted without tags
-produces a context with no world in it.
+**The architect's dramatic fields matter beyond their own record.** `goal`, `conflict`,
+`value_change` and the states are what `select_entities` embeds, so a scene record with
+vague dramatic fields produces a vague selection and a thin world. `tags` are the
+architect's pin: an axiom or lexicon entry tagged on the record enters the context
+regardless of ranking, which is how a rule the scene must honour is kept out of the hands
+of similarity.
 
 **The writer's two invocations are not interchangeable.** `write` produces a scene from
 context; `revise` is scoped to the flagged spans and must not regenerate the scene.
@@ -407,6 +542,7 @@ scenes/
   NNN.yaml                    records: pov, goal, conflict, delta
 manuscript/
   NNN.md                      prose; subordinate, versioned, disposable
+  digests/NNN.md              scene digests, rolled up per chapter and arc; regenerable
 ledger/
   setups.yaml                 reader debts and their deadlines
   threads.yaml                state and latency of each plot line

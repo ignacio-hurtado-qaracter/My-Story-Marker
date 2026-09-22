@@ -309,7 +309,10 @@ is enforced in `backend/`, not in the prompt. Concretely:
   `ProposedFact`; a malformed result is rejected, not repaired.
 - Lexicon filter: drafts are checked against `canon/lexicon.yaml` forbidden variants
   before being written to `manuscript/`.
-- Budget guardrails: a turn that exceeds its token or scene-length budget is stopped.
+- Budget guardrails: every agent invocation has a hard cap of 100k context tokens, the
+  same for all roles; `assemble_context` loads selected entities in ranking order and
+  stops at the cap, and a call that would exceed it — or its scene-length budget — is
+  stopped and traced, never silently truncated.
 
 *What guardrails are not.* They do not judge quality. A draft can pass every guardrail
 and be dead prose. That is the auditor's and the human's job.
@@ -461,6 +464,10 @@ of this document; the sections above justify it.
 | A prompt change does not regress quality | Scoped rollout with trace comparison | D |
 | Injection in stores does not redirect agents | Adversarial eval set, manual red-team | T, I |
 | The workflow's permission invariants hold in all states | Model checking | A |
+| Selection returns ids only, and every loaded record is the as-of version | Unit tests on `select_entities` and `assemble_context` with a fixture whose future facts must not appear | T |
+| The selected-entity list of each turn is recorded and the auditor reads the same list | Integration test comparing writer and auditor inputs on one turn | T |
+| No invocation exceeds 100k context tokens | Static cap in the assembler; per-call token count in the Langfuse trace | A, D |
+| Digests can be dropped and regenerated from `manuscript/` with no loss to assembly | Regenerate-and-compare test | T |
 | Chapter forty lands | — | **U** |
 
 The last row is deliberate. Whether the novel is *good* is not something any method here
@@ -480,6 +487,7 @@ Every **U** is listed here with a reason. An unlisted U is a defect.
 | Correctness of the model checker's model | The model is a hand-written abstraction of the real system | Review the model against `architecture.md` on every architecture change |
 | Mutants accepted as equivalent | Manual judgement | Listed per module with a reason, re-reviewed quarterly |
 | Model provider behaviour change | Outside our control | Pinned model versions; golden evals re-run on any version bump |
+| Reproducibility of semantic selection | A vector index may rank differently across runs and embedding versions; no method here proves two selections equal | Selected ids are traced per turn so what entered a context is always recoverable; pins through `tags` for anything a scene must not miss; pinned embedding model |
 
 ---
 
