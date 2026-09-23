@@ -181,6 +181,39 @@ def test_the_index_owners_are_exempt(scope: str) -> None:
     assert not [f for f in check_source(scope, source) if f.rule == "forbidden-store-write"]
 
 
+# spec 001 / AC 3, AC 34 -- the model client writes the role's system prompt to a temporary
+# file for `--system-prompt-file` (FR-LLM-05). A temporary file is not a store path, so that
+# one module is exempt by name, in the mirror and in the semgrep rule of record alike.
+def test_the_model_client_temporary_file_is_exempt() -> None:
+    source = STORE_FIXTURE.read_text(encoding="utf-8")
+    findings = check_source("app/commons/llm/claude_code_client.py", source)
+    assert not [f for f in findings if f.rule == "forbidden-store-write"]
+
+
+# spec 001 / AC 3 -- and the exemption is that file, not the package: the rest of
+# `commons/llm/` is still caught.
+@pytest.mark.parametrize(
+    "scope",
+    [
+        "app/commons/llm/fake.py",
+        "app/commons/llm/protocol.py",
+        "app/commons/llm/tokens.py",
+        "app/commons/llm/claude_code_client_helpers.py",
+    ],
+)
+def test_the_model_client_exemption_does_not_leak(scope: str) -> None:
+    source = STORE_FIXTURE.read_text(encoding="utf-8")
+    assert [f for f in check_source(scope, source) if f.rule == "forbidden-store-write"]
+
+
+# spec 001 / AC 3 -- the mirror and the rule of record name the same exempt file. A mirror that
+# exempts more than the rule would stay green on code CI rejects.
+def test_the_semgrep_rule_exempts_the_same_model_client_file() -> None:
+    rule = (BACKEND / "semgrep" / "forbidden-store-write.yaml").read_text(encoding="utf-8")
+    assert "- app/commons/llm/claude_code_client.py" in rule
+    assert "- app/commons/llm/\n" not in rule, "the exemption must name the file, not the package"
+
+
 # spec 001 / AC 3, FR-STORE-05 — the mirror implements the rule of record's SECOND rule too.
 # It did not, for a while: an adversarial review planted `f"cast/{character}/..."` in a
 # feature repository and the local gate stayed green while the semgrep rule would have

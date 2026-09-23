@@ -69,6 +69,18 @@ touch `.index/` is allowed to touch anything. The narrower guarantee comes from 
 the tree to build rows (`commons/db/rebuild.py`) reads it through `Store`, whose path helpers
 it imports for exactly that; the two `agents` owners hold no `Store` at all."""
 
+TEMPORARY_FILE_WRITERS = ("app/commons/llm/claude_code_client.py",)
+"""The one module outside the store layer that writes a file which is neither a store path nor
+under `.index/`: the model client writes the role's system prompt into a fresh temporary
+directory, because the Claude Code CLI takes it through `--system-prompt-file` (spec FR-LLM-05,
+plan step 15). A temporary file is not a store path, like `.index/`.
+
+Exempted by file, not by package, and mirrored in `semgrep/forbidden-store-write.yaml`: the
+rest of `commons/llm/` -- the fake, the protocol, the estimator -- stays under the rule. The
+same limit as `INDEX_WRITERS` applies (the rule sees primitives, not paths); the narrower
+guarantee is that `commons.llm` may not import `commons.stores` (the internal layers contract),
+so it has no way to build a store path."""
+
 STORE_FAMILIES = ("canon", "cast", "structure", "scenes", "manuscript", "ledger")
 
 MUTATING_METHODS = frozenset(
@@ -180,6 +192,7 @@ def check_forbidden_store_write(relative: str, tree: ast.Module) -> list[Finding
     if (
         relative.startswith(STORE_LAYER)
         or relative.startswith(INDEX_WRITERS)
+        or relative in TEMPORARY_FILE_WRITERS
         or _is_test(relative)
     ):
         return []

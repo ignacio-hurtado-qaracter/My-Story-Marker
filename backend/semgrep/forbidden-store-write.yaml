@@ -33,6 +33,11 @@ rules:
         - app/agents/lock.py
         - app/commons/db/
         - app/commons/embeddings/
+        # The model client writes the role's system prompt to a file in a fresh temporary
+        # directory, because the CLI takes it through `--system-prompt-file` (FR-LLM-05,
+        # plan step 15). A temporary file is not a store path, like `.index/`. Exempted by
+        # file, not by package: the rest of `commons/llm/` stays under the rule.
+        - app/commons/llm/claude_code_client.py
         - "**/tests/**"
     patterns:
       - pattern-either:

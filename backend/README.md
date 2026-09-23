@@ -117,9 +117,13 @@ environment key: the 100 000-token context cap (NFR-05) and `TURN_MAX_REVISIONS 
 
 **No API key is used, anywhere.** Model calls go through the Claude Code CLI (`claude -p`)
 under your own Claude Code login (spec FR-LLM-01, decision R3-1), so the CLI must be installed
-and logged in on the machine that runs a turn. The backend removes `ANTHROPIC_API_KEY` from
-the CLI's environment even if your shell sets one, so a key can never silently take over.
-The offline test suite needs neither: it uses a scripted fake.
+and logged in on the machine that runs a turn. The backend removes `ANTHROPIC_API_KEY` and
+`ANTHROPIC_AUTH_TOKEN` from the CLI's environment even if your shell sets them, so a key can
+never silently take over. The CLI is found on `PATH`; on Windows the npm shim is resolved to
+the native `claude.exe` it forwards to, and `CLAUDE_CLI` overrides the lookup if that fails.
+With `EMBED_OFFLINE=1`, a model missing from the cache stops the start and names the
+directory to populate (FR-EMB-03). The offline test suite needs neither the CLI nor a model:
+it uses scripted fakes.
 
 ## `.index/`
 

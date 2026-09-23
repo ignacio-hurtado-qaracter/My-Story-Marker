@@ -123,9 +123,11 @@ class TurnLocked(HarnessError):
 
 
 class ContextBudgetExceeded(HarnessError):
-    """FR-LLM-07, NFR-05. The prompt counted above the 100k cap, so the call was not made.
+    """FR-LLM-07, FR-CTX-05, NFR-05. The input was estimated above the 100k cap, so the call
+    was not made and no process was spawned.
 
-    Stopped and traced, never silently truncated.
+    Stopped and traced, never silently truncated. `counted` is the pre-call estimate of what
+    the system sends (FR-CTX-02); the CLI's own overhead is never part of it (R3-5).
     """
 
     code = "context_budget_exceeded"
@@ -136,7 +138,11 @@ class ContextBudgetExceeded(HarnessError):
 
 
 class MalformedModelOutput(HarnessError):
-    """FR-LLM-04. The response failed its DR-12 schema twice. Rejected, not repaired."""
+    """FR-LLM-04. The response failed its DR-12 schema twice. Rejected, not repaired.
+
+    The message names the failing fields and error types only, never the values: the value
+    is model output, often draft prose, and NFR-10 keeps prose out of logs and error bodies.
+    """
 
     code = "malformed_model_output"
     status_code = 502
@@ -146,8 +152,9 @@ class MalformedModelOutput(HarnessError):
 
 
 class ModelRefused(HarnessError):
-    """FR-LLM-06. `stop_reason: refusal`. Carries the category when the provider gives one;
-    not retried against a different model in v1."""
+    """FR-LLM-06. `stop_reason: refusal`. Carries the category when the provider gives one
+    (the envelope's `stop_details.category`); not retried, and not retried against a
+    different model in v1. The turn escalates with the category (AC 21)."""
 
     code = "model_refused"
     status_code = 502
@@ -159,14 +166,41 @@ class ModelRefused(HarnessError):
 
 
 class OutputTruncated(HarnessError):
-    """FR-LLM-06. `stop_reason: max_tokens`. Retried once with more headroom; reaching the
-    caller means the retry was truncated too."""
+    """FR-LLM-06. `stop_reason: max_tokens`. Retried once as it was sent -- the CLI exposes
+    no output-length setting the backend controls -- and reaching the caller means the retry
+    was truncated too."""
 
     code = "output_truncated"
     status_code = 502
 
     def __init__(self, message: str, *, role: str | None = None) -> None:
         super().__init__(message, role=role)
+
+
+class ModelCallFailed(HarnessError):
+    """FR-LLM-08, IF-07. The model call failed for a reason that is neither a refusal nor
+    malformed output: the Claude Code CLI is missing, it exited without a readable result,
+    it timed out, or the provider answered with an API error status.
+
+    A 502 like the other model errors in IF-07, because the backend is the gateway and the
+    fault is upstream of it. `reason` is a short machine-readable code (`cli_missing`,
+    `timeout`, `unparseable`, `cli_error`, `rate_limited`, `api_error`, ...) and `status` is
+    the provider's status when there was one. A step that fails this way escalates; it is
+    never swallowed into an empty draft.
+    """
+
+    code = "model_call_failed"
+    status_code = 502
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        reason: str,
+        role: str | None = None,
+        status: int | None = None,
+    ) -> None:
+        super().__init__(message, reason=reason, role=role, status=status)
 
 
 async def harness_error_handler(request: Request, exc: Exception) -> JSONResponse:
@@ -191,6 +225,7 @@ __all__ = [
     "InvalidRecord",
     "InvalidRole",
     "MalformedModelOutput",
+    "ModelCallFailed",
     "ModelRefused",
     "NotFound",
     "OutputTruncated",

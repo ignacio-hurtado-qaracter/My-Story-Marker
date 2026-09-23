@@ -9,9 +9,10 @@ could raise either of them would be a hole in the design, not a feature.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from functools import lru_cache
 from pathlib import Path
-from typing import Final
+from typing import Final, Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -34,8 +35,15 @@ LITERAL_TAIL_WORDS: Final[int] = 500
 DIGEST_WORD_TARGETS: Final[dict[str, int]] = {"scene": 100, "chapter": 250, "arc": 400}
 """DR-11 and architecture.md SceneDigest. Recorded against actual words on the turn record."""
 
-MIN_THINKING_BUDGET: Final[int] = 1024
-"""FR-LLM-03. Below this the provider rejects the request."""
+EffortLevel = Literal["low", "medium", "high", "xhigh", "max"]
+"""FR-LLM-03. The values `claude --effort` accepts (Claude Code 2.1.273). Anything else in an
+`EFFORT_<ROLE>` key is a configuration error at startup, not a value passed through for the
+CLI to reject in the middle of a turn."""
+
+DEFAULT_CLAUDE_TIMEOUT_SECONDS: Final[float] = 600.0
+"""FR-LLM-08. One `claude -p` call over a 100k-token context that writes a whole scene takes
+minutes, not seconds; ten minutes is the ceiling past which the call is treated as hung,
+killed, and retried once."""
 
 DEFAULT_MODEL: Final[str] = "claude-haiku-4-5"
 """FR-LLM-03, Decision R2-4. Raised per role through MODEL_<ROLE>, never globally."""
@@ -87,40 +95,44 @@ class Settings(BaseSettings):
     auditor_model: str = Field(default=DEFAULT_MODEL, validation_alias="MODEL_AUDITOR")
     canoniser_model: str = Field(default=DEFAULT_MODEL, validation_alias="MODEL_CANONISER")
 
-    architect_thinking_budget: int | None = Field(
-        default=None, validation_alias="THINKING_BUDGET_ARCHITECT"
+    architect_effort: EffortLevel | None = Field(default=None, validation_alias="EFFORT_ARCHITECT")
+    world_builder_effort: EffortLevel | None = Field(
+        default=None, validation_alias="EFFORT_WORLD_BUILDER"
     )
-    world_builder_thinking_budget: int | None = Field(
-        default=None, validation_alias="THINKING_BUDGET_WORLD_BUILDER"
+    writer_effort: EffortLevel | None = Field(default=None, validation_alias="EFFORT_WRITER")
+    style_editor_effort: EffortLevel | None = Field(
+        default=None, validation_alias="EFFORT_STYLE_EDITOR"
     )
-    writer_thinking_budget: int | None = Field(
-        default=None, validation_alias="THINKING_BUDGET_WRITER"
+    auditor_effort: EffortLevel | None = Field(default=None, validation_alias="EFFORT_AUDITOR")
+    canoniser_effort: EffortLevel | None = Field(
+        default=None, validation_alias="EFFORT_CANONISER"
     )
-    style_editor_thinking_budget: int | None = Field(
-        default=None, validation_alias="THINKING_BUDGET_STYLE_EDITOR"
-    )
-    auditor_thinking_budget: int | None = Field(
-        default=None, validation_alias="THINKING_BUDGET_AUDITOR"
-    )
-    canoniser_thinking_budget: int | None = Field(
-        default=None, validation_alias="THINKING_BUDGET_CANONISER"
+
+    claude_cli: Path | None = Field(default=None, validation_alias="CLAUDE_CLI")
+    claude_timeout_seconds: float = Field(
+        default=DEFAULT_CLAUDE_TIMEOUT_SECONDS,
+        gt=0,
+        le=3600,
+        validation_alias="CLAUDE_TIMEOUT_SECONDS",
     )
 
     @field_validator(
-        "architect_thinking_budget",
-        "world_builder_thinking_budget",
-        "writer_thinking_budget",
-        "style_editor_thinking_budget",
-        "auditor_thinking_budget",
-        "canoniser_thinking_budget",
+        "architect_effort",
+        "world_builder_effort",
+        "writer_effort",
+        "style_editor_effort",
+        "auditor_effort",
+        "canoniser_effort",
+        "claude_cli",
+        mode="before",
     )
     @classmethod
-    def _thinking_budget_is_usable(cls, value: int | None) -> int | None:
-        """FR-LLM-03: a budget below the provider minimum is a configuration error, not a
-        value to round up silently."""
-        if value is not None and value < MIN_THINKING_BUDGET:
-            message = f"thinking budget must be at least {MIN_THINKING_BUDGET}, got {value}"
-            raise ValueError(message)
+    def _empty_means_unset(cls, value: object) -> object:
+        """`EFFORT_WRITER=` in a `.env` file means "not set", which is the CLI default
+        (FR-LLM-03). Read literally it would be an invalid effort, or for `CLAUDE_CLI` the
+        path `.`, which is a directory rather than an executable."""
+        if isinstance(value, str) and not value.strip():
+            return None
         return value
 
     @property
@@ -139,36 +151,44 @@ class Settings(BaseSettings):
         return self.embed_cache_dir or self.story_root / ".index" / "models"
 
     def model_for(self, role: str) -> str:
-        """FR-LLM-03. The model id used is recorded on the turn record, so a provider-side
-        change stays attributable."""
-        models = {
-            "architect": self.architect_model,
-            "world_builder": self.world_builder_model,
-            "writer": self.writer_model,
-            "style_editor": self.style_editor_model,
-            "auditor": self.auditor_model,
-            "canoniser": self.canoniser_model,
-        }
-        if role not in models:
-            message = f"unknown role: {role!r}"
-            raise ValueError(message)
-        return models[role]
+        """FR-LLM-03. Passed to the CLI as `--model`. The model id the CLI reports having
+        used is recorded on the turn record beside it, so a provider-side change stays
+        attributable."""
+        return _for_role(
+            role,
+            {
+                "architect": self.architect_model,
+                "world_builder": self.world_builder_model,
+                "writer": self.writer_model,
+                "style_editor": self.style_editor_model,
+                "auditor": self.auditor_model,
+                "canoniser": self.canoniser_model,
+            },
+        )
 
-    def thinking_budget_for(self, role: str) -> int | None:
-        """FR-LLM-03. None means extended thinking is off for this role, which is the
-        default: Haiku 4.5 takes a budget_tokens block and no effort setting."""
-        budgets = {
-            "architect": self.architect_thinking_budget,
-            "world_builder": self.world_builder_thinking_budget,
-            "writer": self.writer_thinking_budget,
-            "style_editor": self.style_editor_thinking_budget,
-            "auditor": self.auditor_thinking_budget,
-            "canoniser": self.canoniser_thinking_budget,
-        }
-        if role not in budgets:
-            message = f"unknown role: {role!r}"
-            raise ValueError(message)
-        return budgets[role]
+    def effort_for(self, role: str) -> EffortLevel | None:
+        """FR-LLM-03. Passed to the CLI as `--effort` only when set; None means the flag is
+        omitted and the CLI's own default applies."""
+        return _for_role(
+            role,
+            {
+                "architect": self.architect_effort,
+                "world_builder": self.world_builder_effort,
+                "writer": self.writer_effort,
+                "style_editor": self.style_editor_effort,
+                "auditor": self.auditor_effort,
+                "canoniser": self.canoniser_effort,
+            },
+        )
+
+
+def _for_role[V](role: str, values: Mapping[str, V]) -> V:
+    """One lookup for every per-role setting, so an unknown role fails the same way for all
+    of them rather than defaulting to somebody else's value."""
+    if role not in values:
+        message = f"unknown role: {role!r}"
+        raise ValueError(message)
+    return values[role]
 
 
 @lru_cache(maxsize=1)
