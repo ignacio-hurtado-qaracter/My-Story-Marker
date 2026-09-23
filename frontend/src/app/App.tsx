@@ -1,8 +1,15 @@
-// The application root. Plan step 5 fills it with the router, providers and layout.
+// The application root: providers, the browser router and the route table. Spec 002, FR-SHELL-01.
+import { BrowserRouter } from 'react-router'
+
+import { Providers } from './providers'
+import { AppRoutes } from './routes'
+
 export function App() {
   return (
-    <main>
-      <h1>My Story Marker</h1>
-    </main>
+    <Providers>
+      <BrowserRouter>
+        <AppRoutes />
+      </BrowserRouter>
+    </Providers>
   )
 }
