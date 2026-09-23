@@ -1,12 +1,21 @@
 ---
 spec: 001                 # the approved spec this plan implements
-status: approved          # draft · approved · done
+status: draft             # draft · approved · done
 ---
 
 Implementation plan for [`001-backend-foundation.md`](./001-backend-foundation.md)
 (status `approved`, 2026-09-22). The spec says *what* and *why*; this file says *how* and
 *in what order*. Anything not listed under "Files to touch" is out of scope; a file that
 turns out to be needed means this plan is wrong and goes back to `draft`.
+
+> **Returned to `draft` on 2026-09-23, with the spec** (Process 2, rule 10). Model calls go
+> through the Claude Code CLI under the user's login and no Anthropic API key is used
+> (spec Decision R3-1); input tokens are estimated before each call and pruned per role
+> (R3-2, FR-CTX); features cross only through each other's public surface (R3-3). What
+> changed here: P7 and P10 rewritten, P14 and P15 added, the `commons/llm/` and
+> `.env.example` rows, steps 12, 15, 16, 18 and 20, and the verification rows for AC 22, 26
+> and 33-35. Steps 1-8 are done. Steps 9-14 do not touch the model client and proceed
+> during review at the user's explicit authorisation; step 15 onward waits for re-approval.
 
 Branch: `spec/001-backend`. Commit prefixes: `backend:`, `contract:`, `chore:`. Every step
 is one commit, small enough to review alone, and names the acceptance criteria it advances.
@@ -28,13 +37,15 @@ without touching the spec.
 | P4 | **`fastembed`** pinned; `EMBED_MODEL` default `sentence-transformers/all-MiniLM-L6-v2`; cache under `.index/models/`. | Spec FR-EMB. |
 | P5 | Server-Sent Events via **`sse-starlette`**; the turn runs synchronously inside the request on a **single uvicorn worker**. The lock file makes a second worker pointless. | Spec IF-06, FR-TURN-05. |
 | P6 | Provenance is **JSON Lines** (`.index/provenance.jsonl`, one object per write); turn records are **YAML** (`.index/turns/NNN-<n>.yaml`, rewritten after each step). | Append-only vs. update-in-place shapes. |
-| P7 | The fake model client's `count_tokens` is `len(text) // 4`; the live one calls `messages.count_tokens`. | Spec FR-LLM-07. |
+| P7 | Input tokens are estimated by one local function in `commons/llm/tokens.py`, `ceil(characters / 3)` per text plus the measured CLI overhead constant, used identically by the live and the fake client. Tests that need a budget breach lower the cap rather than faking the count. | Spec FR-LLM-07, FR-CTX-02, R3-2. |
 | P8 | **`semgrep` does not run natively on Windows.** The rules of record for AC 3, 13 and 17 are `semgrep` and run in CI (Linux). A local mirror, `backend/tools/check_boundaries.py` (stdlib `ast`, same three rules), runs inside `pytest` on every platform so the local gate is not blind. Both must pass; a disagreement between them is a bug in the mirror. | Developer is on Windows 11. |
 | P9 | The fixture novel is written in **English**, so the default embedder is the right one for the fixture and the docs' language matches. Nothing in the fixture depends on the prose language. | Spec R2-3 note. |
-| P10 | Structured output uses the SDK's typed `messages.parse()` against each DR-12 Pydantic model; role prompts are Markdown files loaded at import time with a `prompt_version` equal to their content hash. | Spec FR-LLM-04, FR-AGENT-10. |
+| P10 | Structured output is the CLI's `--json-schema` with the DR-12 model's own JSON Schema; the envelope's `structured_output` is validated with the Pydantic model and never repaired. Role prompts are Markdown files loaded at import time with a `prompt_version` equal to their content hash. | Spec FR-LLM-04, FR-AGENT-10. |
 | P11 | `import-linter` contracts are the enforcement of NFR-04; `mypy --strict` runs with `pydantic.mypy` plugin; `bandit` at default profile with `B506`. | Spec NFR-01…04. |
 | P12 | The CI file is a single GitHub Actions workflow with a two-cell matrix `vec: [present, absent]`, the `absent` cell uninstalling `sqlite-vec` before tests. Live tests never run in CI. | Spec AC 7, NFR-09. |
 | P13 | The stale assumption in `.claude/skills/sqlite/references/vectors.md` (that vector search is not the retrieval path for assembly) is corrected as a `chore:` commit in step 1, so the skill does not argue with the spec while code is written. | `AGENTS.md` layer rule: skill docs must not contradict `docs/`. |
+| P14 | `ClaudeCodeModelClient` runs `claude -p` with `subprocess.run`, never a shell: argv `--model`, optional `--effort`, `--tools ""`, `--setting-sources ""`, `--strict-mcp-config`, `--disable-slash-commands`, `--no-session-persistence`, `--output-format json`, `--json-schema`, `--system-prompt-file`; documents and instruction on stdin; a fresh `tempfile.TemporaryDirectory()` as the working directory; the parent environment copied with `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` removed; a timeout per call. The binary is found with `shutil.which("claude")` and its `--version` is recorded per turn. | Spec FR-LLM-01, -05, NFR-01, R3-1. |
+| P15 | Feature layers for NFR-04: `agents` above `scenes` above `ledger` above `canon`, `cast` and `manuscript`. A feature may import another's `service` and `models` only; a `forbidden` contract bans every other feature's `repository` and `router`. `TurnRecord` goes to `commons/schemas/turn.py` because `canon`'s `reconcile` and `agents` both read it. | Spec NFR-04, R3-3; `architecture.md` rules 2 and 5. |
 
 ---
 
@@ -49,7 +60,7 @@ Paths are relative to the repository root. `backend/app/` is abbreviated `app/`.
 | `backend/pyproject.toml` | Project metadata, pinned dependencies, `ruff`, `mypy --strict` (+ pydantic plugin), `bandit`, `import-linter` contracts, `pytest` markers (`live`, `model`) |
 | `backend/uv.lock` | Lockfile |
 | `backend/README.md` | Run, test, gate, environment variables |
-| `backend/.env.example` | `STORY_ROOT`, `STORY_INDEX`, `EMBED_MODEL`, `EMBED_CACHE_DIR`, `EMBED_OFFLINE`, `MODEL_<ROLE>`, `THINKING_BUDGET_<ROLE>`, `TURN_REVISE_MAX_CHANGED_RATIO`; `ANTHROPIC_API_KEY` as a placeholder only |
+| `backend/.env.example` | `STORY_ROOT`, `STORY_INDEX`, `EMBED_MODEL`, `EMBED_CACHE_DIR`, `EMBED_OFFLINE`, `MODEL_<ROLE>`, `EFFORT_<ROLE>`, `TURN_REVISE_MAX_CHANGED_RATIO`; no credential of any kind, and a note that none is used |
 | `backend/gate.ps1`, `backend/gate.sh` | The one-command local gate (AC 30) |
 | `backend/scripts/export_openapi.py` | Writes `backend/openapi.json` from the app |
 | `backend/scripts/export_schemas.py` | Writes `backend/schemas/*.v1.json` from the Pydantic models |
@@ -83,8 +94,9 @@ Paths are relative to the repository root. `backend/app/` is abbreviated `app/`.
 | `app/commons/db/tests/test_rebuild.py`, `test_migrations.py`, `test_vec_optional.py`, `test_busy.py` | AC 6, 7, 8 |
 | `app/commons/embeddings/{__init__,protocol,fake,fastembed_impl}.py` | `Embedder` protocol, `FakeEmbedder`, `FastEmbedEmbedder` with fallback |
 | `app/commons/embeddings/tests/test_fake.py`, `test_fastembed.py` (marker `model`) | AC 9 |
-| `app/commons/llm/{__init__,protocol,anthropic_client,fake,tokens,errors}.py` | `ModelClient` protocol, live client, fake with scripted responses and call log, token counting, typed error chain |
-| `app/commons/llm/tests/test_fake.py`, `test_structured_output.py`, `test_refusal.py`, `test_budget.py`, `test_thinking_config.py` | AC 21, 22 (unit level) |
+| `app/commons/llm/{__init__,protocol,claude_code_client,fake,tokens,errors}.py` | `ModelClient` protocol, the `claude -p` subprocess client (P14), fake with scripted responses and call log, the input-token estimator (P7), typed error chain |
+| `app/commons/llm/tests/test_fake.py`, `test_structured_output.py`, `test_refusal.py`, `test_budget.py`, `test_claude_code_command.py`, `test_over_cap.py` | AC 21, 22 (unit level), 34, 35 |
+| `app/commons/schemas/turn.py` | `TurnRecord`, read by `canon`'s `reconcile` and written by `agents` (P15) |
 
 ### Features
 
@@ -102,7 +114,7 @@ Paths are relative to the repository root. `backend/app/` is abbreviated `app/`.
 | `app/ledger/tests/test_promote.py`, `test_audit_writes.py`, `test_audit_01.py` … `test_audit_10.py` | AC 13, 15, 16 |
 | `app/agents/{router,service,models,turn,lock,records,roles/__init__,roles/writer,roles/style_editor,roles/canoniser,roles/auditor,prompts/*.md}.py` | Roles as functions, orchestrator, lock, turn records, rulings, resume, SSE, rollup |
 | `app/agents/tests/scripts/*.yaml` | Scripted fake-model responses per scenario |
-| `app/agents/tests/test_turn_happy.py`, `test_turn_escalation.py`, `test_turn_ruling.py`, `test_turn_malformed.py`, `test_turn_budget.py`, `test_turn_resume.py`, `test_turn_provenance.py`, `test_prompts_as_data.py`, `test_role_inputs.py`, `test_handoff_through_stores.py`, `test_rollup.py` | AC 18–24, 32; FR-AGENT-09, FR-AGENT-11 |
+| `app/agents/tests/test_turn_happy.py`, `test_turn_escalation.py`, `test_turn_ruling.py`, `test_turn_malformed.py`, `test_turn_budget.py`, `test_turn_resume.py`, `test_turn_provenance.py`, `test_prompts_as_data.py`, `test_role_inputs.py`, `test_handoff_through_stores.py`, `test_rollup.py`, `test_context_pruning.py` | AC 18–24, 32, 33; FR-AGENT-09, FR-AGENT-11 |
 
 ### Cross-feature tests and fixtures
 
@@ -159,12 +171,12 @@ criterion is *satisfied* only when its verification in the mapping below passes.
 | 12 | `backend:` | `assemble_context`: fixed block, POV dossier, literal tail, ranked as-of loading (chapter digests only when every covered scene is `<= T`, labelled "not witnessed" when `povs` lacks the POV; lexicon through `used_by`; open setups under a *may collect* label; resolved violations, paid setups and closed threads excluded), 100k stop, `truncated_at`, fixed-block warning; token counting through the `ModelClient` protocol (fake only at this step); `/scenes/{id}/assemble`. Tests include: no raw `manuscript/NNN.md` text in the context except the previous scene's tail. | AC 12 (assembly half) |
 | 13 | `backend:` | `promote`, `rule`, `reconcile`; `semgrep` rule and mirror for canon writes outside `promote`/`rule`; routes. | AC 13, 14 |
 | 14 | `backend:` | Mechanical audit, one module per invariant, `/scenes/{id}/audit?semantic=false`, persistence only under auditor + `persist=true`; golden tests on the fixture and the write-scope test. | AC 15, 16 |
-| 15 | `backend:` | Model client: protocol, `AnthropicModelClient` (Haiku defaults, `budget_tokens` by model family, streaming, `parse()` structured output, `stop_reason` handling, `count_tokens`, typed error chain, `cache_control` on the prefix), `FakeModelClient` with scripts and call log; unit tests. | AC 21, 22 (unit) |
-| 16 | `backend:` | Tool sets derived from the write table; prompt assembly with store content as delimited data, each document tagged with its source path, and nothing from the stores in `system`; the assembler refuses a document whose path is outside the role's `INPUT_TABLE` row; role prompt files (the writer's states dramatic function only and offers setups, never assigns one); `semgrep` rule and mirror against hand-written tool lists. | AC 17, 23; FR-AGENT-09 |
+| 15 | `backend:` | Model client: protocol, `ClaudeCodeModelClient` as P14 (Haiku default through `--model`, optional `--effort`, `--json-schema` structured output, envelope checks of `is_error` / `subtype` / `stop_reason` / `api_error_status`, the input-token estimate before the call and the real count after, `over_cap`, typed error chain), `FakeModelClient` with scripts and call log; unit tests, including the constructed command, working directory and environment. | AC 21, 22 (unit), 34, 35 |
+| 16 | `backend:` | Tool sets derived from the write table (the writes the orchestrator performs with a role's output; the model itself holds no tools); prompt assembly with store content as delimited data on stdin, each document tagged with its source path, and nothing from the stores in the system prompt file; the assembler refuses a document whose path is outside the role's `INPUT_TABLE` row; role prompt files (the writer's states dramatic function only and offers setups, never assigns one); `semgrep` rule and mirror against hand-written tool lists. | AC 17, 23; FR-AGENT-09 |
 | 17 | `backend:` | Roles as functions: writer `write`/`revise`/`digest`/`rollup`, style editor `polish`, canoniser `extract_facts`, auditor `audit_semantic`; combined `audit`; `/scenes/{id}/audit` full; `/agents/digests/rollup`. Tests with scripted fakes. | AC 15 (skipped list), 21 |
-| 18 | `backend:` | Turn orchestrator: state machine, lock, turn records after each step, hand-off **through the stores** (audit reads the draft back from `manuscript/`, revise reads blocking violations back from `ledger/violations.yaml`; the orchestrator passes ids only), revise scope guard, extraction on the accepted draft, promotion followed by `reconcile` on each promoted target, `words` vs `budget` and digest length vs level target on the record, chapter-complete hint, `awaiting_ruling`, `rulings` (also running `reconcile` on `accept`), `resume`, SSE progress, `dry_run`. Scenario tests (happy, escalation after 3, revise rejected, collision and rulings, malformed, refusal, budget, resume, provenance), plus: after a merged turn, a `dry_run` of the next scene in discourse order contains the promoted fact ("canon is updated before the next scene is assembled"); the fake call log shows the revise step's violations equal to the file's content and each role's documents inside its `INPUT_TABLE` row. Cross-feature test that writer and auditor receive the same selected list. | AC 12 (turn half), 18–24, 32; FR-AGENT-09, FR-AGENT-11, FR-TURN-04 |
+| 18 | `backend:` | Turn orchestrator: state machine, lock, turn records after each step, hand-off **through the stores** (audit reads the draft back from `manuscript/`, revise reads blocking violations back from `ledger/violations.yaml`; the orchestrator passes ids only), revise scope guard, extraction on the accepted draft, promotion followed by `reconcile` on each promoted target, `words` vs `budget` and digest length vs level target on the record, chapter-complete hint, `awaiting_ruling`, `rulings` (also running `reconcile` on `accept`), `resume`, SSE progress, `dry_run`, per-role pruning (FR-CTX-03/-04) with removed ids and `truncated_at` on the record. Scenario tests (happy, escalation after 3, revise rejected, collision and rulings, malformed, refusal, budget, resume, provenance), plus: after a merged turn, a `dry_run` of the next scene in discourse order contains the promoted fact ("canon is updated before the next scene is assembled"); the fake call log shows the revise step's violations equal to the file's content and each role's documents inside its `INPUT_TABLE` row. Cross-feature test that writer and auditor receive the same selected list. | AC 12 (turn half), 18–24, 32, 33; FR-AGENT-09, FR-AGENT-11, FR-TURN-04 |
 | 19 | `contract:` | Regenerate `openapi.json`; `schemathesis` test; CI workflow with the `vec` matrix, static gate, `semgrep`, contract freshness. | AC 7 (matrix), 29 |
-| 20 | `backend:` | Live tests behind `--live`: one full turn on the tempting scene and one extraction; run once locally with credentials, output saved to `backend/tests/live/last_run.md` for the PR. | AC 26, 27 |
+| 20 | `backend:` | Live tests behind `--live`: one full turn on the tempting scene and one extraction, through `claude -p` under the user's Claude Code login. No API key exists anywhere to run them with. Written and committed by the agent; run by the user, with the output saved to `backend/tests/live/last_run.md` for the PR. | AC 26, 27 |
 | 21 | — | Human review of the fixture `README.md` against the actual audit output (AC 28). Run the full gate, paste the output, open the PR `spec(001): Backend v1 — …` listing every criterion with its verification. | AC 28, 30 |
 | 22 | `spec(001):` | After merge: spec to `implemented`, this plan to `done`, listing per criterion the test, check or run that satisfied it. | — |
 
@@ -200,17 +212,20 @@ this order so that every commit passes the gate on its own.
 | 19 | T | Always-blocking script → `escalated` after exactly 3 revisions, last draft and violations on disk; 60 %-change script → rejected twice → `escalated` | `agents/tests/test_turn_escalation.py` |
 | 20 | T | Colliding extraction → `awaiting_ruling`; `accept` → promoted + `merged`; `reject` → `rejected` + `merged`; second turn while pending → `409` | `agents/tests/test_turn_ruling.py` |
 | 21 | T | Schema-invalid script → one retry, then `MalformedModelOutput`, `manuscript/` untouched; refusal script → `escalated` with category | `agents/tests/test_turn_malformed.py`, `commons/llm/tests/test_refusal.py` |
-| 22 | T | Fake `count_tokens` > 100k → zero `complete` calls in the log, `ContextBudgetExceeded`, `escalated` | `agents/tests/test_turn_budget.py` |
+| 22 | T | Estimate above the (lowered) cap → zero `complete` calls in the log, `ContextBudgetExceeded`, `escalated` | `agents/tests/test_turn_budget.py`, `commons/llm/tests/test_budget.py` |
 | 23 | T | Inspect every recorded fake call: `system` contains no substring of any store file; every document block delimited and labelled with its path; no call carries a previous call's output except as a store-backed document; the writer's instruction offers setups under *may collect* and names none as required | `agents/tests/test_prompts_as_data.py` |
 | 24 | T | Kill after write step (script raises), resume → audit onward, exactly one `write` call in the log | `agents/tests/test_turn_resume.py` |
 | 25 | U | Registered | `docs/verification.md` U register (`95e0cd5`) |
-| 26 | D | `--live` full turn on the tempting scene; assert the axiom violation and the unregistered body change are flagged, the registered one is not; record shows real model ids, cache-read tokens, every step < 100k; output committed as evidence | `tests/live/test_turn_live.py`, `tests/live/last_run.md` |
+| 26 | D | `--live` full turn on the tempting scene through `claude -p`, run by the user; assert the axiom violation and the unregistered body change are flagged, the registered one is not; record shows real model ids, cache-read tokens, every step < 100k; output committed as evidence | `tests/live/test_turn_live.py`, `tests/live/last_run.md` |
 | 27 | D | `--live` extraction returns the two hand-labelled invented facts | `tests/live/test_extract_live.py` |
 | 28 | I | Human reads the fixture `README.md` against actual audit output; note in the PR | `tests/fixtures/repo/README.md` |
 | 29 | T | `export_openapi.py` output equals committed file (CI fails on diff); `schemathesis` run yields no `5xx` | `tests/test_schemathesis.py`; CI `contract` |
 | 30 | D | `gate.ps1` / `gate.sh` green; output pasted in the PR | PR description |
 | 31 | U | Registered | `docs/verification.md` U register (`95e0cd5`) |
 | 32 | T | After the fake turn, one provenance line per store write with the Figure 4 role and `actor: agent`; `PUT` with `X-Actor: human` → line with `actor: human` | `commons/stores/tests/test_provenance.py`, `agents/tests/test_turn_provenance.py` |
+| 33 | T | Cap lowered: whole prunable entries removed lowest rank first per role, none cut; removed ids and `truncated_at` on the record; auditor removals in `skipped`; mandatory overflow → `ContextBudgetExceeded`, no call | `agents/tests/test_context_pruning.py` |
+| 34 | T | Recorder in place of the subprocess: argv carries `--tools ""`, `--setting-sources ""`, `--json-schema`, `--no-session-persistence`, never `--bare`; cwd empty and outside the repo and store root; env has no `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` although the parent's does | `commons/llm/tests/test_claude_code_command.py` |
+| 35 | T | Scripted envelope reporting more input tokens than the cap → step marked `over_cap: true` | `commons/llm/tests/test_over_cap.py` |
 
 Every **T** test is shown to fail before its step's code exists (Process 3 rule 15): the
 commit message of each step names the test and states that it was red on the parent commit.
@@ -300,8 +315,14 @@ recommendation, and coding stops until the plan is re-approved.
   disagrees on seeing it, that is a decision, not a fact).
 - `fastembed` cannot load either 384-d model on the developer's machine. The fallback
   chain would then need a third model or a different dimension, which changes FR-IDX-03.
-- Haiku 4.5's structured output rejects a DR-12 schema shape (for example a deeply nested
+- `claude -p --json-schema` rejects a DR-12 schema shape (for example a deeply nested
   union). Flattening a schema is a spec change to DR-12.
+- The Claude Code CLI changes a flag or the shape of its JSON envelope. P14 records its
+  version per turn and AC 34 pins the command, so the change is caught; adapting to it is a
+  plan change, and dropping an isolation flag is a spec change to FR-LLM-05.
+- The organisation's managed instructions visibly alter role output in the live run (for
+  example anonymised names in the prose). The backend cannot remove them; how to respond is
+  the user's decision.
 - The revise scope guard (35 %) rejects every live revision. That is data the spec asked
   for (R2-8) and the threshold is a spec value.
 
@@ -315,8 +336,10 @@ recommendation, and coding stops until the plan is re-approved.
 - Live run (AC 26/27) misses a planted item → record the miss in `last_run.md`; the
   criterion is **D** and the miss is the finding. Raising a role's model via
   `MODEL_<ROLE>` is allowed by the spec; changing the default is not.
-- Model provider returns an unexpected `stop_reason` → surfaces as a typed error, turn
-  escalates; add the case to the fake scripts.
+- The CLI returns an unexpected `stop_reason` or `subtype` → surfaces as a typed error, the
+  turn escalates; add the case to the fake scripts.
+- The Claude Code login has expired or hits a usage limit → the step fails with the CLI's
+  message and the turn escalates; nothing falls back to an API key, because none exists.
 - `SQLITE_BUSY` test flaky on CI → increase the busy timeout in the test fixture only,
   never in production config, and record why.
 
