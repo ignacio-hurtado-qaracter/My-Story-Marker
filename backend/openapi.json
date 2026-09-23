@@ -1736,6 +1736,42 @@
         "title": "Relationship",
         "type": "object"
       },
+      "RelationshipAsOf": {
+        "additionalProperties": false,
+        "description": "FR-OPS-01. One outgoing edge of the character, read at the instant of the dossier.\n\n`valence` is a single reading, not the series: the latest one whose scene has\n`story_time <= at`. Handing the writer the series would hand it the later readings too,\nand a valence of -3 dated after the scene tells the writer how the pair ends up - which\nis the future fact the trim exists to withhold, in its most tempting form.\n\n`shared_history` and `unspoken` carry no date, and `Relationship` in\n`commons.schemas.relationship` already rules that they are read as standing context. They\ntravel only on an edge that has a reading at or before `at`: an edge whose first reading\nis later is a relationship that has not started yet, and its history would be the first\nthing to leak.",
+        "properties": {
+          "shared_history": {
+            "description": "Events both remember, possibly differently; standing context, undated.",
+            "title": "Shared History",
+            "type": "string"
+          },
+          "to": {
+            "description": "The character the feeling is directed at; the edge is never symmetric.",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "title": "To",
+            "type": "string"
+          },
+          "unspoken": {
+            "description": "What is between them and never gets said; standing context, undated.",
+            "title": "Unspoken",
+            "type": "string"
+          },
+          "valence": {
+            "$ref": "#/components/schemas/DatedValence",
+            "description": "The latest reading dated at or before `at`, on the story axis."
+          }
+        },
+        "required": [
+          "to",
+          "valence",
+          "shared_history",
+          "unspoken"
+        ],
+        "title": "RelationshipAsOf",
+        "type": "object"
+      },
       "RelationshipsFile": {
         "additionalProperties": false,
         "description": "DR-08, DR-10. The whole of `cast/relationships.yaml`.\n\nOne file for every edge in the cast. It is not split per character because each edge\nwould then have two homes and one of them would fall behind.",
@@ -2511,6 +2547,103 @@
           }
         },
         "title": "TimelineFile",
+        "type": "object"
+      },
+      "TrimmedDossier": {
+        "additionalProperties": false,
+        "description": "FR-OPS-01, AC 10. The character as they were at story hour `at`, and nothing later.\n\n`docs/architecture.md` Operations: \"Returns the character as they were at that instant:\nonly the facts already acquired, the valence of their relationships on that date, and the\ncorresponding point on their arc.\" It is the load-bearing call of assembly\n(FR-OPS-03): a writer handed the complete record uses facts the character has not yet\nlearned, because nothing in the text marks them as future.\n\n**What is left out, and why.** The Markdown `body` of `dossier.md` is not here. It is\nundated prose, and a dossier body is exactly where an author writes \"until scene 004,\nwhere for the first time she does not\" - the fixture's own dossiers do. A field that\ncannot be shown to hold at or before `at` is not included, which is the same rule that\nexcludes a knowledge row whose scene does not exist. `voice.md` is not here either: it is\nread at a different moment, by a different role (see `VoiceProfile`).\n\n**`immutable_physical` is the as-of body**, not the stored map: registered ChangeEvents\ndated at or before `at` are applied, because `definitions.md` ChangeEvent says \"before it,\nthe old value holds\" - and therefore after it, the new one does.",
+        "properties": {
+          "arc": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArcEntry"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The arc entry anchored to the latest scene with `story_time <= at`, or null when `at` precedes every anchor. One entry, never the arc: the rest of it is either past (superseded) or future (withheld)."
+          },
+          "at": {
+            "description": "The instant this dossier describes: integer hours since `epoch_zero`.",
+            "title": "At",
+            "type": "integer"
+          },
+          "competences": {
+            "description": "What the character can do.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Competences",
+            "type": "array"
+          },
+          "id": {
+            "description": "The character; the same id as `cast/{id}/`.",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "title": "Id",
+            "type": "string"
+          },
+          "immutable_physical": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The body at `at`: the stored map with every ChangeEvent dated at or before `at` applied. An attribute whose change cannot be placed in time is withheld.",
+            "title": "Immutable Physical",
+            "type": "object"
+          },
+          "knowledge": {
+            "description": "The rows whose `acquired_in` scene has `story_time <= at` and that no registered forgetting at or before `at` has erased, ordered on the story axis; the last row for a `fact_ref` is the state in force.",
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeState"
+            },
+            "title": "Knowledge",
+            "type": "array"
+          },
+          "lies": {
+            "description": "The false belief about the self that sustains the arc.",
+            "title": "Lies",
+            "type": "string"
+          },
+          "name": {
+            "description": "What the character is called in the prose.",
+            "title": "Name",
+            "type": "string"
+          },
+          "needs": {
+            "description": "What is actually missing; usually contradicts `wants`.",
+            "title": "Needs",
+            "type": "string"
+          },
+          "relationships": {
+            "description": "Each edge from this character that has a reading at or before `at`, with that latest reading; sorted by `to`.",
+            "items": {
+              "$ref": "#/components/schemas/RelationshipAsOf"
+            },
+            "title": "Relationships",
+            "type": "array"
+          },
+          "wants": {
+            "description": "The conscious goal pursued in scenes.",
+            "title": "Wants",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "at",
+          "immutable_physical",
+          "wants",
+          "needs",
+          "lies",
+          "competences",
+          "arc",
+          "knowledge",
+          "relationships"
+        ],
+        "title": "TrimmedDossier",
         "type": "object"
       },
       "ValidationError": {
@@ -3901,7 +4034,7 @@
     },
     "/cast/{id}": {
       "get": {
-        "description": "IF-03, `GET /cast/{id}`. The complete record.\n\n`GET /cast/{id}/dossier?at=` -- the same record trimmed to the instant of a scene\n(FR-OPS-01) -- arrives at plan step 10. It is the load-bearing call of this feature, and\nthis one is its unsafe sibling: a writer handed the complete dossier uses facts the\ncharacter has not yet learned, because nothing in the text marks them as future. The\nrecord reads as true, and everything true in the context is fair to write. Until that\nstep this route is for a human reading their own tree, not for an assembled context.",
+        "description": "IF-03, `GET /cast/{id}`. The complete record.\n\n`GET /cast/{id}/dossier?at=` below is the same record trimmed to an instant (FR-OPS-01),\nand this one is its unsafe sibling: a writer handed the complete dossier uses facts the\ncharacter has not yet learned, because nothing in the text marks them as future. The\nrecord reads as true, and everything true in the context is fair to write. This route is\nfor a human reading their own tree, never for an assembled context.",
         "operationId": "read_character_cast__id__get",
         "parameters": [
           {
@@ -4088,6 +4221,63 @@
       }
     },
     "/cast/{id}/dossier": {
+      "get": {
+        "description": "FR-OPS-01, IF-03 `GET /cast/{id}/dossier?at=`. The character as they were at `at`.\n\nOnly the facts already acquired, the valence of each relationship on that date, the point\non the arc, and the body with every registered change up to then applied (AC 10). The\nload-bearing call of assembly: withholding a future fact is more reliable than\ninstructing the model to ignore it.",
+        "operationId": "read_dossier_at_cast__id__dossier_get",
+        "parameters": [
+          {
+            "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
+              "maxLength": 120,
+              "minLength": 1,
+              "pattern": "^[a-z0-9][a-z0-9_-]*$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The story instant to trim to: integer hours since `epoch_zero` (Decision 8), negative for prequel scenes. Required, because there is no safe default: 'now' on the story axis is whatever the scene being written says it is.",
+            "in": "query",
+            "name": "at",
+            "required": true,
+            "schema": {
+              "description": "The story instant to trim to: integer hours since `epoch_zero` (Decision 8), negative for prequel scenes. Required, because there is no safe default: 'now' on the story axis is whatever the scene being written says it is.",
+              "title": "At",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrimmedDossier"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read a character as of a story instant",
+        "tags": [
+          "cast"
+        ]
+      },
       "put": {
         "description": "IF-04, `PUT /cast/{id}/dossier` (canoniser).",
         "operationId": "write_dossier_cast__id__dossier_put",

@@ -5,8 +5,12 @@ They are owned by one feature, so DR-01 keeps them here rather than in `commons/
 The other two per-character files are not: `knowledge.yaml` (DR-04) and `changes.yaml`
 (DR-08) are read by the auditor and written by the canoniser as well, and
 `cast/relationships.yaml` is read by half the system, so all three live in
-`commons/schemas/`. This module imports its bases from `app.commons.schemas.common` and no
-feature at all.
+`commons/schemas/`. This module imports from `app.commons.schemas` and no feature at all.
+
+`TrimmedDossier` is the odd one out: it is not a file. It is what FR-OPS-01's
+`dossier(character, at)` answers, assembled from the four files above and never written
+anywhere, which is why it is a `HarnessModel` with no `schema_version` rather than a
+`StoreDocument`.
 
 Dossier and voice are two files rather than one for a reason that is about when they are
 read, not about size: the dossier is assembled into the context of every scene this
@@ -19,7 +23,14 @@ from __future__ import annotations
 
 from pydantic import Field
 
-from app.commons.schemas.common import EntityId, HarnessModel, SceneId, StoreDocument
+from app.commons.schemas import DatedValence, KnowledgeState
+from app.commons.schemas.common import (
+    EntityId,
+    HarnessModel,
+    SceneId,
+    StoreDocument,
+    StoryHours,
+)
 
 
 class ArcEntry(HarnessModel):
@@ -161,8 +172,89 @@ class VoiceProfile(StoreDocument):
     )
 
 
+class RelationshipAsOf(HarnessModel):
+    """FR-OPS-01. One outgoing edge of the character, read at the instant of the dossier.
+
+    `valence` is a single reading, not the series: the latest one whose scene has
+    `story_time <= at`. Handing the writer the series would hand it the later readings too,
+    and a valence of -3 dated after the scene tells the writer how the pair ends up - which
+    is the future fact the trim exists to withhold, in its most tempting form.
+
+    `shared_history` and `unspoken` carry no date, and `Relationship` in
+    `commons.schemas.relationship` already rules that they are read as standing context. They
+    travel only on an edge that has a reading at or before `at`: an edge whose first reading
+    is later is a relationship that has not started yet, and its history would be the first
+    thing to leak.
+    """
+
+    to: EntityId = Field(
+        description="The character the feeling is directed at; the edge is never symmetric.",
+    )
+    valence: DatedValence = Field(
+        description="The latest reading dated at or before `at`, on the story axis.",
+    )
+    shared_history: str = Field(
+        description="Events both remember, possibly differently; standing context, undated.",
+    )
+    unspoken: str = Field(
+        description="What is between them and never gets said; standing context, undated.",
+    )
+
+
+class TrimmedDossier(HarnessModel):
+    """FR-OPS-01, AC 10. The character as they were at story hour `at`, and nothing later.
+
+    `docs/architecture.md` Operations: "Returns the character as they were at that instant:
+    only the facts already acquired, the valence of their relationships on that date, and the
+    corresponding point on their arc." It is the load-bearing call of assembly
+    (FR-OPS-03): a writer handed the complete record uses facts the character has not yet
+    learned, because nothing in the text marks them as future.
+
+    **What is left out, and why.** The Markdown `body` of `dossier.md` is not here. It is
+    undated prose, and a dossier body is exactly where an author writes "until scene 004,
+    where for the first time she does not" - the fixture's own dossiers do. A field that
+    cannot be shown to hold at or before `at` is not included, which is the same rule that
+    excludes a knowledge row whose scene does not exist. `voice.md` is not here either: it is
+    read at a different moment, by a different role (see `VoiceProfile`).
+
+    **`immutable_physical` is the as-of body**, not the stored map: registered ChangeEvents
+    dated at or before `at` are applied, because `definitions.md` ChangeEvent says "before it,
+    the old value holds" - and therefore after it, the new one does.
+    """
+
+    id: EntityId = Field(description="The character; the same id as `cast/{id}/`.")
+    name: str = Field(description="What the character is called in the prose.")
+    at: StoryHours = Field(
+        description="The instant this dossier describes: integer hours since `epoch_zero`.",
+    )
+    immutable_physical: dict[str, str] = Field(
+        description="The body at `at`: the stored map with every ChangeEvent dated at or before"
+        " `at` applied. An attribute whose change cannot be placed in time is withheld.",
+    )
+    wants: str = Field(description="The conscious goal pursued in scenes.")
+    needs: str = Field(description="What is actually missing; usually contradicts `wants`.")
+    lies: str = Field(description="The false belief about the self that sustains the arc.")
+    competences: list[str] = Field(description="What the character can do.")
+    arc: ArcEntry | None = Field(
+        description="The arc entry anchored to the latest scene with `story_time <= at`, or"
+        " null when `at` precedes every anchor. One entry, never the arc: the rest of it is"
+        " either past (superseded) or future (withheld).",
+    )
+    knowledge: list[KnowledgeState] = Field(
+        description="The rows whose `acquired_in` scene has `story_time <= at` and that no"
+        " registered forgetting at or before `at` has erased, ordered on the story axis; the"
+        " last row for a `fact_ref` is the state in force.",
+    )
+    relationships: list[RelationshipAsOf] = Field(
+        description="Each edge from this character that has a reading at or before `at`,"
+        " with that latest reading; sorted by `to`.",
+    )
+
+
 __all__ = [
     "ArcEntry",
     "Character",
+    "RelationshipAsOf",
+    "TrimmedDossier",
     "VoiceProfile",
 ]
