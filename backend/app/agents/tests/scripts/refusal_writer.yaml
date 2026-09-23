@@ -1,0 +1,5 @@
+# spec 001 / AC 21. The writer's call ends with stop_reason: refusal and a category. A refusal
+# is not retried (FR-LLM-06), and the turn escalates carrying the category.
+writer:
+  - refusal:
+      category: violent_content

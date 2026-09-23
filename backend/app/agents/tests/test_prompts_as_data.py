@@ -28,7 +28,7 @@ from collections.abc import Mapping
 from importlib import resources
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, JsonValue
 
 from app.agents import roles
 from app.agents.roles import (
@@ -40,6 +40,8 @@ from app.agents.roles import (
     system_prompt,
 )
 from app.agents.tests.test_roles import CALL_NAMES, ROLE_CALLS
+from app.agents.tests.test_turn_escalation import FIVE_SENTENCES, always_blocking, write
+from app.agents.tests.test_turn_happy import make_turn_env, scripted
 from app.commons.llm import (
     DATA_STATEMENT,
     FakeCall,
@@ -330,3 +332,110 @@ def test_every_role_call_renders_as_labelled_blocks(name: str, fixture_store: St
     assert rendered.endswith(f"{INSTRUCTION_HEADER}\n{call.instruction}\n")
     labels = [path for path, _ in blocks]
     assert (MECHANICAL_FINDINGS in labels) is (call.role is AgentRole.AUDITOR)
+
+
+# --- plan step 18: every call of a whole turn, as the fake recorded it -----------------------
+
+
+def _strings(value: JsonValue) -> list[str]:
+    """Every string inside a scripted payload: the texts a role call produced."""
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return [text for item in value for text in _strings(item)]
+    if isinstance(value, dict):
+        return [text for item in value.values() for text in _strings(item)]
+    return []
+
+
+def _outputs(call: FakeCall) -> list[str]:
+    """The lines, long enough to be prose rather than a word, of what a call answered."""
+    texts = [
+        text
+        for outcome in call.outcomes
+        if isinstance(outcome, Reply)
+        for text in _strings(outcome.payload)
+    ]
+    return [line for text in texts for line in text.splitlines() if len(line) > TRIVIAL]
+
+
+def _turn_calls(store: Store) -> list[FakeCall]:
+    """The calls of three turns: a clean one on 002, one on 006 (whose writer is offered an open
+    setup), and one on 002 whose finding never goes away (three revisions)."""
+    env = make_turn_env(store)
+    happy = scripted("happy_002")
+    env.run(happy)
+    tempting = scripted("happy_002")
+    env.run(tempting, "006")
+    blocked = FakeModelClient({AgentRole.WRITER: [write(FIVE_SENTENCES)]}, fallback=always_blocking)
+    env.run(blocked)
+    calls = [*happy.calls, *tempting.calls, *blocked.calls]
+    assert {call.output_schema for call in calls} >= {
+        "WriterOutput",
+        "ReviseOutput",
+        "SemanticAuditOutput",
+        "PolishOutput",
+        "DigestOutput",
+        "ExtractOutput",
+    }
+    return calls
+
+
+# spec 001 / AC 23 -- no recorded call of a turn carries store text in its system field.
+def test_no_turn_call_carries_store_text_in_the_system_field(
+    fixture_store: Store, fixture_texts: dict[str, str]
+) -> None:
+    index = _runs(fixture_texts)
+    for call in _turn_calls(fixture_store):
+        assert call.system == _prompt_file(call.role)
+        assert _shared(render_system(call.system), index) == []
+
+
+# spec 001 / AC 23 -- every document of every turn call is a delimited block labelled with its path.
+def test_every_turn_call_renders_as_labelled_blocks(fixture_store: Store) -> None:
+    for call in _turn_calls(fixture_store):
+        rendered = render_prompt(call.documents, call.instruction)
+        blocks = [(match["path"], match["text"]) for match in BLOCK.finditer(rendered)]
+        assert blocks == [(document.path, document.text) for document in call.documents]
+        assert rendered.endswith(f"{INSTRUCTION_HEADER}\n{call.instruction}\n")
+
+
+# spec 001 / AC 23, FR-AGENT-11 -- no call carries an earlier call's output except as a document
+# read back from the store it was written to: never in the instruction or the system field, never
+# in the one computed document, and never at all when no store holds it (the auditor's
+# explanation, which DR-07 does not store, reaches no later call).
+def test_no_turn_call_carries_an_earlier_output_except_through_a_store(
+    fixture_store: Store,
+) -> None:
+    calls = _turn_calls(fixture_store)
+    explanation = "The seating contradicts the axiom in force."
+    assert any(explanation in _outputs(call) for call in calls)
+    for index, call in enumerate(calls):
+        earlier = {line for previous in calls[:index] for line in _outputs(previous)}
+        for line in earlier:
+            assert line not in call.instruction, call.output_schema
+            assert line not in call.system
+            for document in call.documents:
+                if line in document.text:
+                    assert document.path != MECHANICAL_FINDINGS, line
+                    assert document.path.split("/")[0] in STORE_FAMILIES, document.path
+                    assert line != explanation
+
+
+# spec 001 / AC 23 (Figure 2) -- the writer's instruction names no setup, let alone as required;
+# an open setup reaches the writer as a document offered under "may collect".
+def test_the_writers_instruction_names_no_setup_as_required(fixture_store: Store) -> None:
+    setups = fixture_store.read("ledger/setups.yaml", SetupsFile).setups
+    writes = [call for call in _turn_calls(fixture_store) if call.output_schema == "WriterOutput"]
+    offered = 0
+    for call in writes:
+        flat = _flatten(call.instruction)
+        for setup in setups:
+            assert setup.id not in call.instruction
+            assert _flatten(setup.promise) not in flat
+        assert re.search(r"\b(must|required to|have to|need to)\s+(collect|pay)", flat) is None
+        for document in call.documents:
+            if document.path == "ledger/setups.yaml":
+                offered += 1
+                assert "may collect" in _flatten(document.text)
+    assert offered >= 1, "scene 006 is offered su_readkey, so the label was seen"

@@ -28,14 +28,23 @@ import pytest
 
 from app.agents.roles import MECHANICAL_FINDINGS, auditor, canoniser, style_editor, writer
 from app.agents.tests.test_roles import ROLE_CALLS, SELECTED_002, SELECTED_003
+from app.agents.tests.test_turn_happy import make_turn_env, scripted
+from app.commons.config import CONTEXT_TOKEN_CAP
 from app.commons.errors import ContextBudgetExceeded
-from app.commons.llm import FakeModelClient, Reply
+from app.commons.llm import FakeCall, FakeModelClient, Reply
 from app.commons.llm.tokens import estimate_tokens
 from app.commons.permissions import AgentRole
 from app.commons.schemas import (
+    EscalationCategory,
     SemanticAuditOutput,
+    StepRecord,
+    StepStatus,
+    TurnOutcome,
+    TurnRecord,
+    TurnStep,
+    WriterOutput,
 )
-from app.commons.stores import Store
+from app.commons.stores import Store, paths
 from app.scenes import service as scenes_service
 
 EMPTY_AUDIT = SemanticAuditOutput(violations=[])
@@ -185,3 +194,102 @@ def test_an_all_mandatory_call_is_refused_whole_over_the_cap(
             writer.rollup(fixture_store, too_small, arc_id="ar_descent", cap=cap)
     assert too_small.calls == []
     assert too_small.refused_over_cap == []
+
+
+# --- the turn (plan step 18): what the cap pruned is on the record ---------------------------
+
+
+def _happy_turn(store: Store, cap: int = CONTEXT_TOKEN_CAP) -> tuple[TurnRecord, FakeModelClient]:
+    client = scripted("happy_002")
+    return make_turn_env(store).run(client, cap=cap), client
+
+
+def _call(client: FakeModelClient, role: AgentRole) -> FakeCall:
+    return next(call for call in client.calls if call.role is role)
+
+
+def _step(record: TurnRecord, step: TurnStep) -> StepRecord:
+    return next(entry for entry in record.steps if entry.step is step)
+
+
+# spec 001 / AC 33, FR-CTX-03 -- the writer's assembly stops at the cap: the removed ids and
+# `truncated_at` are on the assembly step and on the write step of the record.
+def test_the_writers_pruning_is_on_the_turn_record(fixture_store: Store) -> None:
+    full = make_turn_env(fixture_store).dry_run("002")
+    assert full.removed == []
+    last = full.entries[-1]
+    assert not last.mandatory
+
+    record, _ = _happy_turn(fixture_store, cap=full.estimate - 1)
+
+    assert record.outcome is TurnOutcome.MERGED
+    for step in (_step(record, TurnStep.ASSEMBLE), _step(record, TurnStep.WRITE)):
+        assert step.removed == [last.key]
+        assert step.truncated_at == last.key
+
+
+# spec 001 / AC 33, FR-CTX-04 -- the auditor's pruned inputs are on the record and in `skipped`.
+def test_the_auditors_pruning_is_on_the_record_and_in_skipped(fixture_store: Store) -> None:
+    _, first = _happy_turn(fixture_store)
+    audit_call = _call(first, AgentRole.AUDITOR)
+    split = [document.path for document in audit_call.documents].index(MECHANICAL_FINDINGS) + 1
+    prunable = audit_call.documents[split:]
+    prunable_tokens = sum(estimate_tokens(document.text) for document in prunable)
+    cap = audit_call.estimate - prunable_tokens // 2
+
+    record, _ = _happy_turn(fixture_store, cap=cap)
+
+    audit = _step(record, TurnStep.AUDIT)
+    assert audit.status is StepStatus.COMPLETED
+    assert audit.removed, "the cap left some of the auditor's ranked inputs out"
+    assert audit.truncated_at == audit.removed[0]
+    assert audit.removed[-1] == "cast/quiej/changes.yaml", "pruned from the lowest rank"
+    skipped = [skip.reason for skip in record.iterations[0].skipped if skip.source == "model"]
+    for key in audit.removed:
+        name = key.replace("axiom:", "axiom ")
+        assert any(name in reason for reason in skipped), key
+
+
+# spec 001 / AC 33, FR-CTX-03 -- the canoniser's canon documents go from the lowest rank, the
+# accepted draft stays, and what went is on the extract step of the record.
+def test_the_canonisers_pruning_is_on_the_turn_record(fixture_store: Store) -> None:
+    _, first = _happy_turn(fixture_store)
+    extract_call = _call(first, AgentRole.CANONISER)
+    assert extract_call.documents[0].path == paths.draft("002")
+    canon_tokens = sum(estimate_tokens(document.text) for document in extract_call.documents[1:])
+    cap = extract_call.estimate - canon_tokens // 2
+
+    record, second = _happy_turn(fixture_store, cap=cap)
+
+    extract = _step(record, TurnStep.EXTRACT)
+    assert extract.status is StepStatus.COMPLETED
+    assert extract.removed
+    assert extract.truncated_at == extract.removed[0]
+    sent = _call(second, AgentRole.CANONISER)
+    assert sent.documents[0].path == paths.draft("002"), "the accepted draft is mandatory"
+    assert sent.estimate <= cap
+
+
+# spec 001 / AC 33, AC 22, FR-CTX-05 -- a mandatory part over the cap at a later role: the turn
+# escalates `context_budget_exceeded` and that role's call is never made.
+def test_a_mandatory_overflow_at_the_auditor_escalates_with_no_auditor_call(
+    fixture_store: Store,
+) -> None:
+    env = make_turn_env(fixture_store)
+    cap = env.dry_run("002").estimate
+    long_draft = "The throat cycled and he waited on the vault side. " * (3 * cap // 16)
+    client = FakeModelClient(
+        {AgentRole.WRITER: [Reply.of(WriterOutput(body=long_draft, proposed_facts=[]))]}
+    )
+
+    record = env.run(client, cap=cap)
+
+    assert record.outcome is TurnOutcome.ESCALATED
+    assert record.escalation is not None
+    assert record.escalation.category is EscalationCategory.CONTEXT_BUDGET_EXCEEDED
+    assert record.escalation.step is TurnStep.AUDIT
+    assert [call.role for call in client.calls] == [AgentRole.WRITER]
+    assert client.refused_over_cap == [], "stopped by the role, before the client"
+    audit = _step(record, TurnStep.AUDIT)
+    assert audit.status is StepStatus.FAILED
+    assert audit.estimate is not None and audit.estimate > cap

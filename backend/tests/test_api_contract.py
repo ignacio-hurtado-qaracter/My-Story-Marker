@@ -88,6 +88,10 @@ IF_03_READS = frozenset(
         ("GET", "/manuscript/digests/{}"),
         # ledger/
         *[("GET", f"/ledger/{name}") for name in paths.LEDGER_FILES],
+        # agents/ - the turn records and the provenance log (plan step 18)
+        ("GET", "/agents/turns"),
+        ("GET", "/agents/turns/{}"),
+        ("GET", "/agents/provenance"),
     }
 )
 """IF-03's read routes, expanded over the kinds and ledger files the storage layout names.
@@ -142,16 +146,17 @@ IF_05_OPERATIONS = frozenset(
 IF_06_AGENTS = frozenset(
     {
         ("POST", "/agents/digests/rollup"),  # FR-AGENT-08, plan step 17
+        ("POST", "/agents/turns"),  # FR-TURN-01, FR-TURN-10, plan step 18
+        ("POST", "/agents/turns/{}/rulings"),  # FR-TURN-08, plan step 18
+        ("POST", "/agents/turns/{}/resume"),  # FR-TURN-09, plan step 18
     }
 )
-"""IF-06's routes under `/agents`, as each step publishes them."""
+"""IF-06's routes under `/agents`, as each step publishes them. With the orchestrator (plan step
+18) every one of them is served."""
 
-DEFERRED_ROUTES: dict[tuple[str, str], str] = {
-    ("GET", "/agents/turns"): "the orchestrator, plan step 18",
-    ("POST", "/agents/turns"): "the orchestrator, plan step 18",
-    ("GET", "/agents/provenance"): "the orchestrator, plan step 18",
-}
+DEFERRED_ROUTES: dict[tuple[str, str], str] = {}
 """IF-01, IF-03 and IF-05 routes a step does not serve yet, each with what it is waiting for.
+Empty since plan step 18 published the turn routes.
 
 Recorded rather than omitted. A route missing from a table is indistinguishable from a route
 forgotten, and this list is what lets the reverse-direction check below tell "not written

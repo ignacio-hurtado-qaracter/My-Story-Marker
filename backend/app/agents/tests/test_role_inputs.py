@@ -19,6 +19,8 @@ import pytest
 
 from app.agents.roles import MECHANICAL_FINDINGS, RoleInput, call_role, documents_for
 from app.agents.tests.test_roles import CALL_NAMES, ROLE_CALLS
+from app.agents.tests.test_turn_escalation import FIVE_SENTENCES, always_blocking, write
+from app.agents.tests.test_turn_happy import make_turn_env, scripted
 from app.commons.errors import PermissionDenied
 from app.commons.llm import Document, FakeModelClient, Reply
 from app.commons.permissions import AgentRole, may_receive
@@ -233,3 +235,32 @@ def test_every_role_call_sends_only_documents_from_its_row(name: str, fixture_st
     for document in call.documents:
         computed = document.path == MECHANICAL_FINDINGS and case.role is AgentRole.AUDITOR
         assert computed or may_receive(case.role, document.path), document.path
+
+
+# spec 001 / FR-AGENT-09 -- every document of every call of whole turns (a clean one, one whose
+# writer is offered an open setup, one that revises three times and escalates) is inside the
+# calling role's row of Figure 3's `In` column.
+def test_every_call_of_a_turn_sends_only_documents_from_its_row(fixture_store: Store) -> None:
+    env = make_turn_env(fixture_store)
+    clients = [scripted("happy_002"), scripted("happy_002")]
+    env.run(clients[0])
+    env.run(clients[1], "006")
+    blocked = FakeModelClient({AgentRole.WRITER: [write(FIVE_SENTENCES)]}, fallback=always_blocking)
+    env.run(blocked)
+    calls = [call for client in [*clients, blocked] for call in client.calls]
+
+    assert {call.role for call in calls} == {
+        AgentRole.WRITER,
+        AgentRole.AUDITOR,
+        AgentRole.STYLE_EDITOR,
+        AgentRole.CANONISER,
+    }
+    assert any(call.output_schema == "ReviseOutput" for call in calls)
+    for call in calls:
+        assert call.documents, call.output_schema
+        for document in call.documents:
+            computed = document.path == MECHANICAL_FINDINGS and call.role is AgentRole.AUDITOR
+            assert computed or may_receive(call.role, document.path), (
+                call.role,
+                document.path,
+            )

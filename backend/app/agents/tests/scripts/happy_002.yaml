@@ -1,0 +1,46 @@
+# spec 001 / AC 18. A clean turn on scene 002 (POV ilan, participant quiej), the fixture's
+# control scene: every role answers once, nothing blocks, and both proposed facts promote.
+#
+# The prose avoids every forbidden variant of canon/lexicon.yaml and every never_says entry of
+# cast/ilan/voice.md, so the mechanical audit and the polish re-check stay silent. The writer
+# invents a competence for vance -- the POV of scene 003, next in discourse order -- so the
+# next scene's assembly can be shown to see it; the canoniser extracts the same fact again
+# (merged by key, queued once) and one of its own about ilan.
+writer:
+  - reply:
+      body: |-
+        Ilan came through the throat folded at the waist, the soak still in his joints.
+
+        Quiej waited on the vault side with the indemnity board held flat against her chest. The seating was not where the co-op paper said it was. He found it by feel, two hands deep in the cradle.
+
+        The hand he spliced with did the work before he asked it to. Somewhere above them an exchanger was failing, and he heard it through the hull the way his sister had taught him.
+      proposed_facts:
+        - target_entity: vance
+          target_field: competences
+          payload: "hears a failing exchanger through the hull"
+          evidence: "he heard it through the hull the way his sister had taught him"
+  - reply:
+      delta: "Ilan seats the core cradle by feel while Quiej witnesses; the co-op paper is wrong about the seating."
+      povs: [ilan]
+auditor:
+  - reply:
+      violations: []
+style_editor:
+  - reply:
+      body: |-
+        Ilan came through the throat folded at the waist, the soak still in his joints.
+
+        Quiej waited on the vault side, the indemnity board flat against her chest. The seating was not where the co-op paper said it was. He found it by feel, two hands deep in the cradle.
+
+        The hand he spliced with did the work before he asked it to. Somewhere above them an exchanger was failing, and he heard it through the hull the way his sister had taught him.
+canoniser:
+  - reply:
+      facts:
+        - target_entity: vance
+          target_field: competences
+          payload: "Hears a failing exchanger through the hull."
+          evidence: "he heard it through the hull"
+        - target_entity: ilan
+          target_field: competences
+          payload: "finds a cradle seating by feel alone"
+          evidence: "He found it by feel, two hands deep in the cradle."

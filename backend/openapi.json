@@ -266,6 +266,43 @@
         "title": "AssemblyWarning",
         "type": "string"
       },
+      "AuditIteration": {
+        "additionalProperties": false,
+        "description": "The violation ids of one audit (FR-TURN-07: \"violation ids per iteration\").\n\n`violations` is every finding the audit reported; `blocking` the scene's open blocking\nfindings read back from `ledger/violations.yaml` after the auditor's write -- what the next\nrevision, if any, is handed (FR-AGENT-11).",
+        "properties": {
+          "blocking": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Blocking",
+            "type": "array"
+          },
+          "iteration": {
+            "minimum": 0.0,
+            "title": "Iteration",
+            "type": "integer"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/SkippedRecord"
+            },
+            "title": "Skipped",
+            "type": "array"
+          },
+          "violations": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "iteration"
+        ],
+        "title": "AuditIteration",
+        "type": "object"
+      },
       "AuditReport": {
         "additionalProperties": false,
         "description": "IF-05, `POST /scenes/{id}/audit`. The audit of one scene. Reports; does not repair.",
@@ -983,6 +1020,38 @@
         "title": "DigestLevel",
         "type": "string"
       },
+      "DigestMeasure": {
+        "additionalProperties": false,
+        "description": "A digest's `words` against its level's target (FR-TURN-07, DR-11).",
+        "properties": {
+          "digest_id": {
+            "pattern": "^\\d{3}$",
+            "title": "Digest Id",
+            "type": "string"
+          },
+          "level": {
+            "$ref": "#/components/schemas/DigestLevel"
+          },
+          "target": {
+            "minimum": 0.0,
+            "title": "Target",
+            "type": "integer"
+          },
+          "words": {
+            "minimum": 0.0,
+            "title": "Words",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "digest_id",
+          "level",
+          "words",
+          "target"
+        ],
+        "title": "DigestMeasure",
+        "type": "object"
+      },
       "Draft": {
         "additionalProperties": false,
         "description": "DR-11. The whole of `manuscript/NNN.md`: the prose of one scene, subordinate to canon.\n\n`words` and `literal_tail` are **derived by code on write and never supplied by a\nmodel** (FR-AGENT-03). A word count a writer reports about its own output is a claim,\nnot a measurement; accepting it would make the budget line of the turn record a check\non the model's arithmetic rather than on the draft. The same reasoning applies to the\ntail: it must be exactly what the file ends with, not what the model believes it wrote.\n\n`literal_tail` is the last 500 words, verbatim, and it is the only prose that reaches\nthe next scene at all - everything else arrives compressed, as a digest. It exists for\ntonal inertia: a summary preserves what happened and loses how it sounded, so without\nthe tail the next scene restarts in the model's default voice instead of continuing in\nthe register the book has been building. Because it is verbatim, it is also the one\nplace where an earlier scene's exact words can contradict a later record, which is why\nit is carried as a field rather than reconstructed on demand.\n\n**Failure mode** (`architecture.md` Draft): letting the writer edit canon to justify\nwhat it has just written. That is the precise mechanism by which drift begins, and it\nis why the writer's Figure 3 row grants `manuscript/` and nothing under `canon/`: an\ninvention goes to `ledger/proposed.yaml` as a proposal, and the canoniser decides.\n\nThe `version` column of the `architecture.md` table is not a field here. Versions are\ngit history, and DR-11 lists four fields; the backend never writes a version number\ninto the record it would then have to keep true.",
@@ -1023,6 +1092,28 @@
           "body"
         ],
         "title": "Draft",
+        "type": "object"
+      },
+      "DraftMeasure": {
+        "additionalProperties": false,
+        "description": "The draft's `words` against the scene `budget` (FR-TURN-07, DR-11).",
+        "properties": {
+          "budget": {
+            "minimum": 0.0,
+            "title": "Budget",
+            "type": "integer"
+          },
+          "words": {
+            "minimum": 0.0,
+            "title": "Words",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "words",
+          "budget"
+        ],
+        "title": "DraftMeasure",
         "type": "object"
       },
       "Escalation": {
@@ -1086,6 +1177,26 @@
         "title": "Escalation",
         "type": "object"
       },
+      "EscalationCategory": {
+        "description": "Why a turn ended `escalated` (FR-TURN-02, FR-LLM-04..08, FR-CTX-05, FR-AGENT-02, -04).\n\nThe five model failures carry the IF-07 code of the error that stopped the step, so the\nrecord and an HTTP error body say the same thing. The three that are not errors are the\nturn's own bounds. Any other refusal of the harness -- a record that does not validate, an\ninput that is missing -- carries its IF-07 code too; `harness_error` is the catch-all for a\ncode this list does not name.",
+        "enum": [
+          "context_budget_exceeded",
+          "malformed_model_output",
+          "model_refused",
+          "model_call_failed",
+          "output_truncated",
+          "revision_bound",
+          "revise_scope",
+          "polish_recheck",
+          "invalid_record",
+          "not_found",
+          "permission_denied",
+          "index_busy",
+          "harness_error"
+        ],
+        "title": "EscalationCategory",
+        "type": "string"
+      },
       "Evidence": {
         "additionalProperties": false,
         "description": "DR-07. A quotation and where it is, so a violation can be pointed at rather than\nargued about.",
@@ -1108,6 +1219,102 @@
           "offset"
         ],
         "title": "Evidence",
+        "type": "object"
+      },
+      "FactRecord": {
+        "additionalProperties": false,
+        "description": "One of this turn's proposed facts and what became of it (FR-TURN-03, -04, -07).\n\n`status` mirrors the fact in `ledger/proposed.yaml`. `conflict` is a collision left for a\nhuman ruling; `refused` is why `promote` could not act on the fact at all (an entity that\ndoes not exist, a field no string can fill), in which case it stays `pending` for a person.\n`reconciled_scenes` are the scenes `reconcile(target_entity)` returned after the promotion\nor the accepting ruling, and `written_scenes` those of them that already have a draft --\nthe retroactive change, named when it is made.",
+        "properties": {
+          "changed": {
+            "default": false,
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "conflict": {
+            "default": false,
+            "title": "Conflict",
+            "type": "boolean"
+          },
+          "fact_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "title": "Fact Id",
+            "type": "string"
+          },
+          "proposed_by": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Proposed By",
+            "type": "array"
+          },
+          "reconciled_scenes": {
+            "items": {
+              "pattern": "^\\d{3}$",
+              "type": "string"
+            },
+            "title": "Reconciled Scenes",
+            "type": "array"
+          },
+          "reconciled_turns": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Reconciled Turns",
+            "type": "array"
+          },
+          "refused": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Refused"
+          },
+          "ruling": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RulingKind"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/FactStatus",
+            "default": "pending"
+          },
+          "target_entity": {
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "title": "Target Entity",
+            "type": "string"
+          },
+          "target_field": {
+            "title": "Target Field",
+            "type": "string"
+          },
+          "written_scenes": {
+            "items": {
+              "pattern": "^\\d{3}$",
+              "type": "string"
+            },
+            "title": "Written Scenes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "fact_id",
+          "target_entity",
+          "target_field"
+        ],
+        "title": "FactRecord",
         "type": "object"
       },
       "FactStatus": {
@@ -1778,6 +1985,103 @@
         "title": "LocationAccess",
         "type": "object"
       },
+      "ModelCallRecord": {
+        "additionalProperties": false,
+        "description": "One model call that settled (FR-TURN-07, FR-LLM-03, FR-LLM-09, FR-CTX-06, NFR-01).",
+        "properties": {
+          "attempts": {
+            "default": 1,
+            "description": "Attempts the call took (FR-LLM-04, -08).",
+            "minimum": 0.0,
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "cache_creation_input_tokens": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Cache Creation Input Tokens",
+            "type": "integer"
+          },
+          "cache_read_input_tokens": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Cache Read Input Tokens",
+            "type": "integer"
+          },
+          "cli_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The CLI version (NFR-01).",
+            "title": "Cli Version"
+          },
+          "elapsed_seconds": {
+            "default": 0.0,
+            "minimum": 0.0,
+            "title": "Elapsed Seconds",
+            "type": "number"
+          },
+          "estimate": {
+            "description": "The pre-call input estimate (FR-CTX-02).",
+            "minimum": 0.0,
+            "title": "Estimate",
+            "type": "integer"
+          },
+          "input_tokens": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Input Tokens",
+            "type": "integer"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The model id the CLI reported having used; null when it reported none.",
+            "title": "Model Id"
+          },
+          "output_tokens": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Output Tokens",
+            "type": "integer"
+          },
+          "over_cap": {
+            "default": false,
+            "description": "FR-CTX-06: the real input count, less the CLI's overhead, exceeded the cap.",
+            "title": "Over Cap",
+            "type": "boolean"
+          },
+          "prompt_version": {
+            "description": "SHA-256 of the role's prompt file (FR-AGENT-10).",
+            "title": "Prompt Version",
+            "type": "string"
+          },
+          "requested_model": {
+            "description": "The model passed as `--model` (FR-LLM-03).",
+            "title": "Requested Model",
+            "type": "string"
+          }
+        },
+        "required": [
+          "requested_model",
+          "model_id",
+          "prompt_version",
+          "estimate"
+        ],
+        "title": "ModelCallRecord",
+        "type": "object"
+      },
       "Outcome": {
         "description": "DR-03. The four-value scene outcome.\n\n`yes-but` and `no-and-furthermore` are the two that carry a novel: a scene that only ever\nanswers `yes` or `no` has no complication and no escalation.",
         "enum": [
@@ -2330,6 +2634,47 @@
         "title": "RelationshipsFile",
         "type": "object"
       },
+      "RevisionScopeRecord": {
+        "additionalProperties": false,
+        "description": "FR-AGENT-02. How much of the draft a revision changed, against the limit.",
+        "properties": {
+          "changed": {
+            "minimum": 0.0,
+            "title": "Changed",
+            "type": "integer"
+          },
+          "limit": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Limit",
+            "type": "number"
+          },
+          "ratio": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Ratio",
+            "type": "number"
+          },
+          "sentences": {
+            "minimum": 0.0,
+            "title": "Sentences",
+            "type": "integer"
+          },
+          "within": {
+            "title": "Within",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ratio",
+          "limit",
+          "sentences",
+          "changed",
+          "within"
+        ],
+        "title": "RevisionScopeRecord",
+        "type": "object"
+      },
       "RolePermissions": {
         "description": "One row of Figure 3, as the API reports it.",
         "properties": {
@@ -2589,6 +2934,37 @@
         ],
         "title": "RulingKind",
         "type": "string"
+      },
+      "RulingRequest": {
+        "additionalProperties": false,
+        "description": "FR-TURN-08, one entry of the body of `POST /agents/turns/{id}/rulings`: a human's\ndecision on one collided fact of the turn, with the reason FR-OPS-07 records on it.",
+        "properties": {
+          "fact_id": {
+            "description": "A fact of this turn left `pending` on a collision.",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "title": "Fact Id",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why; recorded on the fact so the same fact is not argued twice.",
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "ruling": {
+            "$ref": "#/components/schemas/RulingKind",
+            "description": "`accept` promotes despite it; `reject` refuses it."
+          }
+        },
+        "required": [
+          "fact_id",
+          "ruling",
+          "reason"
+        ],
+        "title": "RulingRequest",
+        "type": "object"
       },
       "Scene": {
         "additionalProperties": false,
@@ -3005,6 +3381,162 @@
         ],
         "title": "SkippedCheck",
         "type": "object"
+      },
+      "SkippedRecord": {
+        "additionalProperties": false,
+        "description": "A check of the audit that did not run, or ran without one of its inputs (FR-AUD-09,\nFR-CTX-04).",
+        "properties": {
+          "check": {
+            "title": "Check",
+            "type": "string"
+          },
+          "invariant": {
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Invariant",
+            "type": "integer"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "check",
+          "invariant",
+          "source",
+          "reason"
+        ],
+        "title": "SkippedRecord",
+        "type": "object"
+      },
+      "StepRecord": {
+        "additionalProperties": false,
+        "description": "One step of the turn, whatever it did (FR-TURN-07, FR-CTX-03).\n\n`role` is the role Figure 4 gives the step (FR-TURN-06); the assembly has none, because\nthe orchestrator holds no role. `estimate` is the input estimate of the call, or of the\nassembled context for the assembly, and is present even when the cap stopped the call\n(FR-CTX-05). `removed` and `truncated_at` name what the cap pruned, in rank order.\n`error` is the IF-07 code of what stopped a failed step.",
+        "properties": {
+          "call": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ModelCallRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ended_at": {
+            "title": "Ended At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "estimate": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimate"
+          },
+          "iteration": {
+            "default": 0,
+            "description": "The revise-audit iteration: 0 for the written draft, k after revision k.",
+            "minimum": 0.0,
+            "title": "Iteration",
+            "type": "integer"
+          },
+          "removed": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Removed",
+            "type": "array"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RevisionScopeRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "started_at": {
+            "title": "Started At",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/StepStatus",
+            "default": "completed"
+          },
+          "step": {
+            "$ref": "#/components/schemas/TurnStep"
+          },
+          "truncated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Truncated At"
+          },
+          "writes": {
+            "items": {
+              "$ref": "#/components/schemas/WriteRecord"
+            },
+            "title": "Writes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "step",
+          "started_at",
+          "ended_at"
+        ],
+        "title": "StepRecord",
+        "type": "object"
+      },
+      "StepStatus": {
+        "description": "How one step ended.",
+        "enum": [
+          "completed",
+          "rejected",
+          "failed"
+        ],
+        "title": "StepStatus",
+        "type": "string"
       },
       "StyleBible": {
         "additionalProperties": false,
@@ -3495,6 +4027,347 @@
         "title": "TrimmedDossier",
         "type": "object"
       },
+      "TurnEscalation": {
+        "additionalProperties": false,
+        "description": "Why the turn stopped, where, and with what the provider said (AC 19, 21, 22).",
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/EscalationCategory"
+          },
+          "detail": {
+            "description": "What stopped the step; never prompt or draft text.",
+            "title": "Detail",
+            "type": "string"
+          },
+          "iteration": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Iteration",
+            "type": "integer"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "FR-LLM-08: the failure reason of a failed model call.",
+            "title": "Reason"
+          },
+          "refusal_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "FR-LLM-06: the refusal's category, when the provider gave one.",
+            "title": "Refusal Category"
+          },
+          "step": {
+            "$ref": "#/components/schemas/TurnStep"
+          }
+        },
+        "required": [
+          "category",
+          "step",
+          "detail"
+        ],
+        "title": "TurnEscalation",
+        "type": "object"
+      },
+      "TurnEvent": {
+        "description": "IF-06. One Server-Sent Event of a running turn: one per step, then one with the outcome.\n\n`kind` is also the SSE `event` field. A `step` event names the step that just ended, its\niteration and how it ended, and where the turn goes next; the final `outcome` event carries\nthe turn's outcome and, for an escalated turn, why. The turn record at\n`GET /agents/turns/{turn_id}` holds everything else -- an event carries identifiers and\nstates only, never text a role produced (NFR-10).",
+        "properties": {
+          "escalation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/EscalationCategory"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the turn escalated, once it has."
+          },
+          "iteration": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iteration"
+          },
+          "kind": {
+            "description": "`step`, or the final `outcome`.",
+            "enum": [
+              "step",
+              "outcome"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "next_step": {
+            "$ref": "#/components/schemas/TurnStep",
+            "description": "The step that runs next, `done` when none does."
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/TurnOutcome",
+            "description": "The turn's outcome as of this event."
+          },
+          "scene": {
+            "pattern": "^\\d{3}$",
+            "title": "Scene",
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StepStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "step": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnStep"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The step that ended; null on the outcome event."
+          },
+          "turn_id": {
+            "description": "The turn record's id, `NNN-<n>`.",
+            "pattern": "^\\d{3}-\\d+$",
+            "title": "Turn Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "turn_id",
+          "scene",
+          "outcome",
+          "next_step"
+        ],
+        "title": "TurnEvent",
+        "type": "object"
+      },
+      "TurnOutcome": {
+        "description": "Figure 4's terminal states, plus the two a record can be read in before one.",
+        "enum": [
+          "running",
+          "awaiting_ruling",
+          "merged",
+          "escalated"
+        ],
+        "title": "TurnOutcome",
+        "type": "string"
+      },
+      "TurnRecord": {
+        "additionalProperties": false,
+        "description": "`.index/turns/NNN-<n>.yaml`. Written after every step, so a crash leaves the steps\ncompleted so far on disk (FR-TURN-09).",
+        "properties": {
+          "chapter": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[a-z0-9][a-z0-9_-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The chapter listing the scene.",
+            "title": "Chapter"
+          },
+          "closes_chapter": {
+            "default": false,
+            "description": "The scene is the last its chapter lists: a hint for the manual rollup.",
+            "title": "Closes Chapter",
+            "type": "boolean"
+          },
+          "digests": {
+            "items": {
+              "$ref": "#/components/schemas/DigestMeasure"
+            },
+            "title": "Digests",
+            "type": "array"
+          },
+          "draft": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DraftMeasure"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ended_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ended At"
+          },
+          "escalation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnEscalation"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "facts": {
+            "items": {
+              "$ref": "#/components/schemas/FactRecord"
+            },
+            "title": "Facts",
+            "type": "array"
+          },
+          "id": {
+            "description": "`NNN-<n>`: scene id and attempt.",
+            "pattern": "^\\d{3}-\\d+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "iterations": {
+            "items": {
+              "$ref": "#/components/schemas/AuditIteration"
+            },
+            "title": "Iterations",
+            "type": "array"
+          },
+          "next_step": {
+            "$ref": "#/components/schemas/TurnStep",
+            "default": "assemble",
+            "description": "The step a resume runs next (FR-TURN-09)."
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/TurnOutcome",
+            "default": "running"
+          },
+          "revise_rejections": {
+            "default": 0,
+            "description": "Rejected revisions in the current iteration (FR-AGENT-02).",
+            "minimum": 0.0,
+            "title": "Revise Rejections",
+            "type": "integer"
+          },
+          "revisions": {
+            "default": 0,
+            "description": "Revisions accepted so far (FR-TURN-02).",
+            "minimum": 0.0,
+            "title": "Revisions",
+            "type": "integer"
+          },
+          "rollup_ready": {
+            "default": false,
+            "description": "Every scene of the chapter has a scene digest, so a rollup would not be refused as partial (FR-AGENT-08).",
+            "title": "Rollup Ready",
+            "type": "boolean"
+          },
+          "scene": {
+            "pattern": "^\\d{3}$",
+            "title": "Scene",
+            "type": "string"
+          },
+          "schema_version": {
+            "const": 1,
+            "default": 1,
+            "title": "Schema Version",
+            "type": "integer"
+          },
+          "selected": {
+            "items": {
+              "$ref": "#/components/schemas/SelectedEntity"
+            },
+            "title": "Selected",
+            "type": "array"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "steps": {
+            "items": {
+              "$ref": "#/components/schemas/StepRecord"
+            },
+            "title": "Steps",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "scene"
+        ],
+        "title": "TurnRecord",
+        "type": "object"
+      },
+      "TurnRequest": {
+        "additionalProperties": false,
+        "description": "IF-06, the body of `POST /agents/turns`: the scene to write. Nothing else -- the scene\nrecord says what the scene is for, and the stores say everything the roles may read.",
+        "properties": {
+          "scene_id": {
+            "description": "The scene to run one turn on (FR-TURN-01).",
+            "pattern": "^\\d{3}$",
+            "title": "Scene Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scene_id"
+        ],
+        "title": "TurnRequest",
+        "type": "object"
+      },
+      "TurnStep": {
+        "description": "The steps of Figure 4 as the orchestrator runs them, in order (FR-TURN-01).\n\n`recheck` is FR-AGENT-04's mechanical lexicon and voice check of the polished draft;\n`done` is the cursor of a turn with nothing left to run.",
+        "enum": [
+          "assemble",
+          "write",
+          "audit",
+          "revise",
+          "polish",
+          "recheck",
+          "digest",
+          "extract",
+          "promote",
+          "done"
+        ],
+        "title": "TurnStep",
+        "type": "string"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -3732,6 +4605,36 @@
         ],
         "title": "WithheldEntity",
         "type": "object"
+      },
+      "WriteRecord": {
+        "additionalProperties": false,
+        "description": "One store write a step made, as the provenance log recorded it (FR-STORE-04, AC 32).",
+        "properties": {
+          "actor": {
+            "title": "Actor",
+            "type": "string"
+          },
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "path": {
+            "title": "Path",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "role",
+          "actor",
+          "content_hash"
+        ],
+        "title": "WriteRecord",
+        "type": "object"
       }
     }
   },
@@ -3799,6 +4702,355 @@
           }
         },
         "summary": "Roll a chapter or an arc up into its digest",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/agents/provenance": {
+      "get": {
+        "description": "IF-03, FR-STORE-04. Who wrote what, under which role, and whether a human was behind it,\nin the order the writes landed. Filters, never aggregates.",
+        "operationId": "read_provenance_agents_provenance_get",
+        "parameters": [
+          {
+            "description": "Only the writes of this store-relative path.",
+            "in": "query",
+            "name": "path",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only the writes of this store-relative path.",
+              "title": "Path"
+            }
+          },
+          {
+            "description": "Only the writes at or after this ISO-8601 instant.",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only the writes at or after this ISO-8601 instant.",
+              "title": "Since"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProvenanceRecord"
+                  },
+                  "title": "Response Read Provenance Agents Provenance Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read the provenance log",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/agents/turns": {
+      "get": {
+        "description": "IF-03, FR-TURN-07. Every turn record under `.index/turns/`, by scene and attempt.",
+        "operationId": "list_turns_agents_turns_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TurnRecord"
+                  },
+                  "title": "Response List Turns Agents Turns Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List the turn records",
+        "tags": [
+          "agents"
+        ]
+      },
+      "post": {
+        "description": "FR-TURN-01, IF-06. Figure 4 on one scene: assemble, write, audit, revise while blocking\nviolations remain (at most three times), polish, digest, extract, promote.\n\nRefused before the stream starts: a scene with no record (404), another turn running on\nthis store root or a collision of this scene waiting for a ruling (409, FR-TURN-05). The\nfinal event carries the outcome -- `merged`, `awaiting_ruling` or `escalated` with its\ncategory -- and the record id; `GET /agents/turns/{id}` has the rest.",
+        "operationId": "start_turn_agents_turns_post",
+        "parameters": [
+          {
+            "description": "Run the assembly only and answer the `AssembledContext` (FR-TURN-10).",
+            "in": "query",
+            "name": "dry_run",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Run the assembly only and answer the `AssembledContext` (FR-TURN-10).",
+              "title": "Dry Run",
+              "type": "boolean"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TurnRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssembledContext"
+                }
+              },
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnEvent",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "One `TurnEvent` per step as `text/event-stream` (SSE `event: step`), then one with the outcome (`event: outcome`). With `dry_run=true`, the `AssembledContext` as JSON instead."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run one writing turn on a scene, streaming a progress event per step",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/agents/turns/{turn_id}": {
+      "get": {
+        "description": "IF-03, FR-TURN-07. The record of one turn: its steps with their models and token counts,\nthe selected list, the violations of each iteration and what became of its facts.",
+        "operationId": "read_turn_agents_turns__turn_id__get",
+        "parameters": [
+          {
+            "description": "`NNN-<n>`.",
+            "in": "path",
+            "name": "turn_id",
+            "required": true,
+            "schema": {
+              "description": "`NNN-<n>`.",
+              "pattern": "^\\d{3}-\\d+$",
+              "title": "Turn Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read one turn record",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/agents/turns/{turn_id}/resume": {
+      "post": {
+        "description": "FR-TURN-09. Continue a `running` turn from its record, without re-running the steps it\nrecords as done. A turn that ended is a 409; a missing record a 404.",
+        "operationId": "resume_turn_agents_turns__turn_id__resume_post",
+        "parameters": [
+          {
+            "description": "`NNN-<n>`.",
+            "in": "path",
+            "name": "turn_id",
+            "required": true,
+            "schema": {
+              "description": "`NNN-<n>`.",
+              "pattern": "^\\d{3}-\\d+$",
+              "title": "Turn Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnEvent",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "One `TurnEvent` per step as `text/event-stream` (SSE `event: step`), then one with the outcome (`event: outcome`)."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resume a turn a crash interrupted, streaming a progress event per step",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
+    "/agents/turns/{turn_id}/rulings": {
+      "post": {
+        "description": "FR-TURN-08, FR-OPS-07. `accept` promotes a collided fact despite the collision, `reject`\nrefuses it; each ruling is recorded on the fact with its reason, an accepted fact is\nreconciled, and the turn moves from `awaiting_ruling` to `merged` when none is left.\n\nThe human gate: only the canoniser with `X-Actor: human` gets past the ledger's `rule`\n(403 otherwise). A fact that is not one of this turn's collisions is a 404; a turn that is\nnot awaiting a ruling, or another turn running, a 409. The batch is checked before the first\nruling lands.",
+        "operationId": "rule_on_turn_agents_turns__turn_id__rulings_post",
+        "parameters": [
+          {
+            "description": "`NNN-<n>`.",
+            "in": "path",
+            "name": "turn_id",
+            "required": true,
+            "schema": {
+              "description": "`NNN-<n>`.",
+              "pattern": "^\\d{3}-\\d+$",
+              "title": "Turn Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The Figure 3 role performing this write. Required on every write.",
+            "in": "header",
+            "name": "X-Agent-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The Figure 3 role performing this write. Required on every write.",
+              "title": "X-Agent-Role"
+            }
+          },
+          {
+            "description": "`human` when a person is acting under the role, absent or `agent` otherwise. A human acts under a role, never beside it.",
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`human` when a person is acting under the role, absent or `agent` otherwise. A human acts under a role, never beside it.",
+              "title": "X-Actor"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "items": {
+                  "$ref": "#/components/schemas/RulingRequest"
+                },
+                "title": "Rulings",
+                "type": "array"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnRecord"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rule on a turn's collided facts",
         "tags": [
           "agents"
         ]

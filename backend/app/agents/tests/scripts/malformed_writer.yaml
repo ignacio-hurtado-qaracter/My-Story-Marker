@@ -1,0 +1,9 @@
+# spec 001 / AC 21. The writer answers twice with output its DR-12 schema rejects (a body that
+# is a number, proposed facts that are not a list). The client retries once and the step fails
+# MalformedModelOutput; nothing reaches manuscript/.
+writer:
+  - reply:
+      body: 42
+      proposed_facts: "none"
+  - reply:
+      proposed_facts: []

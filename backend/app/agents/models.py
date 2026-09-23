@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -32,11 +33,17 @@ from app.commons.llm import Completion, Document
 from app.commons.permissions import AgentRole
 from app.commons.schemas import (
     DigestOutput,
+    EscalationCategory,
+    RulingKind,
     SceneDigest,
     SemanticAuditOutput,
+    StepStatus,
+    TurnOutcome,
+    TurnStep,
     Violation,
 )
 from app.commons.schemas.common import EntityId, SceneId
+from app.commons.schemas.turn import TURN_ID_PATTERN
 from app.commons.stores.provenance import ProvenanceRecord
 from app.ledger.audit import AuditReport
 
@@ -204,6 +211,53 @@ class RollupResponse(BaseModel):
     prompt_version: str = Field(description="FR-AGENT-10: the writer prompt's SHA-256.")
 
 
+class TurnRequest(BaseModel):
+    """IF-06, the body of `POST /agents/turns`: the scene to write. Nothing else -- the scene
+    record says what the scene is for, and the stores say everything the roles may read."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    scene_id: SceneId = Field(description="The scene to run one turn on (FR-TURN-01).")
+
+
+class RulingRequest(BaseModel):
+    """FR-TURN-08, one entry of the body of `POST /agents/turns/{id}/rulings`: a human's
+    decision on one collided fact of the turn, with the reason FR-OPS-07 records on it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    fact_id: EntityId = Field(description="A fact of this turn left `pending` on a collision.")
+    ruling: RulingKind = Field(description="`accept` promotes despite it; `reject` refuses it.")
+    reason: str = Field(
+        min_length=1, description="Why; recorded on the fact so the same fact is not argued twice."
+    )
+
+
+class TurnEvent(BaseModel):
+    """IF-06. One Server-Sent Event of a running turn: one per step, then one with the outcome.
+
+    `kind` is also the SSE `event` field. A `step` event names the step that just ended, its
+    iteration and how it ended, and where the turn goes next; the final `outcome` event carries
+    the turn's outcome and, for an escalated turn, why. The turn record at
+    `GET /agents/turns/{turn_id}` holds everything else -- an event carries identifiers and
+    states only, never text a role produced (NFR-10).
+    """
+
+    kind: Literal["step", "outcome"] = Field(description="`step`, or the final `outcome`.")
+    turn_id: str = Field(pattern=TURN_ID_PATTERN, description="The turn record's id, `NNN-<n>`.")
+    scene: SceneId
+    step: TurnStep | None = Field(
+        default=None, description="The step that ended; null on the outcome event."
+    )
+    iteration: int | None = Field(default=None, ge=0)
+    status: StepStatus | None = None
+    outcome: TurnOutcome = Field(description="The turn's outcome as of this event.")
+    next_step: TurnStep = Field(description="The step that runs next, `done` when none does.")
+    escalation: EscalationCategory | None = Field(
+        default=None, description="Why the turn escalated, once it has."
+    )
+
+
 __all__ = [
     "Adjustment",
     "CombinedAudit",
@@ -213,5 +267,8 @@ __all__ = [
     "RoleCall",
     "RollupRequest",
     "RollupResponse",
+    "RulingRequest",
     "SemanticAuditResult",
+    "TurnEvent",
+    "TurnRequest",
 ]
