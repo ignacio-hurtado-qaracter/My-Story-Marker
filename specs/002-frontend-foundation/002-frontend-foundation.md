@@ -1,7 +1,7 @@
 ---
 id: 002
 title: Frontend foundation — scaffold, the OpenAPI contract pipeline, the app shell and one read-only slice
-status: draft            # draft · approved · implemented · superseded
+status: approved         # draft · approved · implemented · superseded
 supersedes: null
 docs:
   - docs/architecture.md#repository-and-application-stack
@@ -22,8 +22,8 @@ docs:
 > marked **User**; the rest are the agent's recommendations, marked **default**, and
 > approving this spec confirms them.
 >
-> **Back in `draft` since 2026-09-23** (Process 2, rule 10): round 3 changed scope and
-> criteria after the first approval. See the top of [Open questions](#open-questions).
+> **Re-approved by the user on 2026-09-23**, after round 3 changed scope and criteria and
+> sent it back to `draft` (Process 2, rule 10). The user confirmed R3-10 explicitly.
 
 ## Motivation
 
@@ -343,7 +343,7 @@ The user asked for every gap between this spec, its plan and `docs/` (above all
 | R3-7 | Test utilities in `src/shared/test/` are not in the tree's `shared/` and are not cross-feature *code*. | **Default:** they live in `frontend/test/`, outside `src/` (NFR-06). |
 | R3-8 | The chapter's scene order was cited only to the backend contract. | **Default:** cited to [domain-knowledge Figure 1](../../docs/domain-knowledge.md#figure-1--the-entity-graph) ("CHAPTER orders SCENE") and to the schema (FR-SCN-01). |
 | R3-9 | The shared typed client vs "generated OpenAPI client" in the tree. | **Default:** FR-API-01/02 say which file is generated and why the typed client counts as the generated client. |
-| R3-10 | Process 3 rule 11 asks that an API change regenerate the client "in the same change", but on a shared branch the backend session commits `openapi.json` without touching `frontend/`. | **Consequence of R1-1 (User), to be confirmed at approval:** "the same change" is read as the same pull request. The frontend regenerates in a `contract:` commit right after; until then the frontend workflow, which runs on every push to `spec/**` touching `backend/openapi.json`, is red — the signal rule 11 wants, not a fault. |
+| R3-10 | Process 3 rule 11 asks that an API change regenerate the client "in the same change", but on a shared branch the backend session commits `openapi.json` without touching `frontend/`. | **User** (confirmed 2026-09-23), as a consequence of R1-1: "the same change" is read as the same pull request. The frontend regenerates in a `contract:` commit right after; until then the frontend workflow, which runs on every push to `spec/**` touching `backend/openapi.json`, is red — the signal rule 11 wants, not a fault. |
 | R3-11 | FR-UI-01 counts `app/` as a user of a shared component, where the placement rule speaks of features. | **Default:** `app/` counts, because rule 8 forbids features importing `app/`, so a component that `app/` and a feature share cannot live in either. |
 | R3-12 | Path-validation `422`s do not follow IF-07, and a malformed `/scenes/:id` would have hit a retry that cannot succeed. | **Default:** `ApiError` narrows both shapes (FR-API-04); malformed ids render not-found without a request (FR-SCN-06, AC 9). |
 | R3-13 | Requirements without a criterion: the 30 s polling limit, not-found inside the layout, previous/next order, typed MSW handlers, exact pins, Spanish strings. | **Default:** folded into AC 7, AC 8, AC 14 and AC 15, plus new criteria AC 16, AC 17 and AC 18 (the `/graph3d` error state). |
@@ -352,12 +352,12 @@ The user asked for every gap between this spec, its plan and `docs/` (above all
 
 ## Open questions
 
-**Why this spec is back in `draft`** (Process 2, rule 10; 2026-09-23). Round 3 changed the
-scope after approval: the SSE wrapper left the scope, `health/` became a feature, the slice
+**Why this spec went back to `draft`, and its re-approval** (Process 2, rule 10;
+2026-09-23). Round 3 changed the scope after the first approval: the SSE wrapper left the scope, `health/` became a feature, the slice
 became `scenes/`, `shared/three/` left the scope and the boundary rules changed. The
 acceptance criteria were renumbered and extended (18). Plan 002 returns to `draft` with it
-and is not committed again until this spec is re-approved (Process 2, step 8). R3-10 needs
-the user's explicit confirmation, since it reads a process rule.
+and was committed only after this spec was re-approved (Process 2, step 8). The user
+confirmed R3-10 and re-approved spec and plan the same day.
 
 Nothing else is open. Deferred, each with its owner:
 
