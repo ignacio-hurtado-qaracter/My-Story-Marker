@@ -234,7 +234,7 @@ build-time; solid edges are imports or runtime calls.
 
 | AC | Method | Where it lives |
 |---|---|---|
-| 1 | `tsc --noEmit` in `npm run typecheck`; grep step in `gate` for unexplained suppressions | `frontend/package.json`, `frontend/scripts/gate.sh` |
+| 1 | `tsc --noEmit` in `npm run typecheck`; grep step in `gate` for unexplained suppressions | `frontend/package.json`, `frontend/scripts/gate.mjs` |
 | 2 | ESLint | `frontend/eslint.config.js` |
 | 3 | A Vitest test that lints each file of `frontend/lint-fixtures/` with the project config and asserts the expected rule id | `frontend/src/shared/lint.test.ts` |
 | 4 | `check:api` in `gate`; a Vitest test that runs the generator on a mutated copy of the schema and asserts a diff | `frontend/scripts/check-api.mjs`, `frontend/src/shared/api/contract.test.ts` |
@@ -246,7 +246,7 @@ build-time; solid edges are imports or runtime calls.
 | 11, 14 | Playwright against `uvicorn` on a temp copy of `backend/tests/fixtures/`, started by Playwright's `webServer` | `frontend/e2e/reader.spec.ts`, `frontend/e2e/graph3d.spec.ts` |
 | 12 | `@axe-core/playwright` on each route | `frontend/e2e/a11y.spec.ts` |
 | 13 | A Node script over Vite's `manifest.json` | `frontend/scripts/check-bundle.mjs` |
-| 15 | `npm audit` in `gate` | `frontend/scripts/gate.sh` |
+| 15 | `npm audit` in `gate` | `frontend/scripts/gate.mjs` |
 | 16 | Review note in the PR description | PR for this spec |
 
 The coverage-matrix rows this spec gives a verification to — "Only `shared/api/` calls the
