@@ -42,8 +42,24 @@ stage 'bandit'        uv run bandit -q -c pyproject.toml -r app tools scripts
 stage 'import-linter' uv run lint-imports
 
 SEMGREP_VERSION='1.177.0'
+
+# One rule file at a time, failing unless semgrep says its tests passed: a config that
+# fails to load is reported but does not change semgrep's exit code, so the stage would
+# otherwise pass having tested less than it claims (and on Windows the parallel form races
+# on semgrep's own settings file). Same logic as gate.ps1.
+semgrep_rule_test() {
+  local output
+  output=$(uvx --python 3.12 "semgrep==${SEMGREP_VERSION}" --test --metrics=off \
+    --disable-version-check --config "$1" "$2" 2>&1)
+  printf '%s\n' "$output"
+  grep -q 'All tests passed' <<<"$output" && ! grep -q 'produced errors' <<<"$output"
+}
+
 if compgen -G 'semgrep/*.yaml' >/dev/null; then
-  stage 'semgrep rule tests' uvx --python 3.12 "semgrep==${SEMGREP_VERSION}" --test --metrics=off --disable-version-check --config semgrep/ semgrep/tests/
+  for rule_file in semgrep/*.yaml; do
+    rule_name=$(basename "$rule_file" .yaml)
+    stage "semgrep --test ${rule_name}" semgrep_rule_test "$rule_file" "semgrep/tests/${rule_name}.py"
+  done
   stage 'semgrep' uvx --python 3.12 "semgrep==${SEMGREP_VERSION}" scan --error --quiet --metrics=off --disable-version-check --config semgrep/ app
 else
   skip 'semgrep' 'no rules written yet (plan step 6)'

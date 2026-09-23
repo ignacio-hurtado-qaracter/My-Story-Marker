@@ -49,8 +49,17 @@ Invoke-Stage 'import-linter' { uv run lint-imports }
 
 $SemgrepVersion = '1.177.0'
 $env:PYTHONUTF8 = '1'
-Invoke-Stage 'semgrep rule tests' {
-    uvx --python 3.12 "semgrep==$SemgrepVersion" --test --metrics=off --disable-version-check --config semgrep/ semgrep/tests/
+# One rule file at a time, and the stage fails unless semgrep says its tests passed. Given
+# the whole directory, semgrep tests the configs in parallel processes that race on its own
+# settings file on Windows, and a config that fails to load is reported but does not change
+# the exit code: the stage would pass having tested less than it claims.
+foreach ($ruleFile in Get-ChildItem 'semgrep' -Filter '*.yaml' | Sort-Object Name) {
+    $fixture = "semgrep/tests/$($ruleFile.BaseName).py"
+    Invoke-Stage "semgrep --test $($ruleFile.BaseName)" {
+        $output = uvx --python 3.12 "semgrep==$SemgrepVersion" --test --metrics=off --disable-version-check --config $ruleFile.FullName $fixture 2>&1 | Out-String
+        Write-Host $output
+        if ($output -notmatch 'All tests passed' -or $output -match 'produced errors') { cmd /c exit 1 }
+    }
 }
 Invoke-Stage 'semgrep' {
     uvx --python 3.12 "semgrep==$SemgrepVersion" scan --error --quiet --metrics=off --disable-version-check --config semgrep/ app
