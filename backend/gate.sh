@@ -7,8 +7,9 @@
 # wrong rather than the first thing. The summary lists failures *and* skips: a stage whose
 # inputs do not exist yet is reported as SKIPPED by name, never passed over in silence.
 #
-# This is the POSIX half, and the one CI runs. `semgrep` is a real stage here, unlike in
-# `gate.ps1`, because it does not run natively on Windows (plan decision P8).
+# This is the POSIX half, and the one CI runs. `semgrep` runs through `uvx`, pinned to the
+# same version as `gate.ps1` (plan decision P8, amended by correction C10): `--test` holds each
+# rule to its annotated fixture under `semgrep/tests/`, then a scan of `app/` must be clean.
 
 set -u -o pipefail
 
@@ -40,14 +41,28 @@ stage 'mypy --strict' uv run mypy .
 stage 'bandit'        uv run bandit -q -c pyproject.toml -r app tools scripts
 stage 'import-linter' uv run lint-imports
 
-if command -v semgrep >/dev/null 2>&1; then
-  if compgen -G 'semgrep/*.yaml' >/dev/null; then
-    stage 'semgrep' semgrep --error --quiet --config semgrep/ app
-  else
-    skip 'semgrep' 'no rules written yet (plan step 6)'
-  fi
+SEMGREP_VERSION='1.177.0'
+
+# One rule file at a time, failing unless semgrep says its tests passed: a config that
+# fails to load is reported but does not change semgrep's exit code, so the stage would
+# otherwise pass having tested less than it claims (and on Windows the parallel form races
+# on semgrep's own settings file). Same logic as gate.ps1.
+semgrep_rule_test() {
+  local output
+  output=$(uvx --python 3.12 "semgrep==${SEMGREP_VERSION}" --test --metrics=off \
+    --disable-version-check --config "$1" "$2" 2>&1)
+  printf '%s\n' "$output"
+  grep -q 'All tests passed' <<<"$output" && ! grep -q 'produced errors' <<<"$output"
+}
+
+if compgen -G 'semgrep/*.yaml' >/dev/null; then
+  for rule_file in semgrep/*.yaml; do
+    rule_name=$(basename "$rule_file" .yaml)
+    stage "semgrep --test ${rule_name}" semgrep_rule_test "$rule_file" "semgrep/tests/${rule_name}.py"
+  done
+  stage 'semgrep' uvx --python 3.12 "semgrep==${SEMGREP_VERSION}" scan --error --quiet --metrics=off --disable-version-check --config semgrep/ app
 else
-  skip 'semgrep' 'semgrep not installed on this machine (P8); CI is the rule of record'
+  skip 'semgrep' 'no rules written yet (plan step 6)'
 fi
 
 if compgen -G 'schemas/*.json' >/dev/null; then

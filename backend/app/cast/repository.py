@@ -8,6 +8,11 @@ five files of the cast -- the four per character (`dossier.md`, `voice.md`, `kno
 `changes.yaml`, per the storage layout and Decision R2-5) and the one shared
 `relationships.yaml`, which belongs to neither end of the edges it holds.
 
+It also reads one file the cast does not own: `scenes/NNN.yaml`, for the story time of the
+scenes a character's records are anchored to (FR-OPS-01). It reads it through `Store` with the
+shared `Scene` model from `commons.schemas`, never through the scenes feature, which sits
+above cast in the layers of NFR-04 and may not be imported from here.
+
 It carries no policy. Whether a role may write `cast/**` is decided by Figure 3 inside
 `Store.write` (FR-PERM-03), which is why every write below takes its role from the caller and
 none of them has a default: a default role would be a guess, and FR-STORE-04 would then
@@ -16,11 +21,12 @@ record the guess as provenance.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Final, Literal
 
 from app.cast.models import Character, VoiceProfile
 from app.commons.permissions import Actor, AgentRole
-from app.commons.schemas import ChangesFile, KnowledgeFile, RelationshipsFile
+from app.commons.schemas import ChangesFile, KnowledgeFile, RelationshipsFile, Scene
 from app.commons.stores import Store, paths
 from app.commons.stores.provenance import ProvenanceRecord
 
@@ -106,6 +112,27 @@ def read_relationships(store: Store) -> RelationshipsFile:
     return store.read(paths.RELATIONSHIPS, RelationshipsFile)
 
 
+def read_scenes(store: Store, scene_ids: Iterable[str]) -> dict[str, Scene]:
+    """FR-OPS-01. The scene records named by a character's arc, knowledge, valence and
+    changes, keyed by id; a named scene with no file is simply absent from the result.
+
+    Only the scenes named are read, not the whole of `scenes/`: the dossier needs the story
+    time of its anchors and nothing else, and reading every scene would make one malformed
+    scene record elsewhere in the book break every character's dossier.
+
+    Absent rather than an error, because an anchor that names no scene is a record fault
+    FR-AUD-01 reports, and the dossier's answer to it is to exclude the row (it cannot be
+    shown to be at or before `at`). A scene file that exists and fails validation is another
+    matter: that raises `InvalidRecord` (FR-STORE-06) and is never read around.
+    """
+    found: dict[str, Scene] = {}
+    for identifier in sorted(set(scene_ids)):
+        path = paths.scene(identifier)
+        if store.exists(path):
+            found[identifier] = store.read(path, Scene)
+    return found
+
+
 def write_dossier(
     store: Store,
     character: str,
@@ -177,6 +204,7 @@ __all__ = [
     "read_dossier",
     "read_knowledge",
     "read_relationships",
+    "read_scenes",
     "read_voice",
     "write_changes",
     "write_dossier",

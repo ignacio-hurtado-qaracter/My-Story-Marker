@@ -24,10 +24,10 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Path
+from fastapi import APIRouter, Path, Query
 
 from app.cast import service
-from app.cast.models import Character, VoiceProfile
+from app.cast.models import Character, TrimmedDossier, VoiceProfile
 from app.commons.deps import ActorDep, RoleDep, StoreDep
 from app.commons.schemas import (
     ENTITY_ID_PATTERN,
@@ -101,14 +101,43 @@ def write_relationships(
 def read_character(store: StoreDep, character: CharacterId) -> Character:
     """IF-03, `GET /cast/{id}`. The complete record.
 
-    `GET /cast/{id}/dossier?at=` -- the same record trimmed to the instant of a scene
-    (FR-OPS-01) -- arrives at plan step 10. It is the load-bearing call of this feature, and
-    this one is its unsafe sibling: a writer handed the complete dossier uses facts the
+    `GET /cast/{id}/dossier?at=` below is the same record trimmed to an instant (FR-OPS-01),
+    and this one is its unsafe sibling: a writer handed the complete dossier uses facts the
     character has not yet learned, because nothing in the text marks them as future. The
-    record reads as true, and everything true in the context is fair to write. Until that
-    step this route is for a human reading their own tree, not for an assembled context.
+    record reads as true, and everything true in the context is fair to write. This route is
+    for a human reading their own tree, never for an assembled context.
     """
     return service.read_character(store, character)
+
+
+StoryInstant = Annotated[
+    int,
+    Query(
+        description=(
+            "The story instant to trim to: integer hours since `epoch_zero` (Decision 8), "
+            "negative for prequel scenes. Required, because there is no safe default: "
+            "'now' on the story axis is whatever the scene being written says it is."
+        ),
+    ),
+]
+"""The `at` of FR-OPS-01. A story time, never a scene id: the caller (the assembler, at plan
+step 12) already holds the scene's `story_time`, and the operation is defined on it."""
+
+
+@router.get("/{id}/dossier", summary="Read a character as of a story instant")
+def read_dossier_at(
+    store: StoreDep,
+    character: CharacterId,
+    at: StoryInstant,
+) -> TrimmedDossier:
+    """FR-OPS-01, IF-03 `GET /cast/{id}/dossier?at=`. The character as they were at `at`.
+
+    Only the facts already acquired, the valence of each relationship on that date, the point
+    on the arc, and the body with every registered change up to then applied (AC 10). The
+    load-bearing call of assembly: withholding a future fact is more reliable than
+    instructing the model to ignore it.
+    """
+    return service.dossier(store, character, at)
 
 
 @router.get("/{id}/voice", summary="Read a character's voice profile")

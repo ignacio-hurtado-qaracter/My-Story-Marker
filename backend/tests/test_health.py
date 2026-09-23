@@ -12,12 +12,16 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.commons.config import get_settings
+from app.commons.deps import get_embedder
+from app.commons.embeddings import EmbeddingModelUnavailableError, FakeEmbedder
 from app.main import create_app, verify_store_root
 
 
 # spec 001 / AC 30 — the gate needs a green pytest stage from step 2 onward.
 def test_health_reports_vector_model_and_root(minimal_store: Path) -> None:
-    with TestClient(create_app()) as client:
+    app = create_app()
+    app.dependency_overrides[get_embedder] = FakeEmbedder
+    with TestClient(app) as client:
         response = client.get("/health")
 
     assert response.status_code == 200
@@ -52,3 +56,13 @@ def test_app_does_not_serve_without_a_store_root(
             pass  # pragma: no cover - the context manager raises on entry
     finally:
         get_settings.cache_clear()
+
+
+# spec 001 / AC 9 — FR-EMB-03: offline, a model missing from the cache stops the start and
+# names the directory to populate. `minimal_store` sets EMBED_OFFLINE=1 over an empty cache.
+def test_offline_startup_refuses_a_missing_model(minimal_store: Path) -> None:
+    cache = get_settings().model_cache_dir
+    with pytest.raises(EmbeddingModelUnavailableError) as raised, TestClient(create_app()):
+        pass  # pragma: no cover - the context manager raises on entry
+    assert str(cache) in str(raised.value)
+    assert "EMBED_OFFLINE" in str(raised.value)

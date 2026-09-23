@@ -22,8 +22,9 @@ refuses with `PermissionDenied`, 403, before any byte touches disk. Figure 3's t
 write edges into `canon/` are the world builder and the canoniser; that fact lives in the
 permission table and is deliberately not restated as an `if` here, where it could drift.
 
-`POST /canon/reconcile` (IF-05, FR-OPS-08) is the one canon route this file does not carry.
-It arrives at plan step 13 with `promote` and `rule`, and is left out rather than stubbed.
+`POST /canon/reconcile` (IF-05, FR-OPS-08) is the one operation here, and it is read-only:
+it takes no role header because it writes nothing, and it answers which scenes and turns
+depended on an entity so a late change to canon can be weighed before it is made.
 """
 
 from __future__ import annotations
@@ -33,7 +34,7 @@ from typing import Annotated
 from fastapi import APIRouter, Path
 
 from app.canon import service
-from app.canon.models import Project, StyleBible
+from app.canon.models import Project, ReconcileRequest, Reconciliation, StyleBible
 from app.canon.service import CanonEntity
 from app.commons.deps import ActorDep, RoleDep, StoreDep
 from app.commons.schemas.common import ENTITY_ID_PATTERN
@@ -116,6 +117,22 @@ def replace_time(
 ) -> ProvenanceRecord:
     """IF-04. There is exactly one temporal system per project (DR-09), so likewise total."""
     return service.replace_temporal_system(store, record, role=role, actor=actor)
+
+
+# --- the one operation: reconcile (IF-05, FR-OPS-08) ----------------------------------
+
+
+@router.post("/reconcile", summary="Find the written work that depends on an entity")
+def reconcile(request: ReconcileRequest, store: StoreDep) -> Reconciliation:
+    """IF-05, FR-OPS-08. Every scene and turn record that depends on the entity, with why.
+
+    A scene depends on it when its record names it as POV, participant, location or an
+    ancestor of its location, pins it, or - for an axiom - carries a tag in its scope; when a
+    character acquired knowledge about it there; or when a turn that wrote it selected the
+    entity. The answer is a superset by design (AC 14): an extra scene costs one re-read, a
+    missed one is a contradiction nobody hears about. An id that defines nothing is a `404`.
+    """
+    return service.reconcile(store, request.entity_id)
 
 
 # --- Layer 1: one typed set of routes per canon kind ----------------------------------

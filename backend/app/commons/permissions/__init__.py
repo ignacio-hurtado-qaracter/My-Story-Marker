@@ -19,18 +19,32 @@ from app.commons.permissions.table import (
     normalise,
     writable_patterns,
 )
+from app.commons.permissions.toolsets import (
+    APPEND_ONLY_TARGETS,
+    Tool,
+    ToolOperation,
+    ToolSet,
+    operation_for,
+    toolset_for,
+)
 
 __all__ = [
+    "APPEND_ONLY_TARGETS",
     "INPUT_TABLE",
     "SCENE_FILE",
     "STORE_FAMILIES",
     "WRITE_TABLE",
     "Actor",
     "AgentRole",
+    "Tool",
+    "ToolOperation",
+    "ToolSet",
     "compile_store_glob",
     "may_receive",
     "may_write",
     "normalise",
+    "operation_for",
     "readable_patterns",
+    "toolset_for",
     "writable_patterns",
 ]

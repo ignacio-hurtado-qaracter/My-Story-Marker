@@ -5,15 +5,27 @@
 -- in the stores is a bug." That is why `path` is NOT NULL and why `/index/status` reports an
 -- orphan count that AC 6 asserts is zero: retrieval must not be able to introduce a fact, it
 -- can only choose among facts that exist.
+--
+-- `id` is an explicit INTEGER PRIMARY KEY because two other tables point at it: the FTS5 row
+-- and the vec0 row of an entity share its value. A table keyed only by (entity_id, kind)
+-- still has a rowid, but an implicit one, and VACUUM may renumber an implicit rowid - which
+-- would silently re-point every vector at another entity. An alias of the rowid is stable.
+--
+-- `updated_at` is nullable. It is the time of the last write of the backing file recorded
+-- in the provenance log (FR-STORE-04), and NULL when the file was never written through the
+-- backend (seeded by hand, or edited only outside it). It is never the wall clock of the
+-- rebuild: AC 6 asserts that two rebuilds of the same tree yield identical rows, and a
+-- rebuild timestamp would make that false by construction.
 
 create table entity (
+    id           integer primary key,
     entity_id    text not null,
     kind         text not null,
     path         text not null,
     text         text not null,
     content_hash text not null,
-    updated_at   text not null,
-    primary key (entity_id, kind)
+    updated_at   text,
+    unique (entity_id, kind)
 );
 
 create index entity_path on entity (path);

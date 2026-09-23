@@ -14,13 +14,18 @@ everything that validates it.
 
 `canon/lexicon.yaml` and `canon/time.yaml` are not here. Both are read by the style editor
 and the auditor as well as by this feature, so DR-01 puts them in `commons/schemas/`.
+
+The last section holds the wire shapes of `POST /canon/reconcile` (FR-OPS-08). They are not
+store records, but the orchestrator of plan step 18 records `reconcile`'s answer on the turn
+record after every promotion, so the answer is part of this feature's public surface.
 """
 
 from __future__ import annotations
 
+from enum import StrEnum
 from typing import Annotated
 
-from pydantic import ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.commons.schemas.common import (
     EntityId,
@@ -542,8 +547,93 @@ class HistoricalEvent(StoreDocument):
     )
 
 
+# --------------------------------------------------------------------------------------
+# reconcile (FR-OPS-08) - which written work depended on an entity
+# --------------------------------------------------------------------------------------
+
+
+class DependencyReason(StrEnum):
+    """Why a scene or a turn depends on the entity. One value per edge FR-OPS-08 names.
+
+    A code rather than a sentence, because the consumer is the orchestrator (plan step 18) as
+    much as a person: a turn record that says `location_ancestor` can be filtered, and one that
+    says "set somewhere inside it" cannot.
+    """
+
+    POV = "pov"
+    PARTICIPANT = "participant"
+    LOCATION = "location"
+    LOCATION_ANCESTOR = "location_ancestor"
+    PINNED = "pinned"
+    TAG_SCOPE = "tag_scope"
+    KNOWLEDGE = "knowledge"
+    SELECTED = "selected"
+
+
+class DependencyEdge(BaseModel):
+    """One reason, with the detail that makes it checkable against the files."""
+
+    code: DependencyReason = Field(description="Which kind of reference this is.")
+    detail: str = Field(
+        description="The specifics: which location the ancestor was reached through, which"
+        " tags matched the scope, which character acquired knowledge, which turn selected it.",
+    )
+
+
+class Dependent(BaseModel):
+    """One scene or turn that depends on the entity, with every reason, deduplicated.
+
+    One entry per id rather than one per reason: a scene that has the entity as POV *and* in
+    its pins is one scene to re-read, and listing it twice would make the count of affected
+    work -- the number a late decision is weighed by -- wrong.
+    """
+
+    id: str = Field(description="The scene id (`NNN`) or the turn record id (`NNN-<n>`).")
+    reasons: list[DependencyEdge] = Field(
+        description="Every distinct reason, sorted by code then detail. Never empty.",
+    )
+
+
+class ReconcileRequest(BaseModel):
+    """The body of `POST /canon/reconcile`. Unknown fields are refused rather than ignored."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    entity_id: EntityId = Field(
+        description="The entity that changed: a canon entity of any kind, a character, or a"
+        " lexicon term.",
+    )
+
+
+class Reconciliation(BaseModel):
+    """FR-OPS-08. Which written work depended on the entity, so a late decision does not force
+    a re-read of the entire book.
+
+    `architecture.md` Operations: "Without this operation, every late decision forces a re-read
+    of the entire book, which in practice means late decisions stop being made." The answer is
+    deliberately a **superset** (AC 14): an extra scene costs one re-read, while a missed one
+    is a contradiction nobody is told about, so every ambiguous edge is resolved towards
+    inclusion.
+    """
+
+    entity_id: EntityId = Field(description="The entity reconciled.")
+    defined_in: list[str] = Field(
+        description="The store files that define it, sorted. More than one means two records"
+        " claim the id, which is itself worth knowing before deciding anything.",
+    )
+    scenes: list[Dependent] = Field(
+        description="Every scene that references the entity, sorted by scene id.",
+    )
+    turns: list[Dependent] = Field(
+        description="Every turn record whose selected list contains it, sorted by turn id.",
+    )
+
+
 __all__ = [
     "Axiom",
+    "DependencyEdge",
+    "DependencyReason",
+    "Dependent",
     "Faction",
     "FactionStance",
     "GenreContract",
@@ -553,6 +643,8 @@ __all__ = [
     "LocationAccess",
     "Premise",
     "Project",
+    "ReconcileRequest",
+    "Reconciliation",
     "StyleBible",
     "StyleMetric",
     "StyleMetrics",

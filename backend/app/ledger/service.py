@@ -19,10 +19,13 @@ see.
   things, and no later `reconcile` can recover which was meant because the information was
   never written down.
 
-`promote` and `rule` (IF-05) are the two operations this feature owns that are deliberately
-absent: they arrive at plan step 13, together with the `semgrep` rule that proves no canon
-write happens outside them. The mechanical audit (IF-05, `POST /scenes/{id}/audit`) arrives at
-step 14. Stubbing either here would answer a caller with a promise.
+`promote` and `rule` (IF-05, FR-OPS-06, FR-OPS-07) live in `app.ledger.promote` and are
+re-exported here, so the orchestrator of plan step 18 reaches them through this feature's
+public surface (NFR-04) rather than through a module it would otherwise have to know about.
+They are kept in their own module because they are the only code in `ledger/` that writes
+`canon/` or `cast/`, and AC 13's static rule looks for exactly those two function names: a
+reviewer auditing the return edge into canon reads one file. The mechanical audit (IF-05,
+`POST /scenes/{id}/audit`) arrives at step 14.
 """
 
 from __future__ import annotations
@@ -42,6 +45,7 @@ from app.commons.stores import Store
 from app.commons.stores.provenance import ProvenanceRecord
 from app.ledger import repository
 from app.ledger.models import TimelineFile
+from app.ledger.promote import promote, rule
 
 
 class ProposedAppend(BaseModel):
@@ -193,8 +197,10 @@ def replace_violations(
 __all__ = [
     "ProposedAppend",
     "append_proposed",
+    "promote",
     "proposed",
     "replace_violations",
+    "rule",
     "setups",
     "threads",
     "timeline",

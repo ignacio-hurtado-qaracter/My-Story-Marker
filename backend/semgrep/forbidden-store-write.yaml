@@ -33,12 +33,17 @@ rules:
         - app/agents/lock.py
         - app/commons/db/
         - app/commons/embeddings/
+        # The model client writes the role's system prompt to a file in a fresh temporary
+        # directory, because the CLI takes it through `--system-prompt-file` (FR-LLM-05,
+        # plan step 15). A temporary file is not a store path, like `.index/`. Exempted by
+        # file, not by package: the rest of `commons/llm/` stays under the rule.
+        - app/commons/llm/claude_code_client.py
         - "**/tests/**"
     patterns:
       - pattern-either:
           # Mutating primitives, whatever the path.
           - pattern: open($PATH, ...)
-          - pattern: $P.open($MODE, ...)
+          - pattern: $P.open(...)
           - pattern: $P.write_text(...)
           - pattern: $P.write_bytes(...)
           - pattern: $P.unlink(...)
@@ -87,3 +92,6 @@ rules:
           - pattern-regex: '"(canon|cast|structure|scenes|manuscript|ledger)/[^"]*"\s*%'
           - pattern-regex: 'f"(canon|cast|structure|scenes|manuscript|ledger)/[^"]*\{'
           - pattern-regex: "'(canon|cast|structure|scenes|manuscript|ledger)/[^']*'\\s*%"
+          - pattern-regex: "f'(canon|cast|structure|scenes|manuscript|ledger)/[^']*\\{"
+          # Concatenation: a literal store-path head joined to anything with `+`.
+          - pattern: '"=~/^(canon|cast|structure|scenes|manuscript|ledger)\//" + $REST'

@@ -1,9 +1,11 @@
-"""The HTTP surface of `ledger/`: IF-03's five reads and IF-04's two writes, under `/ledger`.
+"""The HTTP surface of `ledger/`: IF-03's five reads, IF-04's two writes and IF-05's two
+operations on the queue, under `/ledger`.
 
 The ledger is where the loop of Figure 1 turns. Prose flows into it as proposed facts and as
-violations, and both of those are the *input* to a decision somebody else makes: `promote`
-returns a fact to canon, and a human ruling settles what a violation costs. Nothing is decided
-here -- this router serves the records those decisions are taken on.
+violations, and both of those are the *input* to a decision: `promote` returns a fact to canon
+under the canoniser, a human ruling settles a fact that collided, and a human settles what a
+violation costs through the violations write. The handlers here only carry the request to the
+operation; what may be decided, and by whom, is the operation's and Figure 3's business.
 
 Three conventions hold in every handler and each is a rule from the spec rather than a style
 preference:
@@ -31,27 +33,38 @@ all five as reads and IF-04 lists only the two, and the permission table transcr
 absence. A convenience route onto the other three would be a write path with no row in the
 table behind it.
 
-**Deliberately absent, not forgotten.** IF-05's three ledger operations --
-`POST /ledger/proposed/{id}/promote` (FR-OPS-06), `POST /ledger/proposed/{id}/rule`
-(FR-OPS-07) and the mechanical `audit` whose findings land in `violations.yaml` (FR-AUD) --
-arrive at plan steps 13 and 14. Each needs machinery that does not exist yet: promotion needs
-the canon write path and the collision check, the audit needs one module per invariant. A
-reader who finds only reads and writes here is looking at an incomplete feature on purpose, at
-the commit the plan puts them at.
+**The two operations on the queue** (IF-05) are `POST /ledger/proposed/{id}/promote`
+(FR-OPS-06) and `POST /ledger/proposed/{id}/rule` (FR-OPS-07): the return edge of Figure 1,
+from proposed facts back into canon, and the human gate on it. The mechanical `audit` whose
+findings land in `violations.yaml` (FR-AUD) arrives at plan step 14.
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from typing import Annotated
+
+from fastapi import APIRouter, Path
 
 from app.commons.deps import ActorDep, RoleDep, StoreDep
 from app.commons.schemas import ProposedFile, SetupsFile, ThreadsFile, ViolationsFile
+from app.commons.schemas.common import ENTITY_ID_PATTERN
 from app.commons.stores.provenance import ProvenanceRecord
 from app.ledger import service
-from app.ledger.models import TimelineFile
+from app.ledger.models import PromotionResult, RuleRequest, RulingApplied, TimelineFile
 from app.ledger.service import ProposedAppend
 
 router = APIRouter(prefix="/ledger", tags=["ledger"])
+
+FactIdPath = Annotated[
+    str,
+    Path(
+        alias="id",
+        pattern=ENTITY_ID_PATTERN,
+        description="The proposed fact's stable identifier, as `ledger/proposed.yaml` holds it.",
+    ),
+]
+"""A fact id is an entity id (`ProposedFact.id` is an `EntityId`), so the same grammar is part
+of the published contract and a malformed one is a 422 before any handler runs."""
 
 
 # --------------------------------------------------------------------------------------
@@ -172,4 +185,53 @@ def replace_violations(
     return service.replace_violations(store, record, role=role, actor=actor)
 
 
-__all__ = ["router"]
+# --------------------------------------------------------------------------------------
+# Operations (IF-05). Canoniser only; the ruling additionally needs `X-Actor: human`.
+# --------------------------------------------------------------------------------------
+
+
+@router.post("/proposed/{id}/promote", summary="Promote a proposed fact into canon")
+def promote_fact(
+    fact_id: FactIdPath,
+    store: StoreDep,
+    role: RoleDep,
+    actor: ActorDep,
+) -> PromotionResult:
+    """IF-05, FR-OPS-06 (canoniser). `Promoted`, or `Escalation` when the target disagrees.
+
+    **A collision is escalated, never resolved.** When the target field already holds a
+    different value the fact is marked `conflict: true` with the value it collided with, stays
+    `pending`, and the answer is an `Escalation`; `canon/` and `cast/` are left byte-identical.
+    Both answers are `200`: an escalation is the operation working, not failing, and the
+    `outcome` field says which one arrived.
+
+    A fact that cannot be promoted at all -- its target entity or field does not exist, or the
+    field is not one a single string can fill -- is a `422` naming the field of the queued fact
+    that is wrong, and nothing is written.
+    """
+    return service.promote(store, fact_id, role=role, actor=actor)
+
+
+@router.post("/proposed/{id}/rule", summary="Rule on a proposed fact")
+def rule_on_fact(
+    fact_id: FactIdPath,
+    request: RuleRequest,
+    store: StoreDep,
+    role: RoleDep,
+    actor: ActorDep,
+) -> RulingApplied:
+    """IF-05, FR-OPS-07 (canoniser, `X-Actor: human`). The human gate on promotion.
+
+    `accept` promotes the fact despite a collision -- the human decided which of the two truths
+    the novel holds -- and `reject` marks it rejected. Either way the ruling, its reason and
+    its time are recorded on the fact, because the next reader needs to see who decided and
+    why, not merely that something did.
+
+    **An agent may not rule.** Without `X-Actor: human` the call is a `403` and nothing is
+    read or written: the orchestrator always sends `agent`, so this is what keeps it from
+    settling a collision on its own (AC 13).
+    """
+    return service.rule(store, fact_id, request.ruling, request.reason, role=role, actor=actor)
+
+
+__all__ = ["FactIdPath", "router"]

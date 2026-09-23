@@ -312,9 +312,10 @@ of mechanical findings, and it is narratively true — the surface debt is what 
 settling when she goes for the seal ring.
 
 The second thread, `th_graft`, is `resolved`. FR-AUD-08's population is `planted` and
-`developing` only, so a resolved thread is never late; and a resolved thread never enters a
-context. Set beside `th_surface_debt`, the exclusion is testable: assemble any scene and one
-thread is present, the other is not.
+`developing` only, so a resolved thread is never late. Set beside `th_surface_debt`, the
+exclusion is testable in the audit: the latency check sees one thread and not the other.
+Neither enters a writer's context: threads are the architect's input, not the writer's
+(Figure 3's `In` column; spec FR-OPS-03).
 
 ---
 
@@ -540,16 +541,18 @@ with the scene digests and with the arc digest.)
 ### Closed things leave the working tier
 
 Three exclusions, each with a live counterpart so the difference is a difference and not an
-absence:
+absence. Only the setups meet in the writer's assembled context; the other two pairs are read
+where Figure 3 sends them:
 
-| Closed, must be absent from an assembled context | Open, must be present |
-|---|---|
-| `su_graft` — paid in 004, `resolution: paid` | `su_readkey` — open, offered under a *may collect* label |
-| `th_graft` — `state: resolved` | `th_surface_debt` — `state: developing` |
-| `vi_001` — has a `resolution` | `vi_002` — `resolution: null` |
+| Closed, never used again | Open, still in the working tier | Where the open one is used |
+|---|---|---|
+| `su_graft` — paid in 004, `resolution: paid` | `su_readkey` — open | The writer's assembled context, under a *may collect* label (FR-OPS-03) |
+| `th_graft` — `state: resolved` | `th_surface_debt` — `state: developing` | The latency audit (FR-AUD-08) and the architect's planning; never a writer's context |
+| `vi_001` — has a `resolution` | `vi_002` — `resolution: null` | The writer's context only when scene 003 is **revised**: `revise` receives the blocking violations (FR-AGENT-02) |
 
-A test that assembles scene 003 or 006 and finds `vi_002` present and `vi_001` absent has
-proved the rule.
+A test that assembles any scene and finds `su_readkey` offered and `su_graft` absent, and no
+text from `ledger/threads.yaml` or `ledger/violations.yaml` in a write step's context, has
+proved the rule for the writer.
 
 ### The two prior violation reports — `ledger/violations.yaml`
 
@@ -571,7 +574,9 @@ status as the clean control. **The mechanical audit of 002 is still empty.**
 `resolution: null`, evidence `readkey`. It is the same finding the mechanical audit will
 report for planted row 6, written down as a prior report, so the fixture is self-consistent
 rather than contradicting its own checker. Because it is unresolved it stays in the working
-tier and *does* enter a context.
+tier: a revision of scene 003 receives it, since it is blocking (FR-AGENT-02). A first write
+of a scene never does — the writer's row in Figure 3 lists `ledger/violations.yaml` only on
+revision.
 
 ### Selection and assembly
 

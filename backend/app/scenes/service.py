@@ -24,20 +24,25 @@ the book. Those are canon consistency questions, which `reconcile` answers at pl
 Refusing them here would make the structure unwritable during the window in which a chapter
 is being added -- the architect would have to create the parts in an order nobody chose.
 
-Still to come: `select_entities` (FR-OPS-02) at plan step 11 and `assemble_context`
-(FR-OPS-03) at step 12. They are the load-bearing calls of this feature, and both read the
-record `save_scene` writes.
+`select_entities` (FR-OPS-02) and `assemble_context` (FR-OPS-03) live in `select.py` and
+`assemble.py` and are published here, because this module is the surface the orchestrator may
+import (NFR-04: a feature reaches another only through its `service` and `models`). They are
+the load-bearing calls of this feature, and both read the record `save_scene` writes.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+
+from app.commons.config import CONTEXT_TOKEN_CAP, Settings
+from app.commons.embeddings import Embedder
 from app.commons.errors import InvalidRecord
 from app.commons.permissions import Actor, AgentRole
-from app.commons.schemas import Scene
+from app.commons.schemas import Scene, SelectedEntity
 from app.commons.stores import Store
 from app.commons.stores.provenance import ProvenanceRecord
-from app.scenes import repository
-from app.scenes.models import ArcsFile, ChaptersFile
+from app.scenes import assemble, repository, select
+from app.scenes.models import ArcsFile, AssembledContext, ChaptersFile, Selection
 
 
 def _refuse_duplicate_ids(*, path: str, field: str, identifiers: list[str]) -> None:
@@ -67,6 +72,36 @@ def list_scenes(store: Store) -> list[str]:
 def read_scene(store: Store, identifier: str) -> Scene:
     """IF-03, `GET /scenes/{id}`."""
     return repository.read_scene(store, identifier)
+
+
+def select_entities(
+    store: Store,
+    embedder: Embedder,
+    settings: Settings,
+    identifier: str,
+    *,
+    limit: int = select.DEFAULT_LIMIT,
+) -> Selection:
+    """IF-05, `POST /scenes/{id}/select` (FR-OPS-02, AC 11). Ids, kinds and scores, never
+    text; the FR-IDX-08 update runs first. See `select.select_entities`."""
+    return select.select_entities(store, embedder, settings, identifier, limit=limit)
+
+
+def assemble_context(
+    store: Store,
+    identifier: str,
+    selected: Sequence[SelectedEntity],
+    *,
+    system: str = "",
+    instruction: str = "",
+    cap: int = CONTEXT_TOKEN_CAP,
+) -> AssembledContext:
+    """FR-OPS-03, FR-OPS-04, AC 12. The writer's documents for a scene, as of its story time,
+    in loading order and fitted to the cap with `system` and `instruction` counted. See
+    `assemble.assemble_context`."""
+    return assemble.assemble_context(
+        store, identifier, selected, system=system, instruction=instruction, cap=cap
+    )
 
 
 def read_arcs(store: Store) -> ArcsFile:
@@ -137,6 +172,7 @@ def save_chapters(
 
 
 __all__ = [
+    "assemble_context",
     "list_scenes",
     "read_arcs",
     "read_chapters",
@@ -144,4 +180,5 @@ __all__ = [
     "save_arcs",
     "save_chapters",
     "save_scene",
+    "select_entities",
 ]

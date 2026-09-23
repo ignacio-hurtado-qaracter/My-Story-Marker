@@ -1,22 +1,27 @@
-"""The local mirror of the semgrep boundary rules (plan decision P8).
+"""The AST mirror of the semgrep boundary rules (plan decision P8, amended by correction C10).
 
-`semgrep` does not run natively on Windows, and the developer is on Windows. The rules of
-record for AC 3, AC 13 and AC 17 are the YAML files under `backend/semgrep/` and they run in
-CI on Linux; this module implements the same three rules with the standard library `ast`
-module so they also run inside `pytest` on every platform.
+The rules of record for AC 3, AC 13 and AC 17 are the YAML files under `backend/semgrep/`.
+They run in the local gate (`semgrep` 1.177 installs and runs natively on Windows through
+`uvx`) and in CI; this module implements the same rules with the standard library `ast`
+module so they also run inside `pytest`, with no download, on every platform.
 
-**Both must pass, and a disagreement between them is a bug in this mirror.** The point of a
-mirror is that the local gate is not blind, not that it replaces the rule. Where the two
-could differ, this one is written to be the stricter.
+**Both must pass, and a disagreement between them is a bug in this mirror.** The two are held
+to one set of annotated fixtures, `semgrep/tests/<rule file>.py`: `semgrep --test` checks the
+YAML against them and `tests/test_boundaries_mirror.py` checks this module against the same
+lines. Where the two could still differ (a nested function inside `promote`, say), this one
+is written to be the stricter.
 
-The three rules:
+The rules:
 
 1. **forbidden-store-write** (AC 3) - no file primitive outside `app/commons/stores/`.
    FR-STORE-02. An import contract can see that a module imported `pathlib`; it cannot see
    what path the module then opened, which is why this check exists at all.
 2. **canon-write-outside-promote** (AC 13) - nothing under `ledger/` or `agents/` writes
    canon except `promote` and `rule`. `promote` is the only write path into canon during
-   drafting, and a collision is escalated to a human rather than resolved silently.
+   drafting, and a collision is escalated to a human rather than resolved silently. Outside
+   those two functions a store write must name its path as a literal, an UPPER_CASE constant
+   or a direct `paths.<helper>(...)` call, none of them canon or cast, and the canon and cast
+   services' write functions may not be called.
 3. **store-path-built-by-hand** (AC 3, FR-STORE-05) - no feature builds a store path by
    interpolation or concatenation. Paths derive from identifiers inside the store layer, so an
    id that would escape the root, or that fails its grammar, is rejected before it can become
@@ -34,6 +39,7 @@ Run it directly for a report, or let `tests/test_boundaries_mirror.py` run it:
 from __future__ import annotations
 
 import ast
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -58,14 +64,28 @@ Figure 3 and no agent reads it (Decision R2-1).
 
 The exemption is coarse, and that is a real limit rather than an oversight: this rule matches
 file primitives by name and cannot see which path they are applied to, so a module allowed to
-touch `.index/` is allowed to touch anything. The narrower guarantee comes from elsewhere --
-`import-linter` keeps these modules out of the features, and none of them imports
-`commons.stores.paths`, so they have no way to build a store path in the first place."""
+touch `.index/` is allowed to touch anything. The narrower guarantee comes from elsewhere:
+`import-linter` keeps the two `commons` owners out of the features, and the one that reads
+the tree to build rows (`commons/db/rebuild.py`) reads it through `Store`, whose path helpers
+it imports for exactly that; the two `agents` owners hold no `Store` at all."""
+
+TEMPORARY_FILE_WRITERS = ("app/commons/llm/claude_code_client.py",)
+"""The one module outside the store layer that writes a file which is neither a store path nor
+under `.index/`: the model client writes the role's system prompt into a fresh temporary
+directory, because the Claude Code CLI takes it through `--system-prompt-file` (spec FR-LLM-05,
+plan step 15). A temporary file is not a store path, like `.index/`.
+
+Exempted by file, not by package, and mirrored in `semgrep/forbidden-store-write.yaml`: the
+rest of `commons/llm/` -- the fake, the protocol, the estimator -- stays under the rule. The
+same limit as `INDEX_WRITERS` applies (the rule sees primitives, not paths); the narrower
+guarantee is that `commons.llm` may not import `commons.stores` (the internal layers contract),
+so it has no way to build a store path."""
 
 STORE_FAMILIES = ("canon", "cast", "structure", "scenes", "manuscript", "ledger")
 
 MUTATING_METHODS = frozenset(
     {
+        "open",
         "write_text",
         "write_bytes",
         "unlink",
@@ -100,9 +120,41 @@ MUTATING_FUNCTIONS = frozenset(
     }
 )
 
-PROMOTE_FUNCTIONS = frozenset({"promote", "rule", "reconcile"})
+PROMOTE_FUNCTIONS = frozenset({"promote", "rule"})
 """AC 13. The only functions under `ledger/` that may reach canon, and `rule` only ever runs
-with `actor: human` behind it (FR-OPS-07)."""
+with `actor: human` behind it (FR-OPS-07). `reconcile` is not among them: it reads and never
+writes (FR-OPS-08), so it needs no exemption and gets none."""
+
+CANON_RULE_SCOPE = ("app/ledger", "app/agents")
+CANON_RULE_EXEMPT = ("app/agents/records.py", "app/agents/lock.py")
+"""The `.index/` owners hold no `Store` and write no store file; their file writes are rule 1's
+business, and the semgrep rule excludes them by the same names."""
+
+STORE_WRITES = frozenset({"write", "write_text"})
+
+CANON_PATH_NAMES = frozenset(
+    {
+        "canon_entity",
+        "canon_dir",
+        "cast_file",
+        "cast_dir",
+        "CANON",
+        "CAST",
+        "PROJECT",
+        "STYLE",
+        "LEXICON",
+        "TIME",
+        "RELATIONSHIPS",
+    }
+)
+"""The `app.commons.stores.paths` helpers and constants that name a canon or cast path."""
+
+CANON_SERVICES = ("app.canon.service", "app.cast.service")
+SERVICE_WRITE = re.compile(r"(?:replace|save)_\w*")
+"""The owning features' write functions (`replace_entity`, `save_dossier`, ...)."""
+
+CONSTANT = re.compile(r"[A-Z][A-Z0-9_]*")
+PATH_HELPER = re.compile(r"[a-z_]+")
 
 
 @dataclass(frozen=True)
@@ -140,6 +192,7 @@ def check_forbidden_store_write(relative: str, tree: ast.Module) -> list[Finding
     if (
         relative.startswith(STORE_LAYER)
         or relative.startswith(INDEX_WRITERS)
+        or relative in TEMPORARY_FILE_WRITERS
         or _is_test(relative)
     ):
         return []
@@ -186,40 +239,146 @@ def check_forbidden_store_write(relative: str, tree: ast.Module) -> list[Finding
     return findings
 
 
+def _path_argument(call: ast.Call) -> ast.expr | None:
+    """The path a store write is aimed at: its first positional argument or `path=`."""
+    if call.args:
+        return call.args[0]
+    for keyword in call.keywords:
+        if keyword.arg == "path":
+            return keyword.value
+    return None
+
+
+def _is_paths_module(node: ast.expr) -> bool:
+    return (isinstance(node, ast.Name) and node.id == "paths") or (
+        isinstance(node, ast.Attribute) and node.attr == "paths"
+    )
+
+
+def _names_canon(path: ast.expr) -> bool:
+    """A literal `canon/...` or `cast/...`, or any mention of a canon or cast path helper."""
+    literal = _string_of(path)
+    if literal is not None and literal.split("/")[0] in {"canon", "cast"}:
+        return True
+    return any(
+        isinstance(node, ast.Attribute)
+        and node.attr in CANON_PATH_NAMES
+        and _is_paths_module(node.value)
+        for node in ast.walk(path)
+    )
+
+
+def _is_dotted_constant(node: ast.expr) -> bool:
+    """`PROPOSED_PATH` or `repository.PROPOSED_PATH`: an UPPER_CASE name, however qualified."""
+    if isinstance(node, ast.Name):
+        return CONSTANT.fullmatch(node.id) is not None
+    if isinstance(node, ast.Attribute) and CONSTANT.fullmatch(node.attr):
+        value = node.value
+        while isinstance(value, ast.Attribute):
+            value = value.value
+        return isinstance(value, ast.Name)
+    return False
+
+
+def _has_a_checkable_shape(path: ast.expr) -> bool:
+    """A literal, a constant or a direct `paths.<helper>(...)` call: a path whose target can
+    be read off the source. Anything else -- a variable, an attribute of an object, an
+    f-string -- cannot be shown not to be canon."""
+    if _string_of(path) is not None or _is_dotted_constant(path):
+        return True
+    return (
+        isinstance(path, ast.Call)
+        and isinstance(path.func, ast.Attribute)
+        and isinstance(path.func.value, ast.Name)
+        and path.func.value.id == "paths"
+        and PATH_HELPER.fullmatch(path.func.attr) is not None
+    )
+
+
+def _service_writers(tree: ast.Module) -> tuple[set[str], set[str]]:
+    """How this module can reach the canon and cast services' write functions: the local
+    names bound to either service module, and the write functions imported by name."""
+    modules: set[str] = set()
+    functions: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name in CANON_SERVICES:
+                    modules.add(alias.asname or alias.name)
+        elif isinstance(node, ast.ImportFrom) and node.module:
+            for alias in node.names:
+                if f"{node.module}.{alias.name}" in CANON_SERVICES:
+                    modules.add(alias.asname or alias.name)
+                elif node.module in CANON_SERVICES and SERVICE_WRITE.fullmatch(alias.name):
+                    functions.add(alias.asname or alias.name)
+    return modules, functions
+
+
+def _dotted(node: ast.expr) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        head = _dotted(node.value)
+        return None if head is None else f"{head}.{node.attr}"
+    return None
+
+
+def _calls_a_service_writer(call: ast.Call, modules: set[str], functions: set[str]) -> bool:
+    target = call.func
+    if isinstance(target, ast.Name):
+        return target.id in functions
+    if isinstance(target, ast.Attribute) and SERVICE_WRITE.fullmatch(target.attr):
+        return _dotted(target.value) in modules
+    return False
+
+
 def check_canon_write_outside_promote(relative: str, tree: ast.Module) -> list[Finding]:
     """Rule 2, AC 13.
 
-    Looks for a call to a store write whose path argument mentions `canon/` or `cast/` from a
-    module under `ledger/` or `agents/`, outside `promote`, `rule` and `reconcile`.
+    Outside `promote` and `rule`, in a module under `ledger/` or `agents/`, refuses three
+    shapes: a store write whose path names canon or cast; a store write whose path cannot be
+    shown not to (see `_has_a_checkable_shape`); and a call to the canon or cast service's
+    write functions. The second is what makes the rule bite: `promote` itself writes canon
+    through a variable (`target.path`), so a rule that only recognised canon spellings would
+    miss the very shape a quiet second promotion path would take.
     """
-    if not relative.startswith(("app/ledger", "app/agents")):
+    if not relative.startswith(CANON_RULE_SCOPE) or relative in CANON_RULE_EXEMPT:
         return []
     if _is_test(relative):
         return []
 
     owners = _enclosing_functions(tree)
+    modules, functions = _service_writers(tree)
     findings: list[Finding] = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
             continue
-        target = node.func
-        if not (isinstance(target, ast.Attribute) and target.attr in {"write", "write_text"}):
-            continue
         enclosing = owners.get(node.lineno, "<module>")
         if enclosing in PROMOTE_FUNCTIONS:
             continue
-        for argument in [*node.args, *(keyword.value for keyword in node.keywords)]:
-            literal = _string_of(argument)
-            if literal and literal.startswith(("canon/", "cast/")):
-                findings.append(
-                    Finding(
-                        "canon-write-outside-promote",
-                        relative,
-                        node.lineno,
-                        f"write to {literal!r} in {enclosing}(); canon is written only by "
-                        "promote() and rule(), and a collision is escalated to a human",
-                    )
+        reason: str | None = None
+        target = node.func
+        if isinstance(target, ast.Attribute) and target.attr in STORE_WRITES:
+            path = _path_argument(node)
+            if path is not None and _names_canon(path):
+                reason = f"store write to canon or cast ({ast.unparse(path)})"
+            elif path is not None and not _has_a_checkable_shape(path):
+                reason = (
+                    f"store write to {ast.unparse(path)}, which cannot be shown not to be "
+                    "canon; pass a literal, an UPPER_CASE constant or a paths helper call"
                 )
+        elif _calls_a_service_writer(node, modules, functions):
+            reason = f"call to the canon or cast service's {ast.unparse(target)}()"
+        if reason is not None:
+            findings.append(
+                Finding(
+                    "canon-write-outside-promote",
+                    relative,
+                    node.lineno,
+                    f"{reason} in {enclosing}(); canon is written only by promote() and "
+                    "rule(), and a collision is escalated to a human",
+                )
+            )
     return findings
 
 

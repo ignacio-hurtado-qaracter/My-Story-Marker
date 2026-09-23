@@ -129,6 +129,204 @@
         "title": "ArcsFile",
         "type": "object"
       },
+      "AssembledContext": {
+        "description": "FR-OPS-03, IF-05. The writer's documents for one scene, as of the scene's instant.\n\n`entries` is in loading order: the fixed block, the POV's dossier, the previous scene's\ntail, then the prunable part -- terms bound to the POV, the selected entities in ranking\norder, the open setups. What did not fit is named in `removed`, first entry removed in\n`truncated_at`; nothing is ever cut inside an entry. `estimate` counts the caller's\nsystem prompt and instruction too, because the cap is over the whole call (FR-CTX-01).",
+        "properties": {
+          "cap": {
+            "description": "The cap the context was fitted to.",
+            "minimum": 0.0,
+            "title": "Cap",
+            "type": "integer"
+          },
+          "entries": {
+            "description": "What the writer receives, in order.",
+            "items": {
+              "$ref": "#/components/schemas/ContextEntry"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "estimate": {
+            "description": "FR-CTX-02's estimate of the call: system prompt, every kept entry and instruction. Never the CLI's own overhead (R3-5).",
+            "minimum": 0.0,
+            "title": "Estimate",
+            "type": "integer"
+          },
+          "fixed_block_tokens": {
+            "description": "The estimate of the fixed block alone, against FR-OPS-04's 800.",
+            "minimum": 0.0,
+            "title": "Fixed Block Tokens",
+            "type": "integer"
+          },
+          "literal_tail": {
+            "$ref": "#/components/schemas/TailState",
+            "description": "Whether the previous scene's tail was loaded, and if not why not."
+          },
+          "pov": {
+            "description": "Its POV, loaded unconditionally as its as-of dossier.",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "title": "Pov",
+            "type": "string"
+          },
+          "previous_scene": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{3}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The scene before this one in discourse order, or null for the first.",
+            "title": "Previous Scene"
+          },
+          "removed": {
+            "description": "Keys of the prunable entries that did not fit, in rank order: the entry named in `truncated_at` and every one ranked after it (FR-CTX-03).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Removed",
+            "type": "array"
+          },
+          "scene": {
+            "description": "The scene assembled for.",
+            "pattern": "^\\d{3}$",
+            "title": "Scene",
+            "type": "string"
+          },
+          "selected": {
+            "description": "The selected list the context was assembled from, as received. The turn record persists this list and the auditor reads it back (FR-OPS-05).",
+            "items": {
+              "$ref": "#/components/schemas/SelectedEntity"
+            },
+            "title": "Selected",
+            "type": "array"
+          },
+          "story_time": {
+            "description": "T, the instant every as-of form is read at: the scene's `story_time`.",
+            "title": "Story Time",
+            "type": "integer"
+          },
+          "truncated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The first prunable entry that would have crossed the cap, or null when everything fit.",
+            "title": "Truncated At"
+          },
+          "warnings": {
+            "description": "`fixed_block_over_budget` when the fixed block exceeds 800 tokens (FR-OPS-04); the context is still assembled.",
+            "items": {
+              "$ref": "#/components/schemas/AssemblyWarning"
+            },
+            "title": "Warnings",
+            "type": "array"
+          },
+          "withheld": {
+            "description": "Selected entities whose as-of form excludes them at this instant.",
+            "items": {
+              "$ref": "#/components/schemas/WithheldEntity"
+            },
+            "title": "Withheld",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scene",
+          "pov",
+          "story_time",
+          "previous_scene",
+          "literal_tail",
+          "selected",
+          "entries",
+          "removed",
+          "truncated_at",
+          "withheld",
+          "estimate",
+          "cap",
+          "fixed_block_tokens",
+          "warnings"
+        ],
+        "title": "AssembledContext",
+        "type": "object"
+      },
+      "AssemblyWarning": {
+        "description": "FR-OPS-04. A warning is carried on the response, never raised: the call still runs.",
+        "enum": [
+          "fixed_block_over_budget"
+        ],
+        "title": "AssemblyWarning",
+        "type": "string"
+      },
+      "AuditReport": {
+        "additionalProperties": false,
+        "description": "IF-05, `POST /scenes/{id}/audit`. The audit of one scene. Reports; does not repair.",
+        "properties": {
+          "checked": {
+            "description": "The checks that ran. The absence of a violation vouches for these and nothing else.",
+            "items": {
+              "$ref": "#/components/schemas/CheckRef"
+            },
+            "title": "Checked",
+            "type": "array"
+          },
+          "persisted": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProvenanceRecord"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The write to `ledger/violations.yaml`, when `persist=true` was requested under the auditor role; empty when nothing was written."
+          },
+          "scene": {
+            "description": "The scene audited.",
+            "pattern": "^\\d{3}$",
+            "title": "Scene",
+            "type": "string"
+          },
+          "semantic": {
+            "description": "Whether the model-backed half (FR-AUD-09) was requested. When it was and did not run, its invariants are listed in `skipped`.",
+            "title": "Semantic",
+            "type": "boolean"
+          },
+          "skipped": {
+            "description": "The checks that did not run, and why.",
+            "items": {
+              "$ref": "#/components/schemas/SkippedCheck"
+            },
+            "title": "Skipped",
+            "type": "array"
+          },
+          "violations": {
+            "description": "Every finding, mechanical checks in FR-AUD order, each with a deterministic id so a persisted re-run recognises its own findings.",
+            "items": {
+              "$ref": "#/components/schemas/Violation"
+            },
+            "title": "Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scene",
+          "semantic",
+          "violations",
+          "checked",
+          "skipped"
+        ],
+        "title": "AuditReport",
+        "type": "object"
+      },
       "Axiom": {
         "additionalProperties": false,
         "description": "DR-01, DR-02, DR-10. One rule of the universe: `canon/axioms/<id>.md`.\n\nIn science fiction this is the highest-leverage record in the ontology, and invariant 6\nis stated over it: no scene violates an axiom selected for its context. \"Selected\" is\nexact - the axioms in force for a scene are the ones the turn recorded, whether pinned\nthrough the scene's `tags` or retrieved by `select_entities` - and `scope` is the set\na scene's `tags` intersect to pin this one in.\n\n**Failure mode** (`definitions.md` Axiom), in two halves. An axiom with no declared\n`consequences` is the origin of most plot holes: the rule is stated once, nobody derives\nwhat it forbids, and three hundred pages later something impossible happens that no check\ncan name. And an axiom that declares the capability while forgetting the limit drains the\ntension from every scene it touches, because a rule that only permits creates no\nobstacle. `consequences`, `exceptions` and `cost` are what make the rule cost something;\n`exceptions` is closed and enumerated, or they are not exceptions.",
@@ -579,6 +777,117 @@
         "title": "Character",
         "type": "object"
       },
+      "CheckRef": {
+        "additionalProperties": false,
+        "description": "One check of the audit, named by its FR-AUD row, its invariant and its half.",
+        "properties": {
+          "check": {
+            "description": "The spec row: `FR-AUD-01` ... `FR-AUD-08` for the mechanical checks, `FR-AUD-09` for the model-backed half.",
+            "title": "Check",
+            "type": "string"
+          },
+          "invariant": {
+            "description": "The domain invariant of `definitions.md` served.",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Invariant",
+            "type": "integer"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ViolationSource",
+            "description": "The half that runs it, as DR-07 `source` names it: `mechanical` or `model`. A finding with this source can only come from a check listed as run."
+          }
+        },
+        "required": [
+          "check",
+          "invariant",
+          "source"
+        ],
+        "title": "CheckRef",
+        "type": "object"
+      },
+      "ContextEntry": {
+        "description": "One indivisible document of the writer's context: kept whole or removed whole.\n\n`text` is exactly what the writer receives, label first, and `tokens` is FR-CTX-02's\nestimate of it. `path` is the store path the entry is read from and labels the document\nin the prompt; `sources` is every store path whose content the text carries, `path`\nfirst. They differ only for an entry that folds several records into one: a dossier (the\nfour cast files), a location with its parent chain, an entity with the terms bound to it.",
+        "properties": {
+          "carries": {
+            "description": "The entities the text loads, as `kind:id`: the entry's own, then the parent chain or the bound terms folded into it. Empty for the fixed block and the tail, which are not entities.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Carries",
+            "type": "array"
+          },
+          "key": {
+            "description": "Unique within the context. `kind:id` for an entity (`axiom:ax_brine_dark`, `character:vance`, `setup:su_readkey`), the store path for the fixed block and the tail. The names in `removed` and `truncated_at` are these keys.",
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "description": "The heading the writer reads above the record: what it is, as of when, and for a digest or a setup how it may be used (not witnessed; may collect).",
+            "title": "Label",
+            "type": "string"
+          },
+          "mandatory": {
+            "description": "True for the fixed block, the POV dossier and the tail (FR-CTX-03). Pruning never removes a mandatory entry; if they alone do not fit the call is refused with `ContextBudgetExceeded` (FR-CTX-05).",
+            "title": "Mandatory",
+            "type": "boolean"
+          },
+          "part": {
+            "$ref": "#/components/schemas/ContextPart",
+            "description": "The block of Figure 2 the entry belongs to."
+          },
+          "path": {
+            "description": "The store path the entry is read from.",
+            "title": "Path",
+            "type": "string"
+          },
+          "sources": {
+            "description": "Every store path whose content the text carries, `path` first. Each is checked against the writer's `INPUT_TABLE` row before the call (FR-AGENT-09).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "text": {
+            "description": "What the writer receives: the label, then the record.",
+            "title": "Text",
+            "type": "string"
+          },
+          "tokens": {
+            "description": "FR-CTX-02's estimate of `text`.",
+            "minimum": 0.0,
+            "title": "Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "part",
+          "label",
+          "path",
+          "sources",
+          "carries",
+          "mandatory",
+          "text",
+          "tokens"
+        ],
+        "title": "ContextEntry",
+        "type": "object"
+      },
+      "ContextPart": {
+        "description": "Which of Figure 2's blocks an entry belongs to, in the order they are loaded.\n\nThe first three are the mandatory part of the writer's input (FR-CTX-03): the fixed\nblock, the POV's as-of dossier and the previous scene's tail. The last three are the\nprunable part, removed whole from the end when the estimate would cross the cap.",
+        "enum": [
+          "fixed",
+          "pov",
+          "literal_tail",
+          "lexicon",
+          "selected",
+          "setup"
+        ],
+        "title": "ContextPart",
+        "type": "string"
+      },
       "DatedValence": {
         "additionalProperties": false,
         "description": "DR-08. One reading of an edge, anchored to the scene that produced it.\n\nThe anchor is a scene rather than a story time for the same reason `KnowledgeState`\nanchors to one: scenes are re-dated on the story axis during planning, and a valence\nthat carried its own timestamp would quietly stop agreeing with the scene it came from.",
@@ -602,6 +911,65 @@
           "value"
         ],
         "title": "DatedValence",
+        "type": "object"
+      },
+      "DependencyEdge": {
+        "description": "One reason, with the detail that makes it checkable against the files.",
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/DependencyReason",
+            "description": "Which kind of reference this is."
+          },
+          "detail": {
+            "description": "The specifics: which location the ancestor was reached through, which tags matched the scope, which character acquired knowledge, which turn selected it.",
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "detail"
+        ],
+        "title": "DependencyEdge",
+        "type": "object"
+      },
+      "DependencyReason": {
+        "description": "Why a scene or a turn depends on the entity. One value per edge FR-OPS-08 names.\n\nA code rather than a sentence, because the consumer is the orchestrator (plan step 18) as\nmuch as a person: a turn record that says `location_ancestor` can be filtered, and one that\nsays \"set somewhere inside it\" cannot.",
+        "enum": [
+          "pov",
+          "participant",
+          "location",
+          "location_ancestor",
+          "pinned",
+          "tag_scope",
+          "knowledge",
+          "selected"
+        ],
+        "title": "DependencyReason",
+        "type": "string"
+      },
+      "Dependent": {
+        "description": "One scene or turn that depends on the entity, with every reason, deduplicated.\n\nOne entry per id rather than one per reason: a scene that has the entity as POV *and* in\nits pins is one scene to re-read, and listing it twice would make the count of affected\nwork -- the number a late decision is weighed by -- wrong.",
+        "properties": {
+          "id": {
+            "description": "The scene id (`NNN`) or the turn record id (`NNN-<n>`).",
+            "title": "Id",
+            "type": "string"
+          },
+          "reasons": {
+            "description": "Every distinct reason, sorted by code then detail. Never empty.",
+            "items": {
+              "$ref": "#/components/schemas/DependencyEdge"
+            },
+            "title": "Reasons",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "reasons"
+        ],
+        "title": "Dependent",
         "type": "object"
       },
       "DigestLevel": {
@@ -654,6 +1022,67 @@
           "body"
         ],
         "title": "Draft",
+        "type": "object"
+      },
+      "Escalation": {
+        "description": "FR-OPS-06. The target already holds a different value, and nothing was overwritten.\n\n**Failure mode** (`architecture.md` ProposedFact): automatic promotion with no review. A\ncollision is exactly the place a machine would have to guess which of two truths the novel\nholds, and a canoniser that guessed would fill canon with improvised noise until nobody\nconsulted it. So the collision is recorded on the fact -- `conflict: true`, `existing_value`\n-- and handed to a human, who settles it with `rule` (FR-OPS-07). `canon/` and `cast/` are\nbyte-identical after an escalation; `writes` holds at most the one line for\n`ledger/proposed.yaml`, and none when the collision was already on record.",
+        "properties": {
+          "existing_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "What the target holds instead, as recorded on the fact. For a mapping field it is written `key: value`, the same shape as the payload, so the two can be compared side by side.",
+            "title": "Existing Value"
+          },
+          "fact": {
+            "$ref": "#/components/schemas/ProposedFact",
+            "description": "The queue entry as it now stands on disk."
+          },
+          "outcome": {
+            "const": "escalation",
+            "default": "escalation",
+            "description": "Discriminator: the fact collided and waits for a human ruling.",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "payload": {
+            "description": "What the fact asserts, verbatim.",
+            "title": "Payload",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why the fact was not promoted, in one sentence.",
+            "title": "Reason",
+            "type": "string"
+          },
+          "target_path": {
+            "description": "The store file the payload would have gone into.",
+            "title": "Target Path",
+            "type": "string"
+          },
+          "writes": {
+            "description": "The provenance line for `ledger/proposed.yaml` when the collision was recorded by this call; empty when it was already on record.",
+            "items": {
+              "$ref": "#/components/schemas/ProvenanceRecord"
+            },
+            "title": "Writes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "fact",
+          "target_path",
+          "payload",
+          "existing_value",
+          "reason",
+          "writes"
+        ],
+        "title": "Escalation",
         "type": "object"
       },
       "Evidence": {
@@ -968,6 +1397,166 @@
           "body"
         ],
         "title": "HistoricalEvent",
+        "type": "object"
+      },
+      "IndexReport": {
+        "description": "`POST /index/rebuild`, and what an incremental update did.",
+        "properties": {
+          "embedded": {
+            "description": "Texts sent to the embedder. FR-IDX-08: only rows whose hash changed.",
+            "title": "Embedded",
+            "type": "integer"
+          },
+          "embedding_model": {
+            "description": "The model recorded in the index metadata.",
+            "title": "Embedding Model",
+            "type": "string"
+          },
+          "mode": {
+            "description": "`rebuild` when every row was rewritten, `incremental` otherwise.",
+            "enum": [
+              "rebuild",
+              "incremental"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why a rebuild ran: `requested` for `POST /index/rebuild`, or the FR-IDX-07 condition that forced one during an update. Null for an incremental update.",
+            "title": "Reason"
+          },
+          "removed": {
+            "description": "Rows deleted because their record left the tree.",
+            "title": "Removed",
+            "type": "integer"
+          },
+          "rows": {
+            "description": "Rows in the index afterwards.",
+            "title": "Rows",
+            "type": "integer"
+          },
+          "vector": {
+            "description": "Whether embeddings were written (FR-IDX-03).",
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Vector",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "reason",
+          "rows",
+          "embedded",
+          "removed",
+          "embedding_model",
+          "vector"
+        ],
+        "title": "IndexReport",
+        "type": "object"
+      },
+      "IndexStatus": {
+        "description": "`GET /index/status`. What a person needs to decide whether to rebuild.",
+        "properties": {
+          "embedding_dim": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The dimension recorded with it.",
+            "title": "Embedding Dim"
+          },
+          "embedding_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The model the index was last built with (FR-IDX-07); null if never built.",
+            "title": "Embedding Model"
+          },
+          "kinds": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Row count per kind.",
+            "title": "Kinds",
+            "type": "object"
+          },
+          "migrations": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "`schema_migrations`: each migration and whether it was applied or skipped.",
+            "title": "Migrations",
+            "type": "object"
+          },
+          "orphans": {
+            "description": "Rows whose `path` no longer exists in the tree (FR-IDX-07). An index entry with no backing record is a bug; AC 6 asserts this is zero after a rebuild.",
+            "title": "Orphans",
+            "type": "integer"
+          },
+          "rebuild_required": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the next update will rebuild instead of updating incrementally, as far as can be told without loading the embedding model; null when nothing is known.",
+            "title": "Rebuild Required"
+          },
+          "rows": {
+            "description": "Rows in the entity index.",
+            "title": "Rows",
+            "type": "integer"
+          },
+          "vector": {
+            "description": "FR-IDX-03. `available` when `sqlite-vec` loads and the vector table exists; otherwise selection is FTS5-only.",
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Vector",
+            "type": "string"
+          },
+          "vector_rows": {
+            "description": "Rows holding an embedding; 0 without `sqlite-vec`.",
+            "title": "Vector Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "orphans",
+          "kinds",
+          "embedding_model",
+          "embedding_dim",
+          "vector",
+          "vector_rows",
+          "rebuild_required",
+          "migrations"
+        ],
+        "title": "IndexStatus",
         "type": "object"
       },
       "KindIndex": {
@@ -1335,6 +1924,48 @@
         "title": "Project",
         "type": "object"
       },
+      "Promoted": {
+        "description": "FR-OPS-06. The fact is canon now: its payload is in the target record, or already was.\n\n`changed` tells the two apart, because they are different events for everyone downstream.\n`changed: true` means bytes under `canon/` or `cast/` moved and `reconcile` has something to\nlook for (plan step 18 runs it on every promoted target); `changed: false` means canon\nalready said this -- an equal scalar, a list that already held the item, a mapping key that\nalready had the value -- and only the queue entry was settled.\n\n`writes` is every provenance line the operation appended, in the order the writes landed:\nthe target record first, `ledger/proposed.yaml` second. A reader of the log can therefore\nmatch a promotion to exactly the lines it produced (FR-STORE-04).",
+        "properties": {
+          "changed": {
+            "description": "True when the target record was rewritten; false when it already held the payload and only the queue entry was settled.",
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "fact": {
+            "$ref": "#/components/schemas/ProposedFact",
+            "description": "The queue entry as it now stands on disk."
+          },
+          "outcome": {
+            "const": "promoted",
+            "default": "promoted",
+            "description": "Discriminator: the fact was promoted. The other answer is `escalation`.",
+            "title": "Outcome",
+            "type": "string"
+          },
+          "target_path": {
+            "description": "The store file the payload was promoted into.",
+            "title": "Target Path",
+            "type": "string"
+          },
+          "writes": {
+            "description": "The provenance lines this promotion appended, in the order they landed.",
+            "items": {
+              "$ref": "#/components/schemas/ProvenanceRecord"
+            },
+            "title": "Writes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "fact",
+          "target_path",
+          "changed",
+          "writes"
+        ],
+        "title": "Promoted",
+        "type": "object"
+      },
       "ProposedAppend": {
         "additionalProperties": false,
         "description": "The body of `POST /ledger/proposed`: the facts to add, and nothing about the file.\n\nDeliberately not a `ProposedFile`. That model carries `schema_version` and means *the whole\nqueue*, and a body shaped like the file is a body a caller will eventually fill with the\nfile -- at which point an append silently becomes a replace and FR-TURN-03's earlier\nproposals are gone with no error anywhere. A distinct model makes the two impossible to\nconfuse, in the code and in the committed OpenAPI document (IF-08).\n\nUnknown fields are refused rather than ignored: a caller that sent `fact` for `facts` would\notherwise get a 422 for a missing key, but a caller that sent an extra key beside a valid\none would be told nothing at all.",
@@ -1528,6 +2159,70 @@
         "title": "ProvenanceRecord",
         "type": "object"
       },
+      "ReconcileRequest": {
+        "additionalProperties": false,
+        "description": "The body of `POST /canon/reconcile`. Unknown fields are refused rather than ignored.",
+        "properties": {
+          "entity_id": {
+            "description": "The entity that changed: a canon entity of any kind, a character, or a lexicon term.",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "title": "Entity Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "entity_id"
+        ],
+        "title": "ReconcileRequest",
+        "type": "object"
+      },
+      "Reconciliation": {
+        "description": "FR-OPS-08. Which written work depended on the entity, so a late decision does not force\na re-read of the entire book.\n\n`architecture.md` Operations: \"Without this operation, every late decision forces a re-read\nof the entire book, which in practice means late decisions stop being made.\" The answer is\ndeliberately a **superset** (AC 14): an extra scene costs one re-read, while a missed one\nis a contradiction nobody is told about, so every ambiguous edge is resolved towards\ninclusion.",
+        "properties": {
+          "defined_in": {
+            "description": "The store files that define it, sorted. More than one means two records claim the id, which is itself worth knowing before deciding anything.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Defined In",
+            "type": "array"
+          },
+          "entity_id": {
+            "description": "The entity reconciled.",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "scenes": {
+            "description": "Every scene that references the entity, sorted by scene id.",
+            "items": {
+              "$ref": "#/components/schemas/Dependent"
+            },
+            "title": "Scenes",
+            "type": "array"
+          },
+          "turns": {
+            "description": "Every turn record whose selected list contains it, sorted by turn id.",
+            "items": {
+              "$ref": "#/components/schemas/Dependent"
+            },
+            "title": "Turns",
+            "type": "array"
+          }
+        },
+        "required": [
+          "entity_id",
+          "defined_in",
+          "scenes",
+          "turns"
+        ],
+        "title": "Reconciliation",
+        "type": "object"
+      },
       "Relationship": {
         "additionalProperties": false,
         "description": "DR-08. What one character feels towards another, and how that has moved.\n\n**Directed on purpose.** A can trust B while B despises A, and that asymmetry is not an\ninconvenience to be averaged away - it is dramatic material, and often the engine of a\nwhole subplot. A symmetric edge would make the two indistinguishable. Two rows are\nwritten when the feeling runs both ways, and they are free to disagree.\n\n**Failure mode: a single valence value instead of a dated series.** A scalar answers\n\"do they get on?\" and nothing else. It cannot answer \"where were they at chapter\nnineteen?\", so there is no queryable evolution, and relationships flatten into fixed\ndispositions - which is precisely what a novel is not about. The dated list is what\nmakes a betrayal legible as a movement rather than an inconsistency.\n\n**FR-OPS-01.** `dossier(character, at=T)` takes the latest entry in `valence` whose\nscene has `story_time <= T`, and nothing later appears. `shared_history` and `unspoken`\nare not dated, so they are read as standing context: `unspoken` in particular is what\nthe pair never say to each other, which by construction has no scene to be dated from.",
@@ -1574,6 +2269,42 @@
           "to"
         ],
         "title": "Relationship",
+        "type": "object"
+      },
+      "RelationshipAsOf": {
+        "additionalProperties": false,
+        "description": "FR-OPS-01. One outgoing edge of the character, read at the instant of the dossier.\n\n`valence` is a single reading, not the series: the latest one whose scene has\n`story_time <= at`. Handing the writer the series would hand it the later readings too,\nand a valence of -3 dated after the scene tells the writer how the pair ends up - which\nis the future fact the trim exists to withhold, in its most tempting form.\n\n`shared_history` and `unspoken` carry no date, and `Relationship` in\n`commons.schemas.relationship` already rules that they are read as standing context. They\ntravel only on an edge that has a reading at or before `at`: an edge whose first reading\nis later is a relationship that has not started yet, and its history would be the first\nthing to leak.",
+        "properties": {
+          "shared_history": {
+            "description": "Events both remember, possibly differently; standing context, undated.",
+            "title": "Shared History",
+            "type": "string"
+          },
+          "to": {
+            "description": "The character the feeling is directed at; the edge is never symmetric.",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "title": "To",
+            "type": "string"
+          },
+          "unspoken": {
+            "description": "What is between them and never gets said; standing context, undated.",
+            "title": "Unspoken",
+            "type": "string"
+          },
+          "valence": {
+            "$ref": "#/components/schemas/DatedValence",
+            "description": "The latest reading dated at or before `at`, on the story axis."
+          }
+        },
+        "required": [
+          "to",
+          "valence",
+          "shared_history",
+          "unspoken"
+        ],
+        "title": "RelationshipAsOf",
         "type": "object"
       },
       "RelationshipsFile": {
@@ -1629,6 +2360,29 @@
         "title": "RolePermissions",
         "type": "object"
       },
+      "RuleRequest": {
+        "additionalProperties": false,
+        "description": "The body of `POST /ledger/proposed/{id}/rule` (FR-OPS-07).\n\n`reason` is required and non-empty because `Ruling.reason` is: a ruling without one is\nunreviewable, and the record of *why* something was refused is what stops the same\ninvention being proposed and argued about again twenty scenes later. Unknown fields are\nrefused rather than ignored, as on every request body in this feature.",
+        "properties": {
+          "reason": {
+            "description": "Why. Recorded on the fact beside who ruled and when; blanks are refused.",
+            "minLength": 1,
+            "pattern": "\\S",
+            "title": "Reason",
+            "type": "string"
+          },
+          "ruling": {
+            "$ref": "#/components/schemas/RulingKind",
+            "description": "`accept` promotes the fact despite a collision; `reject` marks it rejected and leaves canon as it is."
+          }
+        },
+        "required": [
+          "ruling",
+          "reason"
+        ],
+        "title": "RuleRequest",
+        "type": "object"
+      },
       "Ruling": {
         "additionalProperties": false,
         "description": "DR-07, FR-OPS-07. The human decision recorded on a proposed fact.",
@@ -1646,8 +2400,9 @@
             "type": "string"
           },
           "reason": {
-            "description": "Why; a ruling without one is unreviewable.",
+            "description": "Why; a ruling without one is unreviewable, and blanks are not one.",
             "minLength": 1,
+            "pattern": "\\S",
             "title": "Reason",
             "type": "string"
           },
@@ -1662,6 +2417,53 @@
           "at"
         ],
         "title": "Ruling",
+        "type": "object"
+      },
+      "RulingApplied": {
+        "description": "FR-OPS-07. What a human ruling did: the fact as it now stands, and what moved.\n\nOn `accept`, `target_path` names the record the payload went into and `changed` says\nwhether its bytes moved; when the payload overwrote a different value, the fact carries\n`conflict: true` and the overwritten value in `existing_value`, so the history of the\ndecision survives on the record it was taken about. On `reject`, `target_path` is `None`\nand nothing outside `ledger/proposed.yaml` was touched -- a rejection does not even resolve\nthe target, so a fact about an entity that was never created can still be turned down.",
+        "properties": {
+          "changed": {
+            "description": "True when the target record was rewritten; always false for a rejection.",
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "fact": {
+            "$ref": "#/components/schemas/ProposedFact",
+            "description": "The queue entry, with its `ruling` recorded."
+          },
+          "ruling": {
+            "$ref": "#/components/schemas/RulingKind",
+            "description": "The decision that was applied."
+          },
+          "target_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The record an accepted payload went into; `None` for a rejection.",
+            "title": "Target Path"
+          },
+          "writes": {
+            "description": "The provenance lines this ruling appended, in the order they landed.",
+            "items": {
+              "$ref": "#/components/schemas/ProvenanceRecord"
+            },
+            "title": "Writes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "fact",
+          "ruling",
+          "target_path",
+          "changed",
+          "writes"
+        ],
+        "title": "RulingApplied",
         "type": "object"
       },
       "RulingKind": {
@@ -1865,6 +2667,88 @@
         "title": "SceneDigest",
         "type": "object"
       },
+      "SelectedEntity": {
+        "additionalProperties": false,
+        "description": "One entry of the selected list (FR-OPS-02, FR-OPS-05).\n\nRecorded rather than recomputed because selection is not reproducible: two runs may rank\ndifferently, and \"which axioms apply to this scene\" must have one answer per turn, shared\nby the writer and the auditor.",
+        "properties": {
+          "entity_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "kind": {
+            "description": "The index row's kind: axiom, character, ...",
+            "minLength": 1,
+            "title": "Kind",
+            "type": "string"
+          },
+          "pinned": {
+            "default": false,
+            "description": "True when the entity entered through `pins` or a tag-scope match.",
+            "title": "Pinned",
+            "type": "boolean"
+          },
+          "score": {
+            "description": "Fused rank score; higher is more relevant.",
+            "title": "Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "entity_id",
+          "kind",
+          "score"
+        ],
+        "title": "SelectedEntity",
+        "type": "object"
+      },
+      "Selection": {
+        "description": "FR-OPS-02, IF-05. What `select_entities` answers for one scene: ids, kinds and scores.\n\n**No text field, by construction** (AC 11). What the writer receives is loaded by the\nstore after selection, as of the scene's instant (FR-OPS-03); a selection that carried\nrecord text would be a second way into a context, one that could hand the writer a\nversion of a record the scene's instant forbids. `test_select.py` pins the field set.\n\n`entities` is in the order assembly consumes it: the entities named in `pins`, in the\norder the record names them, then the axioms whose `scope` intersects `tags`, by id, then\nthe fused ranking, best first. The POV is absent: it enters assembly by identifier,\nunconditionally, and never competes for a place in the ranking.",
+        "properties": {
+          "entities": {
+            "description": "Pinned entries first (`pinned: true`: `pins` in record order, then the tag-scope axioms by id), then the ranking, best first, ties by kind and then id. A pinned entry's `score` is its fused score when the ranking also found it, else 0.",
+            "items": {
+              "$ref": "#/components/schemas/SelectedEntity"
+            },
+            "title": "Entities",
+            "type": "array"
+          },
+          "fused": {
+            "description": "True when BM25 and vector cosine were fused by reciprocal rank; false when the ranking is FTS5-only -- `sqlite-vec` unavailable (FR-IDX-03, AC 7) -- or the record has no text to embed.",
+            "title": "Fused",
+            "type": "boolean"
+          },
+          "index_update": {
+            "$ref": "#/components/schemas/IndexReport",
+            "description": "What the FR-IDX-08 incremental update at the start of this selection did: a selection sees every store write made before it, whoever made it."
+          },
+          "pov": {
+            "description": "The scene's POV, excluded from `entities` by identifier: assembly loads it unconditionally as `dossier(pov, at=story_time)` (FR-OPS-03).",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "title": "Pov",
+            "type": "string"
+          },
+          "scene": {
+            "description": "The scene the selection was made for.",
+            "pattern": "^\\d{3}$",
+            "title": "Scene",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scene",
+          "pov",
+          "fused",
+          "entities",
+          "index_update"
+        ],
+        "title": "Selection",
+        "type": "object"
+      },
       "Setup": {
         "additionalProperties": false,
         "description": "DR-05. One promise made to the reader, and how it stands.\n\n`definitions.md` Setup/Payoff calls these explicit pairs carrying an open obligation.\nThe obligation is the point: a detail that merely appears is not a setup, and a setup\nthat is never collected is not a mystery, it is a loose end. `promise` therefore records\nwhat the *reader* now expects rather than what was planted, because that is the thing\ninvariant 2 asks about at the last scene.\n\n**Failure mode** (`definitions.md`): not distinguishing deliberate abandonment from\nforgetting. The two look identical on disk unless the decision is written down, so a\nchecker without `resolution` reports every unpaid promise, including the ones a writer\ndropped on purpose. That is noise, and noisy checkers get ignored - which costs more\nthan the check was ever worth, because a silenced invariant 2 is how a novel reaches its\nlast chapter still owing the reader an answer.\n\n`due_by` is required for the same reason `max_latency` is required on a thread: an open\ndebt with no deadline can never be late, so nothing ever reports it. With a deadline,\nFR-AUD-02 can say that a setup due at or before the current scene is still open, and\nescalate that from `reviewable` to `blocking` at the last scene.\n\n**FR-OPS-03** defines *open* as `paid_in` and `resolution` both empty, with `planted_in`\nat or before the story time being assembled. Open setups are offered to the writer under\na *may collect* label, never as an instruction to pay a specific one: the writer decides\nwhether this scene is where a debt comes due, and an assembler that instructed instead of\noffering would be planning the novel from inside the context window.",
@@ -1971,6 +2855,42 @@
         "title": "Severity",
         "type": "string"
       },
+      "SkippedCheck": {
+        "additionalProperties": false,
+        "description": "A check that did not run. Its silence is not a pass (FR-AUD-09).",
+        "properties": {
+          "check": {
+            "description": "The spec row: `FR-AUD-01` ... `FR-AUD-08` for the mechanical checks, `FR-AUD-09` for the model-backed half.",
+            "title": "Check",
+            "type": "string"
+          },
+          "invariant": {
+            "description": "The domain invariant of `definitions.md` served.",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Invariant",
+            "type": "integer"
+          },
+          "reason": {
+            "description": "Why it did not run: the absent input, or the model step that is missing or failed.",
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ViolationSource",
+            "description": "The half that runs it, as DR-07 `source` names it: `mechanical` or `model`. A finding with this source can only come from a check listed as run."
+          }
+        },
+        "required": [
+          "check",
+          "invariant",
+          "source",
+          "reason"
+        ],
+        "title": "SkippedCheck",
+        "type": "object"
+      },
       "StyleBible": {
         "additionalProperties": false,
         "description": "DR-01, DR-02, DR-10. The whole of `canon/style.md`: the rules of the textual surface.\n\nThe cheapest layer to maintain and the one that prevents the most drift, because readers\nnotice a change of voice long before they notice a change of plot. It is the second half\nof the fixed block (FR-OPS-03), and the style editor and the auditor read it as well as\nthe writer.\n\n**Failure mode** (`definitions.md` StyleBible): writing it abstractly. A rule such as\n\"dense but not ornate\" is not imitable; two or three paragraphs of canonical sample prose\nare, because the writer can copy the cadence directly instead of inferring it from an\nadjective. That sample is what `body` holds, and it is the reason this record is a\nMarkdown file rather than a YAML one.\n\n`language` is here rather than in configuration because the prose language is a fact\nabout this novel, not about this deployment. FR-LLM-10 and Decision R2-9 read it from\nthis file: role prompts stay in English, and the writer and the style editor are told in\ntheir instruction which language to write the prose in.",
@@ -2071,6 +2991,16 @@
         },
         "title": "StyleMetrics",
         "type": "object"
+      },
+      "TailState": {
+        "description": "What happened to the previous scene's `literal_tail` (FR-OPS-03, DR-11).\n\nStated on the result rather than left to be inferred from a missing entry: a context\nwithout a tail because the previous scene has no draft yet and one without a tail because\nthe scene opens the book are different situations, and neither is repaired by inventing\na passage.",
+        "enum": [
+          "loaded",
+          "no_draft",
+          "no_previous_scene"
+        ],
+        "title": "TailState",
+        "type": "string"
       },
       "Technology": {
         "additionalProperties": false,
@@ -2353,6 +3283,103 @@
         "title": "TimelineFile",
         "type": "object"
       },
+      "TrimmedDossier": {
+        "additionalProperties": false,
+        "description": "FR-OPS-01, AC 10. The character as they were at story hour `at`, and nothing later.\n\n`docs/architecture.md` Operations: \"Returns the character as they were at that instant:\nonly the facts already acquired, the valence of their relationships on that date, and the\ncorresponding point on their arc.\" It is the load-bearing call of assembly\n(FR-OPS-03): a writer handed the complete record uses facts the character has not yet\nlearned, because nothing in the text marks them as future.\n\n**What is left out, and why.** The Markdown `body` of `dossier.md` is not here. It is\nundated prose, and a dossier body is exactly where an author writes \"until scene 004,\nwhere for the first time she does not\" - the fixture's own dossiers do. A field that\ncannot be shown to hold at or before `at` is not included, which is the same rule that\nexcludes a knowledge row whose scene does not exist. `voice.md` is not here either: it is\nread at a different moment, by a different role (see `VoiceProfile`).\n\n**`immutable_physical` is the as-of body**, not the stored map: registered ChangeEvents\ndated at or before `at` are applied, because `definitions.md` ChangeEvent says \"before it,\nthe old value holds\" - and therefore after it, the new one does.",
+        "properties": {
+          "arc": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ArcEntry"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The arc entry anchored to the latest scene with `story_time <= at`, or null when `at` precedes every anchor. One entry, never the arc: the rest of it is either past (superseded) or future (withheld)."
+          },
+          "at": {
+            "description": "The instant this dossier describes: integer hours since `epoch_zero`.",
+            "title": "At",
+            "type": "integer"
+          },
+          "competences": {
+            "description": "What the character can do.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Competences",
+            "type": "array"
+          },
+          "id": {
+            "description": "The character; the same id as `cast/{id}/`.",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "title": "Id",
+            "type": "string"
+          },
+          "immutable_physical": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "The body at `at`: the stored map with every ChangeEvent dated at or before `at` applied. An attribute whose change cannot be placed in time is withheld.",
+            "title": "Immutable Physical",
+            "type": "object"
+          },
+          "knowledge": {
+            "description": "The rows whose `acquired_in` scene has `story_time <= at` and that no registered forgetting at or before `at` has erased, ordered on the story axis; the last row for a `fact_ref` is the state in force.",
+            "items": {
+              "$ref": "#/components/schemas/KnowledgeState"
+            },
+            "title": "Knowledge",
+            "type": "array"
+          },
+          "lies": {
+            "description": "The false belief about the self that sustains the arc.",
+            "title": "Lies",
+            "type": "string"
+          },
+          "name": {
+            "description": "What the character is called in the prose.",
+            "title": "Name",
+            "type": "string"
+          },
+          "needs": {
+            "description": "What is actually missing; usually contradicts `wants`.",
+            "title": "Needs",
+            "type": "string"
+          },
+          "relationships": {
+            "description": "Each edge from this character that has a reading at or before `at`, with that latest reading; sorted by `to`.",
+            "items": {
+              "$ref": "#/components/schemas/RelationshipAsOf"
+            },
+            "title": "Relationships",
+            "type": "array"
+          },
+          "wants": {
+            "description": "The conscious goal pursued in scenes.",
+            "title": "Wants",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "at",
+          "immutable_physical",
+          "wants",
+          "needs",
+          "lies",
+          "competences",
+          "arc",
+          "knowledge",
+          "relationships"
+        ],
+        "title": "TrimmedDossier",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -2568,6 +3595,27 @@
           "body"
         ],
         "title": "VoiceProfile",
+        "type": "object"
+      },
+      "WithheldEntity": {
+        "description": "A selected entity that its as-of form keeps out of this scene's context.\n\nNot a pruning removal: the budget had nothing to do with it. A chapter digest covering a\nscene later than the scene's instant, a historical event dated after it, a location\nparent that has no record -- each is named with the reason, so the absence is visible\nrather than silent.",
+        "properties": {
+          "key": {
+            "description": "The entity, as `kind:id`.",
+            "title": "Key",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why its as-of form does not load at this instant.",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "reason"
+        ],
+        "title": "WithheldEntity",
         "type": "object"
       }
     }
@@ -3333,6 +4381,48 @@
         ]
       }
     },
+    "/canon/reconcile": {
+      "post": {
+        "description": "IF-05, FR-OPS-08. Every scene and turn record that depends on the entity, with why.\n\nA scene depends on it when its record names it as POV, participant, location or an\nancestor of its location, pins it, or - for an axiom - carries a tag in its scope; when a\ncharacter acquired knowledge about it there; or when a turn that wrote it selected the\nentity. The answer is a superset by design (AC 14): an extra scene costs one re-read, a\nmissed one is a contradiction nobody hears about. An id that defines nothing is a `404`.",
+        "operationId": "reconcile_canon_reconcile_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReconcileRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Reconciliation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Find the written work that depends on an entity",
+        "tags": [
+          "canon"
+        ]
+      }
+    },
     "/canon/style": {
       "get": {
         "description": "IF-03. The style bible and its canonical sample prose: the other half.",
@@ -3741,7 +4831,7 @@
     },
     "/cast/{id}": {
       "get": {
-        "description": "IF-03, `GET /cast/{id}`. The complete record.\n\n`GET /cast/{id}/dossier?at=` -- the same record trimmed to the instant of a scene\n(FR-OPS-01) -- arrives at plan step 10. It is the load-bearing call of this feature, and\nthis one is its unsafe sibling: a writer handed the complete dossier uses facts the\ncharacter has not yet learned, because nothing in the text marks them as future. The\nrecord reads as true, and everything true in the context is fair to write. Until that\nstep this route is for a human reading their own tree, not for an assembled context.",
+        "description": "IF-03, `GET /cast/{id}`. The complete record.\n\n`GET /cast/{id}/dossier?at=` below is the same record trimmed to an instant (FR-OPS-01),\nand this one is its unsafe sibling: a writer handed the complete dossier uses facts the\ncharacter has not yet learned, because nothing in the text marks them as future. The\nrecord reads as true, and everything true in the context is fair to write. This route is\nfor a human reading their own tree, never for an assembled context.",
         "operationId": "read_character_cast__id__get",
         "parameters": [
           {
@@ -3928,6 +5018,63 @@
       }
     },
     "/cast/{id}/dossier": {
+      "get": {
+        "description": "FR-OPS-01, IF-03 `GET /cast/{id}/dossier?at=`. The character as they were at `at`.\n\nOnly the facts already acquired, the valence of each relationship on that date, the point\non the arc, and the body with every registered change up to then applied (AC 10). The\nload-bearing call of assembly: withholding a future fact is more reliable than\ninstructing the model to ignore it.",
+        "operationId": "read_dossier_at_cast__id__dossier_get",
+        "parameters": [
+          {
+            "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
+              "maxLength": 120,
+              "minLength": 1,
+              "pattern": "^[a-z0-9][a-z0-9_-]*$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The story instant to trim to: integer hours since `epoch_zero` (Decision 8), negative for prequel scenes. Required, because there is no safe default: 'now' on the story axis is whatever the scene being written says it is.",
+            "in": "query",
+            "name": "at",
+            "required": true,
+            "schema": {
+              "description": "The story instant to trim to: integer hours since `epoch_zero` (Decision 8), negative for prequel scenes. Required, because there is no safe default: 'now' on the story axis is whatever the scene being written says it is.",
+              "title": "At",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrimmedDossier"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read a character as of a story instant",
+        "tags": [
+          "cast"
+        ]
+      },
       "put": {
         "description": "IF-04, `PUT /cast/{id}/dossier` (canoniser).",
         "operationId": "write_dossier_cast__id__dossier_put",
@@ -4322,6 +5469,50 @@
         ]
       }
     },
+    "/index/rebuild": {
+      "post": {
+        "description": "Empty the derived tables and repopulate them from the tree.",
+        "operationId": "rebuild_index_index_rebuild_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndexReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Rebuild Index",
+        "tags": [
+          "index"
+        ]
+      }
+    },
+    "/index/status": {
+      "get": {
+        "description": "Row and orphan counts, the recorded model, and vector availability.",
+        "operationId": "index_status_index_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndexStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Index Status",
+        "tags": [
+          "index"
+        ]
+      }
+    },
     "/ledger/proposed": {
       "get": {
         "description": "IF-03, `GET /ledger/proposed`. The whole queue, settled entries included.\n\nPromoted and rejected facts stay: the record of what was refused, and why, is what stops\nthe same invention being proposed and argued about again twenty scenes later.",
@@ -4417,6 +5608,195 @@
           }
         },
         "summary": "Append proposed facts to the queue",
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/ledger/proposed/{id}/promote": {
+      "post": {
+        "description": "IF-05, FR-OPS-06 (canoniser). `Promoted`, or `Escalation` when the target disagrees.\n\n**A collision is escalated, never resolved.** When the target field already holds a\ndifferent value the fact is marked `conflict: true` with the value it collided with, stays\n`pending`, and the answer is an `Escalation`; `canon/` and `cast/` are left byte-identical.\nBoth answers are `200`: an escalation is the operation working, not failing, and the\n`outcome` field says which one arrived.\n\nA fact that cannot be promoted at all -- its target entity or field does not exist, or the\nfield is not one a single string can fill -- is a `422` naming the field of the queued fact\nthat is wrong, and nothing is written.",
+        "operationId": "promote_fact_ledger_proposed__id__promote_post",
+        "parameters": [
+          {
+            "description": "The proposed fact's stable identifier, as `ledger/proposed.yaml` holds it.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "The proposed fact's stable identifier, as `ledger/proposed.yaml` holds it.",
+              "pattern": "^[a-z0-9][a-z0-9_-]*$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The Figure 3 role performing this write. Required on every write.",
+            "in": "header",
+            "name": "X-Agent-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The Figure 3 role performing this write. Required on every write.",
+              "title": "X-Agent-Role"
+            }
+          },
+          {
+            "description": "`human` when a person is acting under the role, absent or `agent` otherwise. A human acts under a role, never beside it.",
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`human` when a person is acting under the role, absent or `agent` otherwise. A human acts under a role, never beside it.",
+              "title": "X-Actor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "discriminator": {
+                    "mapping": {
+                      "escalation": "#/components/schemas/Escalation",
+                      "promoted": "#/components/schemas/Promoted"
+                    },
+                    "propertyName": "outcome"
+                  },
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/Promoted"
+                    },
+                    {
+                      "$ref": "#/components/schemas/Escalation"
+                    }
+                  ],
+                  "title": "Response Promote Fact Ledger Proposed  Id  Promote Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Promote a proposed fact into canon",
+        "tags": [
+          "ledger"
+        ]
+      }
+    },
+    "/ledger/proposed/{id}/rule": {
+      "post": {
+        "description": "IF-05, FR-OPS-07 (canoniser, `X-Actor: human`). The human gate on promotion.\n\n`accept` promotes the fact despite a collision -- the human decided which of the two truths\nthe novel holds -- and `reject` marks it rejected. Either way the ruling, its reason and\nits time are recorded on the fact, because the next reader needs to see who decided and\nwhy, not merely that something did.\n\n**An agent may not rule.** Without `X-Actor: human` the call is a `403` and nothing is\nread or written: the orchestrator always sends `agent`, so this is what keeps it from\nsettling a collision on its own (AC 13).",
+        "operationId": "rule_on_fact_ledger_proposed__id__rule_post",
+        "parameters": [
+          {
+            "description": "The proposed fact's stable identifier, as `ledger/proposed.yaml` holds it.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "The proposed fact's stable identifier, as `ledger/proposed.yaml` holds it.",
+              "pattern": "^[a-z0-9][a-z0-9_-]*$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "The Figure 3 role performing this write. Required on every write.",
+            "in": "header",
+            "name": "X-Agent-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The Figure 3 role performing this write. Required on every write.",
+              "title": "X-Agent-Role"
+            }
+          },
+          {
+            "description": "`human` when a person is acting under the role, absent or `agent` otherwise. A human acts under a role, never beside it.",
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`human` when a person is acting under the role, absent or `agent` otherwise. A human acts under a role, never beside it.",
+              "title": "X-Actor"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RulingApplied"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rule on a proposed fact",
         "tags": [
           "ledger"
         ]
@@ -5038,6 +6418,204 @@
           }
         },
         "summary": "Write a scene record",
+        "tags": [
+          "scenes"
+        ]
+      }
+    },
+    "/scenes/{id}/assemble": {
+      "post": {
+        "description": "IF-05, `POST /scenes/{id}/assemble` (FR-OPS-03, FR-OPS-04, AC 12). Selects, then loads.\n\nThe selection is the one `/select` answers, made here first with its FR-IDX-08 update;\neach entry is then loaded as of the scene's story time, in ranking order after the fixed\nblock, the POV's dossier and the previous scene's tail, and the context is fitted to the\n100k cap: what did not fit is named in `removed` and `truncated_at`, what its as-of form\nexcludes in `withheld`, and nothing is cut inside an entry. `warnings` carries\n`fixed_block_over_budget` when the fixed block exceeds 800 tokens.\n\nAssembled with **no system prompt and no instruction**, so the estimate here is the\ndocuments alone. A turn's `dry_run` (plan step 18) assembles with the writer's system\nprompt and instruction counted in the mandatory part, and can therefore stop earlier than\nthis route on the same tree. A mandatory part over the cap on its own is a 422\n`ContextBudgetExceeded`: a record is too large and is fixed at the source (FR-CTX-05).\n\nNo `X-Agent-Role`: nothing in the stores is written. Plain `def` because it blocks on\nSQLite, the embedder and the store reads.",
+        "operationId": "assemble_context_scenes__id__assemble_post",
+        "parameters": [
+          {
+            "description": "Stable scene id: `NNN`, three digits. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Stable scene id: `NNN`, three digits. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
+              "pattern": "^\\d{3}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssembledContext"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Assemble the writer's context for a scene",
+        "tags": [
+          "scenes"
+        ]
+      }
+    },
+    "/scenes/{id}/audit": {
+      "post": {
+        "description": "IF-05, `POST /scenes/{id}/audit`. Reports; does not repair (AC 15, AC 16).\n\nThe checks read the scene, the book's other scene records, the draft, the lexicon, the\ntime system, the setups, the threads, every knowledge file and the POV's voice, and\nreturn every finding with the list of checks that ran and those that did not -- so an\nempty list of violations is never read as a pass on a check that was skipped.\n\nReading needs no role: without `persist` the route writes nothing and is safe to call\nfrom anywhere. With `persist`, the role is required before anything runs (IF-02, a 400\nwhen absent) and the write is decided by Figure 3 inside the store layer, never here. The\nrole header is declared on this route rather than taken from `RoleDep` because `RoleDep`\nwould make it mandatory for the read-only call as well.",
+        "operationId": "audit_scene_scenes__id__audit_post",
+        "parameters": [
+          {
+            "description": "Stable scene id: `NNN`, three digits. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Stable scene id: `NNN`, three digits. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
+              "pattern": "^\\d{3}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Request the model-backed half too (FR-AUD-09: invariants 3 and 6, and the prose halves of 1 and 8). Until plan step 17 it cannot run, and its invariants are listed in `skipped`. `false` is the mechanical audit only.",
+            "in": "query",
+            "name": "semantic",
+            "required": false,
+            "schema": {
+              "default": true,
+              "description": "Request the model-backed half too (FR-AUD-09: invariants 3 and 6, and the prose halves of 1 and 8). Until plan step 17 it cannot run, and its invariants are listed in `skipped`. `false` is the mechanical audit only.",
+              "title": "Semantic",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Write the findings into `ledger/violations.yaml`, merged with what is there. Requires `X-Agent-Role`; Figure 3 lets only the auditor write that file. Without it nothing is written.",
+            "in": "query",
+            "name": "persist",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Write the findings into `ledger/violations.yaml`, merged with what is there. Requires `X-Agent-Role`; Figure 3 lets only the auditor write that file. Without it nothing is written.",
+              "title": "Persist",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Required only with `persist=true`, where it must be `auditor`; any other role is a 403 and leaves the tree byte-identical (AC 16).",
+            "in": "header",
+            "name": "X-Agent-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Required only with `persist=true`, where it must be `auditor`; any other role is a 403 and leaves the tree byte-identical (AC 16).",
+              "title": "X-Agent-Role"
+            }
+          },
+          {
+            "description": "`human` when a person is acting under the role, absent or `agent` otherwise. A human acts under a role, never beside it.",
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`human` when a person is acting under the role, absent or `agent` otherwise. A human acts under a role, never beside it.",
+              "title": "X-Actor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Audit a scene against the domain invariants",
+        "tags": [
+          "scenes"
+        ]
+      }
+    },
+    "/scenes/{id}/select": {
+      "post": {
+        "description": "IF-05, `POST /scenes/{id}/select` (FR-OPS-02, AC 11). Ids, kinds and scores, never text.\n\nThe entities named in `pins` come first, in the record's order, then the axioms whose\n`scope` intersects `tags`, then BM25 and cosine fused by reciprocal rank; the POV is\nabsent. The FR-IDX-08 incremental update runs first, so the answer reflects every store\nwrite made before the call. A pin that names no entity is a 422 naming the `pins` field\nof the scene record, not a silent omission.\n\nNo `X-Agent-Role`: nothing in the stores is written, and the index is not a store (like\n`/index/rebuild`). Plain `def` because it blocks on SQLite and on the embedder.",
+        "operationId": "select_entities_scenes__id__select_post",
+        "parameters": [
+          {
+            "description": "Stable scene id: `NNN`, three digits. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Stable scene id: `NNN`, three digits. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
+              "pattern": "^\\d{3}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Selection"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Select the entities a scene needs",
         "tags": [
           "scenes"
         ]

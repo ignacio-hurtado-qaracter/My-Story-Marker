@@ -30,3 +30,5 @@ rules:
               \[\s*(["'](canon|cast|structure|scenes|manuscript|ledger)/[^"']*["']\s*,\s*){1,}["'](canon|cast|structure|scenes|manuscript|ledger)/[^"']*["']
           - pattern-regex: >-
               \(\s*(["'](canon|cast|structure|scenes|manuscript|ledger)/[^"']*["']\s*,\s*){1,}["'](canon|cast|structure|scenes|manuscript|ledger)/[^"']*["']
+          - pattern-regex: >-
+              \{\s*(["'](canon|cast|structure|scenes|manuscript|ledger)/[^"']*["']\s*,\s*){1,}["'](canon|cast|structure|scenes|manuscript|ledger)/[^"']*["']

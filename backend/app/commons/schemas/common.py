@@ -229,7 +229,11 @@ class Ruling(HarnessModel):
 
     by: str = Field(min_length=1, description="Who ruled.")
     ruling: RulingKind
-    reason: str = Field(min_length=1, description="Why; a ruling without one is unreviewable.")
+    reason: str = Field(
+        min_length=1,
+        pattern=r"\S",
+        description="Why; a ruling without one is unreviewable, and blanks are not one.",
+    )
     at: str = Field(min_length=1, description="ISO-8601 timestamp of the ruling.")
 
 

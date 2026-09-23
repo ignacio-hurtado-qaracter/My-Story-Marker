@@ -55,11 +55,11 @@ interface, data and non-functional requirements; **Acceptance criteria** and
 ### Purpose
 
 Deliver the first runnable version of the FastAPI backend described in
-[`architecture.md`](../docs/architecture.md#repository-and-application-stack): the only
+[`architecture.md`](../../docs/architecture.md#repository-and-application-stack): the only
 process that reads and writes the harness stores, the layer where the permission table of
-[Figure 3](../docs/architecture.md#figure-3--agents-and-write-permissions) is enforced, and
+[Figure 3](../../docs/architecture.md#figure-3--agents-and-write-permissions) is enforced, and
 the host of the six agent roles and the writing turn of
-[Figure 4](../docs/architecture.md#figure-4--one-writing-turn).
+[Figure 4](../../docs/architecture.md#figure-4--one-writing-turn).
 
 ### What fails today without it
 
@@ -119,7 +119,7 @@ Claude Code login, and, at index-build time, the embedding model download.
 ### Order of adoption
 
 This spec implements steps **1**, **2**, **4** and the human-gate half of **6** of the
-[order of adoption](../docs/verification.md#order-of-adoption): type checking, SAST with
+[order of adoption](../../docs/verification.md#order-of-adoption): type checking, SAST with
 the permission rules, import contracts and JSON Schema on read (**A**); fixture repository
 and tests for the operations, index rebuild and migrations (**T**); tool-set guardrails and
 forbidden-write tests (**A**, **T**); the human gate on contradicting promotions (**I**).
@@ -133,12 +133,12 @@ datasets of step 6, and steps 7–10 are later specs.
 ### In
 
 1. **Repository skeleton** for `backend/` laid out
-   [package by feature](../docs/architecture.md#code-architecture--package-by-feature):
+   [package by feature](../../docs/architecture.md#code-architecture--package-by-feature):
    `app/main.py`, `app/commons/{stores,permissions,schemas,db,embeddings,llm,errors,config.py}`,
    and the six feature folders `canon/`, `cast/`, `scenes/`, `manuscript/`, `ledger/`,
    `agents/`, each with `router.py`, `service.py`, `models.py`, `repository.py`, `tests/`.
 2. **Store layer** (`commons/stores/`): typed read and write of every path in the
-   [storage layout](../docs/architecture.md#storage-layout), with the agent role named on
+   [storage layout](../../docs/architecture.md#storage-layout), with the agent role named on
    every write and refused when Figure 3 forbids it.
 3. **Permission layer** (`commons/permissions/`): the six roles and the write table as data
    plus one check function; per-role **tool sets** that contain only the writes the role
@@ -201,14 +201,14 @@ something the docs do not say and is flagged in Open questions.
 
 ### FR-STORE — Store layer
 
-Source: [Storage layout](../docs/architecture.md#storage-layout), [Code architecture rule 4](../docs/architecture.md#backend--feature-folders-plus-commons), [Memory tiers](../docs/architecture.md#memory-and-context-budget).
+Source: [Storage layout](../../docs/architecture.md#storage-layout), [Code architecture rule 4](../../docs/architecture.md#backend--feature-folders-plus-commons), [Memory tiers](../../docs/architecture.md#memory-and-context-budget).
 
 | Id | Requirement |
 |---|---|
 | FR-STORE-01 | The store root is a directory containing `canon/`, `cast/`, `structure/`, `scenes/`, `manuscript/`, `ledger/` as the storage layout lists them. Its location is read from configuration (`STORY_ROOT`); the backend refuses to start if it lacks `canon/project.md`. |
 | FR-STORE-02 | Only modules under `app/commons/stores/` open, read, write, rename or delete files under the store root. |
 | FR-STORE-03 | Every write takes the `AgentRole` performing it as a required argument and is refused with `PermissionDenied` when `commons/permissions` forbids that role on that path, before any byte touches disk. |
-| FR-STORE-04 | Every write appends a provenance record (role, `actor: agent \| human`, path, `content_hash`, timestamp, scene id and turn id when supplied) to `.index/provenance.jsonl`, outside the store tree, as [Storage layout](../docs/architecture.md#storage-layout) now places it. The log is append-only and is written by the store layer itself, so no write can skip it. |
+| FR-STORE-04 | Every write appends a provenance record (role, `actor: agent \| human`, path, `content_hash`, timestamp, scene id and turn id when supplied) to `.index/provenance.jsonl`, outside the store tree, as [Storage layout](../../docs/architecture.md#storage-layout) now places it. The log is append-only and is written by the store layer itself, so no write can skip it. |
 | FR-STORE-05 | Paths derive from identifiers inside the store layer, never from the client. An identifier that would escape the root or fails `^[a-z0-9][a-z0-9_-]*$` (scenes: `^\d{3}$`) is rejected. |
 | FR-STORE-06 | Reads return typed records (DR-01). A file failing validation raises `InvalidRecord` naming file and field; it is never repaired or partially returned. |
 | FR-STORE-07 | Writes are atomic per file (temp, fsync, rename). The store layer never runs git. |
@@ -216,7 +216,7 @@ Source: [Storage layout](../docs/architecture.md#storage-layout), [Code architec
 
 ### FR-PERM — Permission layer and tool sets
 
-Source: [Figure 3](../docs/architecture.md#figure-3--agents-and-write-permissions), [Guardrails](../docs/verification.md#guardrails--a-structural--t-behavioural).
+Source: [Figure 3](../../docs/architecture.md#figure-3--agents-and-write-permissions), [Guardrails](../../docs/verification.md#guardrails--a-structural--t-behavioural).
 
 | Id | Requirement |
 |---|---|
@@ -230,7 +230,7 @@ Source: [Figure 3](../docs/architecture.md#figure-3--agents-and-write-permission
 
 ### DR — Data requirements
 
-Source: [definitions.md](../docs/definitions.md), [domain-knowledge Figure 2](../docs/domain-knowledge.md#figure-2--fields-of-the-three-critical-entities), [System entities](../docs/architecture.md#system-entities-layer-4).
+Source: [definitions.md](../../docs/definitions.md), [domain-knowledge Figure 2](../../docs/domain-knowledge.md#figure-2--fields-of-the-three-critical-entities), [System entities](../../docs/architecture.md#system-entities-layer-4).
 
 | Id | Requirement |
 |---|---|
@@ -241,7 +241,7 @@ Source: [definitions.md](../docs/definitions.md), [domain-knowledge Figure 2](..
 | DR-05 | `Setup.resolution` is `paid · subverted · deliberately_abandoned`, optional while `paid_in` is empty; `due_by` required. |
 | DR-06 | `PlotThread.state` is the five-value enum; `max_latency: int` required. |
 | DR-07 | `ProposedFact`: `extracted_from`, `target_entity`, `target_field`, `payload`, `source_scene`, `conflict: bool`, `existing_value` (set on collision), `status` (`pending · promoted · rejected`), `ruling` (optional: `by`, `reason`, `at`). `Violation`: `scene`, `invariant` (1–10), `evidence` (quote + offset), `severity` (`blocking · reviewable · note`), `resolution` (optional: `fix_prose · fix_canon · accept_with_reason`), `source` (`mechanical · model`). |
-| DR-08 | Identifiers are stable; the backend never renames. `Relationship` is directed with `valence` as a dated list. `ChangeEvent` (`character`, `attribute`, `from`, `to`, `scene`, `cause`) lives in `cast/{id}/changes.yaml` as [definitions.md](../docs/definitions.md#changeevent) and the storage layout now state. |
+| DR-08 | Identifiers are stable; the backend never renames. `Relationship` is directed with `valence` as a dated list. `ChangeEvent` (`character`, `attribute`, `from`, `to`, `scene`, `cause`) lives in `cast/{id}/changes.yaml` as [definitions.md](../../docs/definitions.md#changeevent) and the storage layout now state. |
 | DR-09 | `CanonicalTerm.forbidden_variants` present (may be empty). `TemporalSystem.epoch_zero` and `transit_matrix` required. |
 | DR-10 | Every JSON Schema is versioned in its filename and via `schema_version`; unknown versions fail validation. |
 | DR-11 | `Draft`: `scene_ref`, `words`, `literal_tail` (last 500 words, derived on write), `body`; no `version`, because git's diffs are the continuity record (`aa05ee9`). `SceneDigest`: `scene_ref` matching `^\d{3}(-\d{3})?$` — one scene, or a contiguous range at chapter and arc level, so FR-OPS-03 can decide whether every covered scene is at or before `T` — plus `level` (`scene · chapter · arc`), `povs`, `delta`, `words`. |
@@ -249,12 +249,12 @@ Source: [definitions.md](../docs/definitions.md), [domain-knowledge Figure 2](..
 
 ### FR-IDX — Derived index
 
-Source: [Memory and context budget](../docs/architecture.md#memory-and-context-budget), [Unit/integration testing — persistence](../docs/verification.md#unit--integration-testing--t), repository rule "SQL Lite → con sin vector compatible" (Decision 10).
+Source: [Memory and context budget](../../docs/architecture.md#memory-and-context-budget), [Unit/integration testing — persistence](../../docs/verification.md#unit--integration-testing--t), repository rule "SQL Lite → con sin vector compatible" (Decision 10).
 
 | Id | Requirement |
 |---|---|
 | FR-IDX-01 | One SQLite file outside the tree (`STORY_INDEX`, default `<root>/.index/index.sqlite`), owned by `commons/db/`, never committed. |
-| FR-IDX-02 | One row per entity in `canon/`, `cast/` and the **chapter-level** digests under `manuscript/digests/` (`entity_id`, `kind`, `path`, `text`, `content_hash`, `updated_at`) and an FTS5 table over `text`. Scene- and arc-level digests are not indexed, as [SceneDigest](../docs/architecture.md#scenedigest) states. |
+| FR-IDX-02 | One row per entity in `canon/`, `cast/` and the **chapter-level** digests under `manuscript/digests/` (`entity_id`, `kind`, `path`, `text`, `content_hash`, `updated_at`) and an FTS5 table over `text`. Scene- and arc-level digests are not indexed, as [SceneDigest](../../docs/architecture.md#scenedigest) states. |
 | FR-IDX-03 | On startup the backend tries to load `sqlite-vec`. If it loads, a `vec0` table (`float[384]`, cosine) holds one embedding per row and `/health` reports `vector: available`; if not, the backend starts normally, reports `vector: unavailable`, and selection is FTS5-only. No code path fails for a missing extension. |
 | FR-IDX-04 | `rebuild()` drops derived tables and repopulates from the tree. Two rebuilds from the same tree yield identical rows and identical embeddings (the embedder is deterministic on CPU). |
 | FR-IDX-05 | Numbered SQL migrations recorded in `schema_migrations`; applying them to an old index yields the fresh schema. |
@@ -264,7 +264,7 @@ Source: [Memory and context budget](../docs/architecture.md#memory-and-context-b
 
 ### FR-EMB — Embedder
 
-Source: [Memory and context budget — entity index](../docs/architecture.md#memory-and-context-budget), [U register — reproducibility of semantic selection](../docs/verification.md#accepted-risks-u-register), user decision (round 1, Q14).
+Source: [Memory and context budget — entity index](../../docs/architecture.md#memory-and-context-budget), [U register — reproducibility of semantic selection](../../docs/verification.md#accepted-risks-u-register), user decision (round 1, Q14).
 
 | Id | Requirement |
 |---|---|
@@ -275,22 +275,22 @@ Source: [Memory and context budget — entity index](../docs/architecture.md#mem
 
 ### FR-OPS — Deterministic operations
 
-Source: [Operations](../docs/architecture.md#operations), [Figure 2](../docs/architecture.md#figure-2--assembling-the-context-for-one-scene), [Domain invariants](../docs/definitions.md#domain-invariants).
+Source: [Operations](../../docs/architecture.md#operations), [Figure 2](../../docs/architecture.md#figure-2--assembling-the-context-for-one-scene), [Domain invariants](../../docs/definitions.md#domain-invariants).
 
 | Id | Requirement |
 |---|---|
-| FR-OPS-01 | `dossier(character_id, at)` returns identity, competences, the arc entry anchored to the latest scene with `story_time <= at`, `KnowledgeState` rows whose `acquired_in` scene has `story_time <= at`, and per relationship the latest valence dated `<= at`. Physical attributes are `immutable_physical` as changed by the character's own `ChangeEvent`s at scenes with `story_time <= at`, and a `ChangeEvent` at or before `at` that forgets a fact removes its `KnowledgeState` rows — the character "as they were at that instant" ([`dossier`](../docs/architecture.md#dossiercharacter-atstory_time--trimmed-record)). Nothing later appears. |
+| FR-OPS-01 | `dossier(character_id, at)` returns identity, competences, the arc entry anchored to the latest scene with `story_time <= at`, `KnowledgeState` rows whose `acquired_in` scene has `story_time <= at`, and per relationship the latest valence dated `<= at`. Physical attributes are `immutable_physical` as changed by the character's own `ChangeEvent`s at scenes with `story_time <= at`, and a `ChangeEvent` at or before `at` that forgets a fact removes its `KnowledgeState` rows — the character "as they were at that instant" ([`dossier`](../../docs/architecture.md#dossiercharacter-atstory_time--trimmed-record)). Nothing later appears. |
 | FR-OPS-02 | `select_entities(scene)` builds the query text from `goal`, `conflict`, `value_change`, `pov`, `location`, `entry_state`, `exit_state` and `notes`; ranks by FTS5 BM25 and, when available, by vector cosine, fused by reciprocal rank; prepends the entities named in `pins` and every axiom whose `scope` intersects `tags`; excludes the POV. Returns identifiers, kinds and scores — never record text. |
-| FR-OPS-03 | `assemble_context(scene)` loads in order: fixed block (`canon/project.md`, `canon/style.md`); `dossier(pov, at=story_time)`; `literal_tail` of the previous scene in `discourse_order`; then each selected id in ranking order in its as-of form (dossier for characters; full record for axioms, technology, locations with parent chain, factions; chapter-level digest for prose; lexicon bound to loaded entities through `used_by`; open setups with `due_by >= scene`). It stops before the entry that would make the writer call's estimate (FR-CTX-02) exceed **100 000 tokens** — the mandatory part (role system prompt, instruction, fixed block, POV dossier, literal tail) is counted first, so the selected entities fill only what remains, and FR-CTX-03 is the same rule seen from the call — and records `truncated_at`; it never truncates inside an entry. **As-of forms.** A chapter digest is loaded only if every scene it covers has `story_time <= T`; a digest whose `povs` does not include the POV is labelled in the prompt as events the POV did not witness, so `povs` does the filtering job [SceneDigest](../docs/architecture.md#scenedigest) gives it. A setup is "open" when `paid_in` and `resolution` are empty and its `planted_in` scene has `story_time <= T`; a violation with a `resolution` set and a thread `resolved` or `abandoned` never enter the context (they "leave the working tier as they close"). Setups are presented under a *may collect* label, never as an instruction to pay a specific one. Raw `manuscript/NNN.md` prose never enters the context except as the previous scene's `literal_tail`. |
+| FR-OPS-03 | `assemble_context(scene)` loads in order: fixed block (`canon/project.md`, `canon/style.md`); `dossier(pov, at=story_time)`; `literal_tail` of the previous scene in `discourse_order`; then each selected id in ranking order in its as-of form (dossier for characters; full record for axioms, technology, locations with parent chain, factions; chapter-level digest for prose; lexicon bound to loaded entities through `used_by`; open setups with `due_by >= scene`). It stops before the entry that would make the writer call's estimate (FR-CTX-02) exceed **100 000 tokens** — the mandatory part (role system prompt, instruction, fixed block, POV dossier, literal tail) is counted first, so the selected entities fill only what remains, and FR-CTX-03 is the same rule seen from the call — and records `truncated_at`; it never truncates inside an entry. **As-of forms.** A chapter digest is loaded only if every scene it covers has `story_time <= T`; a digest whose `povs` does not include the POV is labelled in the prompt as events the POV did not witness, so `povs` does the filtering job [SceneDigest](../../docs/architecture.md#scenedigest) gives it. A setup is "open" when `paid_in` and `resolution` are empty and its `planted_in` scene has `story_time <= T`; a violation with a `resolution` set and a thread `resolved` or `abandoned` never enter the context (they "leave the working tier as they close"). Setups are presented under a *may collect* label, never as an instruction to pay a specific one. Raw `manuscript/NNN.md` prose never enters the context except as the previous scene's `literal_tail`. |
 | FR-OPS-04 | If the fixed block exceeds 800 tokens the response carries `warnings: ["fixed_block_over_budget"]`. |
 | FR-OPS-05 | The selected-id list is persisted in the turn record (FR-TURN-07) so the auditor of the same turn reads the same list. |
 | FR-OPS-06 | `promote(fact_id)` under the canoniser role: when `conflict` is false, writes `payload` to `target_entity.target_field` and marks the fact `promoted`. When the target already holds a different value, sets `conflict = true`, records `existing_value`, leaves `status = pending`, and returns `Escalation`. It never overwrites. |
-| FR-OPS-07 | `rule(fact_id, ruling, reason)` under the canoniser role with `actor: human`: `accept` promotes despite the collision; `reject` marks the fact `rejected`. Every ruling is recorded on the fact. This is the human gate of [Human-in-the-loop review](../docs/verification.md#human-in-the-loop-review--i). |
+| FR-OPS-07 | `rule(fact_id, ruling, reason)` under the canoniser role with `actor: human`: `accept` promotes despite the collision; `reject` marks the fact `rejected`. Every ruling is recorded on the fact. This is the human gate of [Human-in-the-loop review](../../docs/verification.md#human-in-the-loop-review--i). |
 | FR-OPS-08 | `reconcile(entity_id)` returns every scene whose record references the entity (`pov`, `participants`, `location` or ancestors, `tags`), every turn record whose selected list contains it, and every `KnowledgeState.acquired_in` scene whose `fact_ref` is the entity. |
 
 ### FR-LLM — Model client
 
-Source: [Guardrails — output schema validation, budget](../docs/verification.md#guardrails--a-structural--t-behavioural), [U register — model provider behaviour change](../docs/verification.md#accepted-risks-u-register); CLI facts from `claude --help` (Claude Code 2.1.273) and two probe calls on 2026-09-23 (Decision R3-1).
+Source: [Guardrails — output schema validation, budget](../../docs/verification.md#guardrails--a-structural--t-behavioural), [U register — model provider behaviour change](../../docs/verification.md#accepted-risks-u-register); CLI facts from `claude --help` (Claude Code 2.1.273) and two probe calls on 2026-09-23 (Decision R3-1).
 
 | Id | Requirement |
 |---|---|
@@ -307,13 +307,13 @@ Source: [Guardrails — output schema validation, budget](../docs/verification.m
 
 ### FR-CTX — Context budget and pruning
 
-Source: [Memory and context budget](../docs/architecture.md#memory-and-context-budget) ("one hard cap: 100k tokens per invocation, for every role"; "a call that would exceed it is stopped and traced, never silently truncated"; "selection is not reproducible; loading is"), [Guardrails — budget](../docs/verification.md#guardrails--a-structural--t-behavioural), Decisions R3-2 and R3-5.
+Source: [Memory and context budget](../../docs/architecture.md#memory-and-context-budget) ("one hard cap: 100k tokens per invocation, for every role"; "a call that would exceed it is stopped and traced, never silently truncated"; "selection is not reproducible; loading is"), [Guardrails — budget](../../docs/verification.md#guardrails--a-structural--t-behavioural), Decisions R3-2 and R3-5.
 
 FR-OPS-03 already prunes the writer's selected entities by rank. These requirements extend the same rule to every role call. The budget is the context the system sends; what the CLI adds to every call is a fixed cost outside it.
 
 | Id | Requirement |
 |---|---|
-| FR-CTX-01 | The cap is **100 000 input tokens per model call**, identical for every role (NFR-05), and whole over the **useful context the system sends**: role system prompt, documents and instruction. What the CLI adds regardless (FR-LLM-05) is not deducted from it, so a real call may carry about 102 500 input tokens; that cost is accepted (Decision R3-5, [Memory and context budget](../docs/architecture.md#memory-and-context-budget)). Output tokens do not count against it. |
+| FR-CTX-01 | The cap is **100 000 input tokens per model call**, identical for every role (NFR-05), and whole over the **useful context the system sends**: role system prompt, documents and instruction. What the CLI adds regardless (FR-LLM-05) is not deducted from it, so a real call may carry about 102 500 input tokens; that cost is accepted (Decision R3-5, [Memory and context budget](../../docs/architecture.md#memory-and-context-budget)). Output tokens do not count against it. |
 | FR-CTX-02 | Input tokens are estimated locally and conservatively: `ceil(characters / 3)` for each text the system sends, and nothing else. Dividing by three overestimates English prose, which is the safe direction for a hard cap. The CLI's overhead is kept as a module constant, `CLI_OVERHEAD_TOKENS` (2 500, measured on 2026-09-23 and re-measured when the CLI is upgraded; not a setting), used **only** by FR-CTX-06 to read the real count, never in the estimate or the pruning. |
 | FR-CTX-03 | Every role's inputs are split into a **mandatory** part and a **prunable, ranked** part. Pruning removes whole prunable entries from the lowest rank upward until the estimate fits; it never cuts inside an entry (FR-OPS-03), and the removed identifiers are recorded on the turn record with `truncated_at`. **write / revise** — prunable: the selected entities in FR-OPS-03 order; mandatory: fixed block, POV dossier, literal tail, instruction, and for `revise` the draft and the blocking violations. **extract_facts** — prunable: the canon documents in rank order; mandatory: the accepted draft. **audit_semantic** — prunable: the non-pinned selected axioms in rank order, then participants' knowledge and changes in the order the participants are listed; mandatory: draft, scene record, pinned axioms, POV dossier. **polish, digest, rollup** — all mandatory, bounded by construction. |
 | FR-CTX-04 | An auditor input removed by pruning is listed in the audit's `skipped`, as FR-AUD-09 does for a failed model step, so the absence of a violation is never mistaken for a pass on something that was never checked. |
@@ -322,7 +322,7 @@ FR-OPS-03 already prunes the writer's selected entities by rank. These requireme
 
 ### FR-AGENT — Agent roles
 
-Source: [Figure 3 table — Signature, In, Out](../docs/architecture.md#figure-3--agents-and-write-permissions), [Operations](../docs/architecture.md#operations), [SceneDigest](../docs/architecture.md#scenedigest), [A warning about over-constraint](../docs/architecture.md#a-warning-about-over-constraint).
+Source: [Figure 3 table — Signature, In, Out](../../docs/architecture.md#figure-3--agents-and-write-permissions), [Operations](../../docs/architecture.md#operations), [SceneDigest](../../docs/architecture.md#scenedigest), [A warning about over-constraint](../../docs/architecture.md#a-warning-about-over-constraint).
 
 Each role is a stateless function over stores: it receives exactly the inputs its Figure 3
 `In` column names, returns a DR-12 output, and the orchestrator persists that output
@@ -345,7 +345,7 @@ available to the role.**
 
 ### FR-TURN — The writing turn
 
-Source: [Figure 4](../docs/architecture.md#figure-4--one-writing-turn), [Memory — agents are stateless](../docs/architecture.md#memory-and-context-budget), [Model checking — turn termination](../docs/verification.md#model-checking--a).
+Source: [Figure 4](../../docs/architecture.md#figure-4--one-writing-turn), [Memory — agents are stateless](../../docs/architecture.md#memory-and-context-budget), [Model checking — turn termination](../../docs/verification.md#model-checking--a).
 
 ```mermaid
 stateDiagram-v2
@@ -394,7 +394,7 @@ only the collided facts wait.
 
 ### FR-AUD — Mechanical audit
 
-Source: [Domain invariants](../docs/definitions.md#domain-invariants), [Violation](../docs/architecture.md#violation), [Figure 3 lifecycle](../docs/domain-knowledge.md#figure-3--lifecycle-of-a-reader-debt).
+Source: [Domain invariants](../../docs/definitions.md#domain-invariants), [Violation](../../docs/architecture.md#violation), [Figure 3 lifecycle](../../docs/domain-knowledge.md#figure-3--lifecycle-of-a-reader-debt).
 
 | Id | Invariant | Check | Severity |
 |---|---|---|---|
@@ -415,7 +415,7 @@ Source: [Domain invariants](../docs/definitions.md#domain-invariants), [Violatio
 | IF-01 | Routes mount per feature (`/canon`, `/cast`, `/structure`, `/scenes`, `/manuscript`, `/ledger`, `/agents`) plus `/health`, `/permissions`, `/index`. |
 | IF-02 | Write routes require `X-Agent-Role`; a human operator adds `X-Actor: human`, absent means `agent`, and the orchestrator always sends `agent` (Decision R2-7). Missing role → `400`; forbidden → `403` `{"error": "permission_denied", "role", "path"}`. |
 | IF-03 | Reads: `GET /canon/project`, `/canon/style`, `/canon/{kind}`, `/canon/{kind}/{id}`, `/canon/lexicon`, `/canon/time`; `GET /cast`, `/cast/{id}`, `/cast/{id}/dossier?at=`, `/cast/{id}/knowledge`, `/cast/{id}/voice`, `/cast/relationships`; `GET /structure/arcs`, `/structure/chapters`; `GET /scenes`, `/scenes/{id}`; `GET /manuscript/{id}`, `/manuscript/digests/{id}`; `GET /cast/{id}/changes`; `GET /ledger/{setups\|threads\|timeline\|proposed\|violations}`; `GET /agents/turns`, `/agents/turns/{id}`, `/agents/provenance?path=&since=`. |
-| IF-04 | Writes: `PUT /canon/{kind}/{id}`, `/canon/lexicon`, `/canon/time` (world_builder, canoniser); `PUT /cast/{id}/{dossier\|voice\|knowledge\|changes}`, `/cast/relationships` (canoniser); `PUT /structure/{arcs\|chapters}`, `PUT /scenes/{id}` (architect); `PUT /manuscript/{id}` (writer, style_editor); `PUT /manuscript/digests/{id}` (writer); `POST /ledger/proposed` (writer, canoniser — Figure 3 gives both `ledger/proposed.yaml`); `PUT /ledger/violations` (auditor). A human resolves an escalated violation through that last route, acting as the auditor with `X-Actor: human`, by setting `resolution` (`fix_prose · fix_canon · accept_with_reason`); the prose or canon edit itself goes through the owning role's route. This is the dotted "escalate ruling" edge of [Figure 1](../docs/architecture.md#figure-1--the-working-loop). |
+| IF-04 | Writes: `PUT /canon/{kind}/{id}`, `/canon/lexicon`, `/canon/time` (world_builder, canoniser); `PUT /cast/{id}/{dossier\|voice\|knowledge\|changes}`, `/cast/relationships` (canoniser); `PUT /structure/{arcs\|chapters}`, `PUT /scenes/{id}` (architect); `PUT /manuscript/{id}` (writer, style_editor); `PUT /manuscript/digests/{id}` (writer); `POST /ledger/proposed` (writer, canoniser — Figure 3 gives both `ledger/proposed.yaml`); `PUT /ledger/violations` (auditor). A human resolves an escalated violation through that last route, acting as the auditor with `X-Actor: human`, by setting `resolution` (`fix_prose · fix_canon · accept_with_reason`); the prose or canon edit itself goes through the owning role's route. This is the dotted "escalate ruling" edge of [Figure 1](../../docs/architecture.md#figure-1--the-working-loop). |
 | IF-05 | Operations: `POST /scenes/{id}/select`, `/scenes/{id}/assemble`, `/scenes/{id}/audit?semantic=false` (mechanical only, no model), `/scenes/{id}/audit` (full, auditor role); `POST /ledger/proposed/{id}/promote` (canoniser) → `Promoted \| Escalation`; `POST /ledger/proposed/{id}/rule` (canoniser, human); `POST /canon/reconcile`; `POST /index/rebuild`; `GET /index/status`. |
 | IF-06 | Turns: `POST /agents/turns` `{scene_id}` (+ `?dry_run`), `GET /agents/turns/{id}`, `POST /agents/turns/{id}/rulings`, `POST /agents/turns/{id}/resume`, `POST /agents/digests/rollup` `{chapter_id \| arc_id}`. Turn execution is synchronous with streamed progress as Server-Sent Events (one event per step) so a client can follow a multi-minute turn. |
 | IF-07 | Error bodies share one shape. `InvalidRecord` → `422`, `NotFound` → `404`, `PermissionDenied` → `403`, `IndexBusy` → `503`, `TurnLocked` → `409`, `ContextBudgetExceeded` → `422`, `MalformedModelOutput` / `ModelRefused` / `OutputTruncated` → `502` with the category, `ModelCallFailed` → `502` with its reason (FR-LLM-08: the CLI is missing, the call timed out, the envelope is unreadable, or the API returned an error status), `InvalidRole` → `400` (IF-02). |
@@ -427,14 +427,14 @@ Source: [Domain invariants](../docs/definitions.md#domain-invariants), [Violatio
 |---|---|---|
 | NFR-01 | Python 3.12, FastAPI, Pydantic v2, `fastembed`, `sqlite-vec`, managed with `uv`, all pinned. The Claude Code CLI is a host prerequisite rather than a Python dependency, and its version is recorded per turn beside the model id; the model id per role is pinned in configuration and recorded per turn, so a provider-side change is attributable (U register: "model provider behaviour change"). Once FastAPI is pinned, the vendored `fastapi` skill is replaced by the managed install. | `CLAUDE.md` |
 | NFR-02 | `mypy --strict` clean; no `Any`; no `type: ignore` without a comment linking this spec. | Process 3 rule 9 |
-| NFR-03 | `ruff` and `bandit` clean; all YAML via `safe_load`. | [SAST](../docs/verification.md#static-analysis--sast--a) |
-| NFR-04 | `import-linter`: a feature reaches another only through its public surface (`service`, `models`), never its `repository` or `router`, and feature dependencies are acyclic, as `architecture.md` rules 2 and 5 state (Decision R3-3); `commons` imports no feature; only `commons.stores` touches file primitives under the root; only `commons.llm` spawns subprocesses; only `commons.embeddings` imports `fastembed`. | [SAST — boundaries](../docs/verification.md#static-analysis--sast--a) |
-| NFR-05 | 100 000 tokens is a module constant, identical for every role, with no configuration key that raises it. | [Memory and context budget](../docs/architecture.md#memory-and-context-budget) |
-| NFR-06 | The backend process itself opens no outbound connection except, only during `rebuild()` without `EMBED_OFFLINE`, to the embedding-model download host. Model traffic leaves through the `claude -p` subprocess (FR-LLM-01) and nowhere else. The test suite runs with network disabled and with the subprocess replaced by `FakeModelClient`. | [Red-teaming — data exfiltration](../docs/verification.md#red-teaming--adversarial-testing--t--i) |
+| NFR-03 | `ruff` and `bandit` clean; all YAML via `safe_load`. | [SAST](../../docs/verification.md#static-analysis--sast--a) |
+| NFR-04 | `import-linter`: a feature reaches another only through its public surface (`service`, `models`), never its `repository` or `router`, and feature dependencies are acyclic, as `architecture.md` rules 2 and 5 state (Decision R3-3); `commons` imports no feature; only `commons.stores` touches file primitives under the root; only `commons.llm` spawns subprocesses; only `commons.embeddings` imports `fastembed`. | [SAST — boundaries](../../docs/verification.md#static-analysis--sast--a) |
+| NFR-05 | 100 000 tokens is a module constant, identical for every role, with no configuration key that raises it. | [Memory and context budget](../../docs/architecture.md#memory-and-context-budget) |
+| NFR-06 | The backend process itself opens no outbound connection except, only during `rebuild()` without `EMBED_OFFLINE`, to the embedding-model download host. Model traffic leaves through the `claude -p` subprocess (FR-LLM-01) and nowhere else. The test suite runs with network disabled and with the subprocess replaced by `FakeModelClient`. | [Red-teaming — data exfiltration](../../docs/verification.md#red-teaming--adversarial-testing--t--i) |
 | NFR-07 | On the fixture with the fake model client: `assemble_context` < 2 s cold; `rebuild()` with the fake embedder < 10 s; a full fake turn < 5 s. Measured, not gating (Decision 12). | proposed |
 | NFR-08 | Every test that satisfies a criterion carries `# spec 001 / AC n`. | Process 3 rule 16 |
-| NFR-09 | Tests run on a temporary copy of the fixture; live-model tests are marked `live`, excluded by default, and run only with `--live` and a Claude Code login present (FR-LLM-01; there is no credential to supply). | [Unit/integration testing](../docs/verification.md#unit--integration-testing--t) |
-| NFR-10 | Every model call logs role, model id, prompt version, token counts and elapsed to the turn record and to structured application logs; no prompt or draft text is logged outside the store tree. | [Tracing](../docs/verification.md#runtime-observability--tracing--d) (precursor) |
+| NFR-09 | Tests run on a temporary copy of the fixture; live-model tests are marked `live`, excluded by default, and run only with `--live` and a Claude Code login present (FR-LLM-01; there is no credential to supply). | [Unit/integration testing](../../docs/verification.md#unit--integration-testing--t) |
+| NFR-10 | Every model call logs role, model id, prompt version, token counts and elapsed to the turn record and to structured application logs; no prompt or draft text is logged outside the store tree. | [Tracing](../../docs/verification.md#runtime-observability--tracing--d) (precursor) |
 
 ### Module dependency contract
 
@@ -706,8 +706,10 @@ Two things were found while implementing and are **deferred by name** (Process 3
   `ledger/setups.yaml`, the POV's `cast/{id}/voice.md` and `ledger/threads.yaml`, which the
   column does not list. v1 reads them in the mechanical checks, which are backend code and
   not a model's context; `INPUT_TABLE` (FR-AGENT-09) bounds what the model-backed auditor
-  receives, and FR-AGENT-06 hands it none of the three. Whether the column should list them,
-  or say that it bounds model context only, is a `docs/` decision (Process 1).
+  receives, and FR-AGENT-06 hands it none of the three. **Resolved** (Process 1, `f7cb0be`
+  on `exam/rescope`): the column is not widened; `architecture.md` now says that `In` bounds
+  model context only and that mechanical checks read through the store layer. The code
+  already does this, so nothing in this spec or the plan changes.
 - **The refusal category may not reach the envelope.** Claude Code 2.1.273's JSON result has
   no `stop_details`; the category travels only in stream messages `--output-format json` does
   not print, so AC 21's "escalates with the category" may carry an empty category live. The

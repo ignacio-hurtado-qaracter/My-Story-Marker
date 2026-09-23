@@ -34,25 +34,33 @@ Writes answer with the provenance line that was appended -- path, role, actor, c
 timestamp. A caller that has just written under a role can therefore see what the log will
 show, which is the point of a log no caller can skip.
 
-**Deliberately absent, not forgotten.** IF-05's three operations on a scene --
-`POST /scenes/{id}/select` (FR-OPS-02), `POST /scenes/{id}/assemble` (FR-OPS-03) and
-`POST /scenes/{id}/audit` (FR-AUD) -- arrive at plan steps 11, 12 and 14. They are the
-load-bearing calls of this feature and each needs machinery that does not exist yet: the
-index and the embedder for selection, the token counter for assembly, the invariant modules
-for the audit. Until then this router serves the records those operations will read.
+**IF-05's three operations on a scene** -- `POST /scenes/{id}/select` (FR-OPS-02),
+`POST /scenes/{id}/assemble` (FR-OPS-03) and `POST /scenes/{id}/audit` (FR-AUD) -- are the
+load-bearing calls of this feature, and each needs machinery of its own: the index and the
+embedder for selection, the token estimate and the 100k cap for assembly, the invariant
+modules for the audit. The audit delegates to `app.ledger.audit`, the ledger's public surface
+for it (scenes sits above ledger in NFR-04's layers).
 """
 
 from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Path
+from fastapi import APIRouter, Header, Path, Query
 
-from app.commons.deps import ActorDep, RoleDep, StoreDep
+from app.commons.deps import (
+    ActorDep,
+    EmbedderDep,
+    RoleDep,
+    SettingsDep,
+    StoreDep,
+    require_role,
+)
 from app.commons.schemas import SCENE_ID_PATTERN, Scene
 from app.commons.stores.provenance import ProvenanceRecord
+from app.ledger import audit
 from app.scenes import service
-from app.scenes.models import ArcsFile, ChaptersFile
+from app.scenes.models import ArcsFile, AssembledContext, ChaptersFile, Selection
 
 router = APIRouter(prefix="/scenes", tags=["scenes"])
 structure_router = APIRouter(prefix="/structure", tags=["structure"])
@@ -119,18 +127,115 @@ def write_scene(
 
 
 # --------------------------------------------------------------------------------------
-# IF-05's three operations on a scene belong here and are deliberately absent, not
-# forgotten:
-#
-#   POST /scenes/{id}/select     FR-OPS-02, plan step 11 -- needs the index and the embedder
-#   POST /scenes/{id}/assemble   FR-OPS-03, plan step 12 -- needs the token counter and the
-#                                                           100k cap
-#   POST /scenes/{id}/audit      FR-AUD,    plan step 14 -- needs the invariant modules
-#
-# Each is a step of its own in the plan because each needs machinery that does not exist
-# yet. A reader who finds only reads and writes here is looking at an incomplete feature on
-# purpose, at the commit the plan puts them at.
+# IF-05's operations on a scene: select, assemble, audit.
 # --------------------------------------------------------------------------------------
+
+
+@router.post("/{id}/select", summary="Select the entities a scene needs")
+def select_entities(
+    store: StoreDep,
+    embedder: EmbedderDep,
+    settings: SettingsDep,
+    scene: SceneIdParam,
+) -> Selection:
+    """IF-05, `POST /scenes/{id}/select` (FR-OPS-02, AC 11). Ids, kinds and scores, never text.
+
+    The entities named in `pins` come first, in the record's order, then the axioms whose
+    `scope` intersects `tags`, then BM25 and cosine fused by reciprocal rank; the POV is
+    absent. The FR-IDX-08 incremental update runs first, so the answer reflects every store
+    write made before the call. A pin that names no entity is a 422 naming the `pins` field
+    of the scene record, not a silent omission.
+
+    No `X-Agent-Role`: nothing in the stores is written, and the index is not a store (like
+    `/index/rebuild`). Plain `def` because it blocks on SQLite and on the embedder.
+    """
+    return service.select_entities(store, embedder, settings, scene)
+
+
+@router.post("/{id}/assemble", summary="Assemble the writer's context for a scene")
+def assemble_context(
+    store: StoreDep,
+    embedder: EmbedderDep,
+    settings: SettingsDep,
+    scene: SceneIdParam,
+) -> AssembledContext:
+    """IF-05, `POST /scenes/{id}/assemble` (FR-OPS-03, FR-OPS-04, AC 12). Selects, then loads.
+
+    The selection is the one `/select` answers, made here first with its FR-IDX-08 update;
+    each entry is then loaded as of the scene's story time, in ranking order after the fixed
+    block, the POV's dossier and the previous scene's tail, and the context is fitted to the
+    100k cap: what did not fit is named in `removed` and `truncated_at`, what its as-of form
+    excludes in `withheld`, and nothing is cut inside an entry. `warnings` carries
+    `fixed_block_over_budget` when the fixed block exceeds 800 tokens.
+
+    Assembled with **no system prompt and no instruction**, so the estimate here is the
+    documents alone. A turn's `dry_run` (plan step 18) assembles with the writer's system
+    prompt and instruction counted in the mandatory part, and can therefore stop earlier than
+    this route on the same tree. A mandatory part over the cap on its own is a 422
+    `ContextBudgetExceeded`: a record is too large and is fixed at the source (FR-CTX-05).
+
+    No `X-Agent-Role`: nothing in the stores is written. Plain `def` because it blocks on
+    SQLite, the embedder and the store reads.
+    """
+    selection = service.select_entities(store, embedder, settings, scene)
+    return service.assemble_context(store, scene, selection.entities)
+
+
+@router.post("/{id}/audit", summary="Audit a scene against the domain invariants")
+def audit_scene(
+    store: StoreDep,
+    actor: ActorDep,
+    scene: SceneIdParam,
+    semantic: Annotated[
+        bool,
+        Query(
+            description=(
+                "Request the model-backed half too (FR-AUD-09: invariants 3 and 6, and the "
+                "prose halves of 1 and 8). Until plan step 17 it cannot run, and its "
+                "invariants are listed in `skipped`. `false` is the mechanical audit only."
+            ),
+        ),
+    ] = True,
+    persist: Annotated[
+        bool,
+        Query(
+            description=(
+                "Write the findings into `ledger/violations.yaml`, merged with what is there. "
+                "Requires `X-Agent-Role`; Figure 3 lets only the auditor write that file. "
+                "Without it nothing is written."
+            ),
+        ),
+    ] = False,
+    x_agent_role: Annotated[
+        str | None,
+        Header(
+            alias="X-Agent-Role",
+            description=(
+                "Required only with `persist=true`, where it must be `auditor`; any other "
+                "role is a 403 and leaves the tree byte-identical (AC 16)."
+            ),
+        ),
+    ] = None,
+) -> audit.AuditReport:
+    """IF-05, `POST /scenes/{id}/audit`. Reports; does not repair (AC 15, AC 16).
+
+    The checks read the scene, the book's other scene records, the draft, the lexicon, the
+    time system, the setups, the threads, every knowledge file and the POV's voice, and
+    return every finding with the list of checks that ran and those that did not -- so an
+    empty list of violations is never read as a pass on a check that was skipped.
+
+    Reading needs no role: without `persist` the route writes nothing and is safe to call
+    from anywhere. With `persist`, the role is required before anything runs (IF-02, a 400
+    when absent) and the write is decided by Figure 3 inside the store layer, never here. The
+    role header is declared on this route rather than taken from `RoleDep` because `RoleDep`
+    would make it mandatory for the read-only call as well.
+    """
+    role = require_role(x_agent_role) if persist else None
+    report = audit.audit_scene(store, scene, semantic=semantic)
+    if role is None:
+        return report
+    record = audit.persist(store, report, role=role, actor=actor)
+    return report.model_copy(update={"persisted": record})
 
 
 # --------------------------------------------------------------------------------------
