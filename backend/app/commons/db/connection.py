@@ -80,16 +80,32 @@ def connect(index_path: Path, *, with_vector: bool = True) -> sqlite3.Connection
     enough that there is no excuse for dangling rows; `synchronous = NORMAL` because the index
     is derived and rebuildable, so trading a little durability for speed costs nothing that
     cannot be regenerated from the tree.
+
+    `isolation_level=None` hands transaction control to the caller: the `sqlite3` module's
+    legacy mode opens a DEFERRED transaction implicitly before the first DML statement, and a
+    deferred read that later upgrades to a write can fail with SQLITE_BUSY halfway through,
+    where no busy timeout helps. Every write here goes through `transaction`, which takes the
+    write lock up front.
     """
     index_path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(index_path, timeout=BUSY_TIMEOUT_MS / 1000)
-    connection.row_factory = sqlite3.Row
-    connection.execute("pragma journal_mode = WAL")
-    connection.execute("pragma synchronous = NORMAL")
-    connection.execute("pragma foreign_keys = ON")
-    connection.execute(f"pragma busy_timeout = {BUSY_TIMEOUT_MS}")
-    if with_vector:
-        load_vector_extension(connection)
+    connection = sqlite3.connect(
+        index_path, timeout=BUSY_TIMEOUT_MS / 1000, isolation_level=None
+    )
+    try:
+        connection.row_factory = sqlite3.Row
+        # Switching a brand-new file to WAL needs the write lock, so this can raise
+        # SQLITE_BUSY; `with_retry` then calls `connect` again, and the handle opened here
+        # must not outlive the attempt (on Windows an open handle also blocks deleting the
+        # file).
+        connection.execute("pragma journal_mode = WAL")
+        connection.execute("pragma synchronous = NORMAL")
+        connection.execute("pragma foreign_keys = ON")
+        connection.execute(f"pragma busy_timeout = {BUSY_TIMEOUT_MS}")
+        if with_vector:
+            load_vector_extension(connection)
+    except BaseException:
+        connection.close()
+        raise
     return connection
 
 
@@ -101,6 +117,27 @@ def opened(index_path: Path, *, with_vector: bool = True) -> Iterator[sqlite3.Co
         yield connection
     finally:
         connection.close()
+
+
+@contextmanager
+def transaction(connection: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
+    """`BEGIN IMMEDIATE` ... `COMMIT`, or `ROLLBACK` if the body raises.
+
+    FR-IDX-06. IMMEDIATE rather than the default DEFERRED because SQLite guarantees that once
+    `BEGIN IMMEDIATE` succeeds no statement before `COMMIT` returns SQLITE_BUSY. Contention
+    can then only surface at one point, the `BEGIN`, after the busy timeout, which is exactly
+    where `with_retry` can retry the whole unit of work. A deferred transaction could fail at
+    its first write with half its reads already acted on.
+    """
+    connection.execute("begin immediate")
+    try:
+        yield connection
+    except BaseException:
+        # A failed rollback must not hide the error that caused it.
+        with suppress(sqlite3.Error):
+            connection.execute("rollback")
+        raise
+    connection.execute("commit")
 
 
 def is_busy(error: sqlite3.Error) -> bool:
@@ -142,10 +179,12 @@ def with_retry[ResultT](operation: Callable[[], ResultT]) -> ResultT:
 __all__ = [
     "BUSY_TIMEOUT_MS",
     "RETRY_ATTEMPTS",
+    "RETRY_BACKOFF_SECONDS",
     "connect",
     "is_busy",
     "load_vector_extension",
     "opened",
+    "transaction",
     "vector_extension_available",
     "with_retry",
 ]

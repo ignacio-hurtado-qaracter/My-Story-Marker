@@ -12,17 +12,23 @@ everyone remembers it:
   `agent`, and the orchestrator always sends `agent` explicitly: the human gate on collisions
   (FR-OPS-07) means nothing if a process can claim to be a person.
 
+A fourth, **`EmbedderDep`**, gives the index routes the embedder. It is a dependency rather
+than a construction inside the route so the offline suite can override it with
+`FakeEmbedder` and never load a model or reach the network (NFR-06, NFR-09).
+
 These are FastAPI dependencies, so they live in `commons/` beside the things they wire, and
 they know no feature's name (NFR-04).
 """
 
 from __future__ import annotations
 
+import threading
 from typing import Annotated
 
 from fastapi import Depends, Header
 
 from app.commons.config import Settings, get_settings
+from app.commons.embeddings import Embedder, FastEmbedEmbedder
 from app.commons.errors import InvalidRole
 from app.commons.permissions import Actor, AgentRole
 from app.commons.stores import Store
@@ -87,11 +93,43 @@ def request_actor(
 
 ActorDep = Annotated[Actor, Depends(request_actor)]
 
+_EmbedderKey = tuple[str, str, str, bool]
+_EMBEDDERS: dict[_EmbedderKey, Embedder] = {}
+_EMBEDDERS_LOCK = threading.Lock()
+
+
+def get_embedder(settings: SettingsDep) -> Embedder:
+    """FR-EMB-02, -03. The production embedder, built once per configuration.
+
+    Cached because loading the ONNX model costs seconds and a rebuild should not pay it on
+    every request; keyed on the settings that choose the model, so a test that moves
+    `EMBED_MODEL` gets a different embedder rather than a stale one. The lock keeps two
+    concurrent first requests from loading the model twice. Tests override this dependency
+    with `FakeEmbedder`.
+    """
+    key: _EmbedderKey = (
+        settings.embed_model,
+        settings.embed_fallback_model,
+        str(settings.model_cache_dir),
+        settings.embed_offline,
+    )
+    with _EMBEDDERS_LOCK:
+        embedder = _EMBEDDERS.get(key)
+        if embedder is None:
+            embedder = FastEmbedEmbedder(settings)
+            _EMBEDDERS[key] = embedder
+    return embedder
+
+
+EmbedderDep = Annotated[Embedder, Depends(get_embedder)]
+
 __all__ = [
     "ActorDep",
+    "EmbedderDep",
     "RoleDep",
     "SettingsDep",
     "StoreDep",
+    "get_embedder",
     "get_store",
     "request_actor",
     "require_role",

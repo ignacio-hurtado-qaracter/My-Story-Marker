@@ -169,8 +169,14 @@ def fixture_store(fixture_root: Path) -> Store:
 def fixture_client(fixture_root: Path) -> Iterator[TestClient]:
     """The whole app, started against the copy. Imported lazily so collecting a test that
     does not need the app does not build it."""
+    from app.commons.deps import get_embedder
+    from app.commons.embeddings import FakeEmbedder
     from app.main import create_app
 
     del fixture_root  # requested for its side effect: settings now point at the copy
-    with TestClient(create_app()) as client:
+    app = create_app()
+    # NFR-09: no test loads a real model. Selection embeds the scene query and the index
+    # routes embed rows, so the fake stands in for `fastembed` everywhere the app is served.
+    app.dependency_overrides[get_embedder] = FakeEmbedder
+    with TestClient(app) as client:
         yield client

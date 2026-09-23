@@ -970,6 +970,166 @@
         "title": "HistoricalEvent",
         "type": "object"
       },
+      "IndexReport": {
+        "description": "`POST /index/rebuild`, and what an incremental update did.",
+        "properties": {
+          "embedded": {
+            "description": "Texts sent to the embedder. FR-IDX-08: only rows whose hash changed.",
+            "title": "Embedded",
+            "type": "integer"
+          },
+          "embedding_model": {
+            "description": "The model recorded in the index metadata.",
+            "title": "Embedding Model",
+            "type": "string"
+          },
+          "mode": {
+            "description": "`rebuild` when every row was rewritten, `incremental` otherwise.",
+            "enum": [
+              "rebuild",
+              "incremental"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why a rebuild ran: `requested` for `POST /index/rebuild`, or the FR-IDX-07 condition that forced one during an update. Null for an incremental update.",
+            "title": "Reason"
+          },
+          "removed": {
+            "description": "Rows deleted because their record left the tree.",
+            "title": "Removed",
+            "type": "integer"
+          },
+          "rows": {
+            "description": "Rows in the index afterwards.",
+            "title": "Rows",
+            "type": "integer"
+          },
+          "vector": {
+            "description": "Whether embeddings were written (FR-IDX-03).",
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Vector",
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode",
+          "reason",
+          "rows",
+          "embedded",
+          "removed",
+          "embedding_model",
+          "vector"
+        ],
+        "title": "IndexReport",
+        "type": "object"
+      },
+      "IndexStatus": {
+        "description": "`GET /index/status`. What a person needs to decide whether to rebuild.",
+        "properties": {
+          "embedding_dim": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The dimension recorded with it.",
+            "title": "Embedding Dim"
+          },
+          "embedding_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The model the index was last built with (FR-IDX-07); null if never built.",
+            "title": "Embedding Model"
+          },
+          "kinds": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "Row count per kind.",
+            "title": "Kinds",
+            "type": "object"
+          },
+          "migrations": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "`schema_migrations`: each migration and whether it was applied or skipped.",
+            "title": "Migrations",
+            "type": "object"
+          },
+          "orphans": {
+            "description": "Rows whose `path` no longer exists in the tree (FR-IDX-07). An index entry with no backing record is a bug; AC 6 asserts this is zero after a rebuild.",
+            "title": "Orphans",
+            "type": "integer"
+          },
+          "rebuild_required": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Why the next update will rebuild instead of updating incrementally, as far as can be told without loading the embedding model; null when nothing is known.",
+            "title": "Rebuild Required"
+          },
+          "rows": {
+            "description": "Rows in the entity index.",
+            "title": "Rows",
+            "type": "integer"
+          },
+          "vector": {
+            "description": "FR-IDX-03. `available` when `sqlite-vec` loads and the vector table exists; otherwise selection is FTS5-only.",
+            "enum": [
+              "available",
+              "unavailable"
+            ],
+            "title": "Vector",
+            "type": "string"
+          },
+          "vector_rows": {
+            "description": "Rows holding an embedding; 0 without `sqlite-vec`.",
+            "title": "Vector Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rows",
+          "orphans",
+          "kinds",
+          "embedding_model",
+          "embedding_dim",
+          "vector",
+          "vector_rows",
+          "rebuild_required",
+          "migrations"
+        ],
+        "title": "IndexStatus",
+        "type": "object"
+      },
       "KindIndex": {
         "description": "IF-03, `GET /canon/{kind}`: the identifiers of one kind, and nothing else.\n\nIdentifiers rather than records, because a list route that returned every axiom's full\ntext would be the easiest way there is to spend the 100k context cap (NFR-05) from the\nclient side, and it would do it without any of the ranking that FR-OPS-02 exists to\napply. A caller that wants a record asks for it by id.",
         "properties": {
@@ -4319,6 +4479,50 @@
         "summary": "Health",
         "tags": [
           "meta"
+        ]
+      }
+    },
+    "/index/rebuild": {
+      "post": {
+        "description": "Empty the derived tables and repopulate them from the tree.",
+        "operationId": "rebuild_index_index_rebuild_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndexReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Rebuild Index",
+        "tags": [
+          "index"
+        ]
+      }
+    },
+    "/index/status": {
+      "get": {
+        "description": "Row and orphan counts, the recorded model, and vector availability.",
+        "operationId": "index_status_index_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndexStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Index Status",
+        "tags": [
+          "index"
         ]
       }
     },

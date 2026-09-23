@@ -39,6 +39,8 @@ from fastapi.testclient import TestClient
 from starlette.routing import BaseRoute
 
 from app.commons.config import get_settings
+from app.commons.deps import get_embedder
+from app.commons.embeddings import FakeEmbedder
 from app.commons.stores import paths
 from app.main import create_app
 from scripts.export_openapi import openapi_path, render
@@ -55,7 +57,8 @@ META_ROUTES = frozenset(
         ("GET", "/permissions"),
     }
 )
-"""IF-01's two meta routes. `/index` is IF-01's third and arrives with the index itself."""
+"""IF-01's two meta routes. `/index` is IF-01's third, and is listed with the operations of
+IF-05 that serve it."""
 
 IF_03_READS = frozenset(
     {
@@ -120,16 +123,22 @@ IF_04_WRITES = frozenset(
 """IF-04's write routes. Every one of them takes `X-Agent-Role`; which role Figure 3 then
 allows is the store layer's decision and is tested in `app/commons/permissions/tests/`."""
 
+IF_05_OPERATIONS = frozenset(
+    {
+        ("GET", "/index/status"),  # FR-IDX-07, plan step 9
+        ("POST", "/index/rebuild"),  # FR-IDX-04, plan step 9
+    }
+)
+"""IF-03's as-of read and IF-05's operations, as each step publishes them."""
+
 DEFERRED_ROUTES = {
-    ("GET", "/cast/{}/dossier"): "needs FR-OPS-01's `at=` trimming",
-    ("POST", "/scenes/{}/select"): "needs the index and the embedder",
-    ("POST", "/scenes/{}/assemble"): "needs the token counter and the 100k cap",
-    ("POST", "/scenes/{}/audit"): "needs the invariant modules",
-    ("POST", "/canon/reconcile"): "needs `promote` and `rule`",
-    ("POST", "/ledger/proposed/{}/promote"): "FR-OPS-06, with the canoniser",
-    ("POST", "/ledger/proposed/{}/rule"): "the human ruling on a collision",
-    ("GET", "/index/status"): "the index does not exist yet",
-    ("POST", "/index/rebuild"): "the index does not exist yet",
+    ("GET", "/cast/{}/dossier"): "plan step 10, FR-OPS-01",
+    ("POST", "/canon/reconcile"): "plan step 13, FR-OPS-08",
+    ("POST", "/ledger/proposed/{}/promote"): "plan step 13, FR-OPS-06",
+    ("POST", "/ledger/proposed/{}/rule"): "plan step 13, FR-OPS-07",
+    ("POST", "/scenes/{}/audit"): "plan step 14, FR-AUD",
+    ("POST", "/scenes/{}/select"): "plan step 11, FR-OPS-02",
+    ("POST", "/scenes/{}/assemble"): "plan step 12, FR-OPS-03",
     ("GET", "/agents/turns"): "the orchestrator",
     ("POST", "/agents/turns"): "the orchestrator",
     ("GET", "/agents/provenance"): "the orchestrator",
@@ -141,7 +150,7 @@ forgotten, and this list is what lets the reverse-direction check below tell "no
 yet" apart from "written and never mounted".
 """
 
-EXPECTED_ROUTES = META_ROUTES | IF_03_READS | IF_04_WRITES
+EXPECTED_ROUTES = META_ROUTES | IF_03_READS | IF_04_WRITES | IF_05_OPERATIONS
 
 
 def normalise_template(path: str) -> str:
@@ -238,7 +247,9 @@ def app(story_repo: Path) -> FastAPI:
     callable and would make every walk of `app.routes` a cast.
     """
     del story_repo
-    return create_app()
+    served = create_app()
+    served.dependency_overrides[get_embedder] = FakeEmbedder  # NFR-09: no real model
+    return served
 
 
 @pytest.fixture
