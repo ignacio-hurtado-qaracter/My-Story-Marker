@@ -1,10 +1,10 @@
 ---
 spec: 001                 # the approved spec this plan implements
-status: draft             # draft · approved · done
+status: approved             # draft · approved · done
 ---
 
 Implementation plan for [`001-backend-foundation.md`](./001-backend-foundation.md)
-(status `draft` since 2026-09-23; last approved 2026-09-22). The spec says *what* and *why*; this file says *how* and
+(status `approved`, re-approved 2026-09-23). The spec says *what* and *why*; this file says *how* and
 *in what order*. Anything not listed under "Files to touch" is out of scope; a file that
 turns out to be needed means this plan is wrong and goes back to `draft`.
 
