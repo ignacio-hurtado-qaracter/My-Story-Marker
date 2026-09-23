@@ -3,6 +3,9 @@ import { Link, NavLink, Outlet } from 'react-router'
 
 import { HealthBadge } from '../health'
 
+// WCAG 2.2 AA 2.5.8: stacked navigation links need a 24 px target (spec 002, NFR-02, AC 11).
+const TARGET = { display: 'inline-block', minHeight: '24px', padding: '4px 0' } as const
+
 export function Layout() {
   return (
     <>
@@ -13,10 +16,14 @@ export function Layout() {
         <nav aria-label="Principal">
           <ul>
             <li>
-              <NavLink to="/scenes">Escenas</NavLink>
+              <NavLink to="/scenes" style={TARGET}>
+                Escenas
+              </NavLink>
             </li>
             <li>
-              <NavLink to="/graph3d">Grafo 3D</NavLink>
+              <NavLink to="/graph3d" style={TARGET}>
+                Grafo 3D
+              </NavLink>
             </li>
           </ul>
         </nav>

@@ -7,6 +7,9 @@ import { Skeleton } from './Skeleton'
 import type { Toc } from './toc'
 import { useToc } from './useToc'
 
+// WCAG 2.2 AA 2.5.8: stacked scene links need a 24 px target (spec 002, NFR-02, AC 11).
+const TARGET = { display: 'inline-block', minHeight: '24px', padding: '4px 0' } as const
+
 export function TocPage() {
   const { data, error, isPending, refetch } = useToc()
   let body
@@ -60,7 +63,9 @@ function SceneLinks({ ids }: { ids: string[] }) {
     <ol>
       {ids.map((id) => (
         <li key={id}>
-          <Link to={`/scenes/${id}`}>Escena {id}</Link>
+          <Link to={`/scenes/${id}`} style={TARGET}>
+            Escena {id}
+          </Link>
         </li>
       ))}
     </ol>
