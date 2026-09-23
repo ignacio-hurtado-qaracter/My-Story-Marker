@@ -479,13 +479,13 @@ text = "Máximo de 100.000 tokens de contexto por llamada"
 checks = [{ kind = "grep", regex = 'CONTEXT_TOKEN_CAP\s*(:[^=\n]+)?=\s*100_000', files = ["backend/app/commons/config.py"] }]
 
 # ------------------------------------------------------------ Documentación de proceso
-# Rutas provisionales: docs/ es hoy la capa de diseño (AGENTS.md). Dónde vive la
-# documentación de proceso es una pregunta de la ronda 1 del Proceso 0.
+# Decidido en la ronda 1 del Proceso 0 (pregunta 5): la documentación de proceso vive en
+# docs/process/, un área de registro que cita a docs/ y nunca define diseño.
 [[item]]
 id = "D01"
 block = "Docs de proceso"
 text = "Spec inicial: qué se decidió construir y por qué, antes del código"
-checks = [{ kind = "glob", patterns = ["docs/process/spec-inicial*.md", "specs/001-*.md"] }]
+checks = [{ kind = "glob", patterns = ["docs/process/spec-inicial*.md", "specs/001-*/001-*.md"] }]
 
 [[item]]
 id = "D02"

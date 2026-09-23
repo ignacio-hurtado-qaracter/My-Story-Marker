@@ -191,6 +191,19 @@ de "sin secretos" al gate del backend, igual que ya hace `exam/check.py`.
 
 ---
 
+## Respuestas del usuario (2026-09-23)
+
+| # | Respuesta |
+|---|---|
+| 5 | **Recomendación.** La documentación de proceso vive en `docs/process/`, área de registro. |
+| 6 | **Recomendación (a).** SQLite autoritativo para brief, hechos y su uso, cronología, palabras prohibidas, audit log de policy y versiones. Prosa, canon y cast siguen en ficheros. |
+| 7 | **Rechazada.** Un capítulo tiene **varias escenas**; no hay correspondencia 1:1. |
+| 8 | **Recomendación.** Entrevistador nuevo, planner = architect invocado por modelo con escrituras bajo world builder y architect, writer, editor = style editor + auditor, juez de solo lectura. |
+| 9 | **(a).** Lector web en React con cambio desde la página y exportación a PDF desde el backend. |
+
+Las demás siguen abiertas y pasan a la [ronda 2](./round-2-rescope.md), junto con lo que se
+deriva de estas respuestas.
+
 ## Qué pasa después
 
 Con tus respuestas redacto el resumen de entendimiento compartido: intención, capa,

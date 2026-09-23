@@ -4,7 +4,7 @@ Generado por `python exam/check.py` a partir de `exam/requirements.toml`. No se 
 
 Las comprobaciones son heurísticas: ✅ dice que el artefacto existe, no que sea bueno.
 
-**Obligatorios comprobables cumplidos: 10 de 72.**
+**Obligatorios comprobables cumplidos: 12 de 72.**
 
 Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ existe, revisar a mano
 
@@ -17,17 +17,17 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 | Claude Code | 2 | 1 | 3 | 0 |
 | 1. Configuración | 0 | 0 | 4 | 0 |
 | 2. Lectura | 0 | 0 | 7 | 0 |
-| 3. Harness | 0 | 0 | 5 | 1 |
+| 3. Harness | 1 | 0 | 4 | 1 |
 | 4. Memoria | 0 | 0 | 4 | 0 |
 | 5a. Programáticos | 0 | 1 | 5 | 0 |
 | 5b. Semánticos | 0 | 0 | 2 | 0 |
 | 5c. Lean 4 | 0 | 0 | 4 | 0 |
 | 5d. TLA+ | 0 | 0 | 5 | 0 |
 | Evaluación | 0 | 0 | 3 | 0 |
-| 6. Observabilidad | 0 | 0 | 3 | 0 |
+| 6. Observabilidad | 1 | 0 | 2 | 0 |
 | 7. Guardrails | 1 | 0 | 4 | 1 |
 | Docs de proceso | 1 | 1 | 4 | 0 |
-| Opcionales | 0 | 0 | 4 | 0 |
+| Opcionales | 1 | 0 | 3 | 0 |
 
 ## Entregables
 
@@ -88,11 +88,11 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
-| H01 | ❌ | Tres roles como mínimo (planner, writer, editor/critic) invocados por un orquestador | ✗ /(?i)def (plan\|write\|revise\|critique\|edit\|audit)\w*\(/ found 0x in backend/app/agents/**/*.py (need 3) |
+| H01 | ❌ | Tres roles como mínimo (planner, writer, editor/critic) invocados por un orquestador | ✗ /(?i)def (plan\|write\|revise\|critique\|edit\|audit)\w*\(/ found 1x in backend/app/agents/**/*.py (need 3) |
 | H02 | 📝✅ | Una skill reutilizable propia del harness | ✓ 4 file(s) for .claude/skills/*/SKILL.md (need 1) |
 | H03 | ❌ | Hook de validación de capítulo | ✗ /(?i)chapter/ found 0x in .claude/settings.json \| .claude/hooks/* (need 1) |
 | H04 | ❌ | Hook de policy | ✗ /(?i)policy/ found 0x in .claude/settings.json \| .claude/hooks/* (need 1) |
-| H05 | ❌ | Tools con schema validado | ✗ /(?i)(def toolset_for\|tool_schema\|input_schema)/ found 0x in backend/app/**/*.py (need 1) |
+| H05 | ✅ | Tools con schema validado | ✓ /(?i)(def toolset_for\|tool_schema\|input_schema)/ in backend/app/commons/permissions/toolsets.py |
 | H06 | ❌ | Retries con límite, usados por el orquestador | ✗ /TURN_MAX_REVISIONS\|MAX_RETRIES\|max_attempts/ found 0x in backend/app/agents/**/*.py (need 1) |
 
 ## 4. Memoria
@@ -153,7 +153,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
-| O01 | ❌ | Una traza por generación, una sesión por novela (entrevista y regeneraciones incluidas) | ✗ /(?i)session_id/ found 0x in backend/app/**/*.py (need 1) |
+| O01 | ✅ | Una traza por generación, una sesión por novela (entrevista y regeneraciones incluidas) | ✓ /(?i)session_id/ in backend/app/commons/llm/tests/test_claude_code_command.py |
 | O02 | ❌ | Span con nombre por rol y por tool; tokens, coste y latencia por llamada, capítulo y novela | ✗ /(?i)langfuse/ found 0x in backend/app/**/*.py (need 1) |
 | O03 | ❌ | Prompts versionados en Langfuse | ✗ /(?i)get_prompt/ found 0x in backend/app/**/*.py (need 1) |
 
@@ -172,7 +172,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
-| D01 | ✅ | Spec inicial: qué se decidió construir y por qué, antes del código | ✓ 2 file(s) for docs/process/spec-inicial*.md \| specs/001-*.md (need 1) |
+| D01 | ✅ | Spec inicial: qué se decidió construir y por qué, antes del código | ✓ 2 file(s) for docs/process/spec-inicial*.md \| specs/001-*/001-*.md (need 1) |
 | D02 | ❌ | Trade-offs: cada decisión relevante con opciones, criterios y elección | ✗ 0 file(s) for docs/process/trade-offs*.md \| docs/process/adr/*.md (need 1) |
 | D03 | ❌ | Explainers: uno por concepto del curso aplicado en el proyecto | ✗ 0 file(s) for docs/process/explainers/*.md (need 3) |
 | D04 | 🟡 | Diagramas: arquitectura del harness, máquina de estados TLA+, esquema SQLite, tabla de validadores | ✓ /flowchart/ in docs/architecture.md (+1)<br>✗ /stateDiagram/ found 0x in docs/process/**/*.md \| formal/tla/README.md (need 1)<br>✗ /erDiagram/ found 0x in docs/process/**/*.md \| docs/architecture.md (need 1)<br>✗ /(?i)validator/ found 0x in docs/process/**/*.md \| docs/verification.md (need 1) |
@@ -184,6 +184,6 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
 | X01 | ❌ | Servidor MCP de solo lectura (FastMCP) para consultar y descargar novelas *(opcional)* | ✗ /(?i)fastmcp/ found 0x in backend/app/**/*.py \| backend/pyproject.toml (need 1) |
-| X02 | ❌ | Linters de prosa (repeticiones, frases largas, clichés de IA, consistencia de narrador) *(opcional)* | ✗ /(?i)(cliche\|readability\|repetition)/ found 0x in backend/app/**/*.py (need 1) |
+| X02 | ✅ | Linters de prosa (repeticiones, frases largas, clichés de IA, consistencia de narrador) *(opcional)* | ✓ /(?i)(cliche\|readability\|repetition)/ in backend/app/ledger/audit/persist.py |
 | X03 | ❌ | Login con SQLite (hash bcrypt, JWT) y aislamiento de novelas por usuario *(opcional)* | ✗ /(?i)(bcrypt\|argon2)/ found 0x in backend/pyproject.toml (need 1) |
 | X04 | ❌ | Informe de seguridad en docs/security-report.md *(opcional)* | ✗ missing: docs/security-report.md |
