@@ -828,7 +828,7 @@
             "type": "string"
           },
           "mandatory": {
-            "description": "True for the fixed block, the POV dossier and the tail (FR-CTX-03). Pruning never removes a mandatory entry; if they alone do not fit the call is refused with `ContextBudgetExceeded` (FR-CTX-05).",
+            "description": "True for the role's own inputs, the fixed block, the POV dossier and the tail (FR-CTX-03). Pruning never removes a mandatory entry; if they alone do not fit the call is refused with `ContextBudgetExceeded` (FR-CTX-05).",
             "title": "Mandatory",
             "type": "boolean"
           },
@@ -876,8 +876,9 @@
         "type": "object"
       },
       "ContextPart": {
-        "description": "Which of Figure 2's blocks an entry belongs to, in the order they are loaded.\n\nThe first three are the mandatory part of the writer's input (FR-CTX-03): the fixed\nblock, the POV's as-of dossier and the previous scene's tail. The last three are the\nprunable part, removed whole from the end when the estimate would cross the cap.",
+        "description": "Which of Figure 2's blocks an entry belongs to, in the order they are loaded.\n\n`role_input` and the three after it are the mandatory part of the writer's input\n(FR-CTX-03): what the calling role adds, the fixed block, the POV's as-of dossier and the\nprevious scene's tail. The last three are the prunable part, removed whole from the end\nwhen the estimate would cross the cap.",
         "enum": [
+          "role_input",
           "fixed",
           "pov",
           "literal_tail",
@@ -2360,6 +2361,120 @@
         "title": "RolePermissions",
         "type": "object"
       },
+      "RollupRequest": {
+        "additionalProperties": false,
+        "description": "IF-06, the body of `POST /agents/digests/rollup`: one chapter or one arc, never both.",
+        "properties": {
+          "arc_id": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[a-z0-9][a-z0-9_-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Roll the chapter digests of this arc of `structure/arcs.yaml` into an arc digest.",
+            "title": "Arc Id"
+          },
+          "chapter_id": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "pattern": "^[a-z0-9][a-z0-9_-]*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Roll the scene digests of this chapter of `structure/chapters.yaml` into a chapter digest.",
+            "title": "Chapter Id"
+          }
+        },
+        "title": "RollupRequest",
+        "type": "object"
+      },
+      "RollupResponse": {
+        "description": "IF-06. The digest written, where, under whom, and what the call cost.",
+        "properties": {
+          "claimed_povs": {
+            "description": "The `povs` the model reported. The record's `povs` come from the scene records; the two are compared, not merged.",
+            "items": {
+              "maxLength": 120,
+              "minLength": 1,
+              "pattern": "^[a-z0-9][a-z0-9_-]*$",
+              "type": "string"
+            },
+            "title": "Claimed Povs",
+            "type": "array"
+          },
+          "digest": {
+            "$ref": "#/components/schemas/SceneDigest",
+            "description": "The record as written, `words` measured."
+          },
+          "digest_id": {
+            "description": "The file under `manuscript/digests/`: 900 + k for the k-th chapter of `structure/chapters.yaml`, 989 + k for the k-th arc of `structure/arcs.yaml`.",
+            "pattern": "^\\d{3}$",
+            "title": "Digest Id",
+            "type": "string"
+          },
+          "estimate": {
+            "description": "The pre-call input estimate (FR-CTX-02).",
+            "minimum": 0.0,
+            "title": "Estimate",
+            "type": "integer"
+          },
+          "model_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The model id the CLI reported (FR-LLM-03).",
+            "title": "Model Id"
+          },
+          "over_cap": {
+            "description": "FR-CTX-06: the real count exceeded the cap.",
+            "title": "Over Cap",
+            "type": "boolean"
+          },
+          "persisted": {
+            "$ref": "#/components/schemas/ProvenanceRecord",
+            "description": "The provenance line of the write."
+          },
+          "povs_agree": {
+            "description": "Whether `claimed_povs` names the same characters.",
+            "title": "Povs Agree",
+            "type": "boolean"
+          },
+          "prompt_version": {
+            "description": "FR-AGENT-10: the writer prompt's SHA-256.",
+            "title": "Prompt Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "digest_id",
+          "digest",
+          "persisted",
+          "claimed_povs",
+          "povs_agree",
+          "model_id",
+          "estimate",
+          "over_cap",
+          "prompt_version"
+        ],
+        "title": "RollupResponse",
+        "type": "object"
+      },
       "RuleRequest": {
         "additionalProperties": false,
         "description": "The body of `POST /ledger/proposed/{id}/rule` (FR-OPS-07).\n\n`reason` is required and non-empty because `Ruling.reason` is: a ruling without one is\nunreviewable, and the record of *why* something was refused is what stops the same\ninvention being proposed and argued about again twenty scenes later. Unknown fields are\nrefused rather than ignored, as on every request body in this feature.",
@@ -3627,6 +3742,68 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/agents/digests/rollup": {
+      "post": {
+        "description": "IF-06, FR-AGENT-08. The writer rolls the digests below a chapter or an arc into one.\n\nA chapter reads the scene digests of its scenes, in discourse order; an arc the chapter\ndigests of its chapters. The digest is filed under `manuscript/digests/` as `900 + k` for\nthe k-th chapter of `structure/chapters.yaml` and `989 + k` for the k-th arc, with the\ncovered range in `scene_ref` and the POVs the scene records name in `povs`.\n\nRefused before any model call: a role whose tool set does not reach the digest file\n(Figure 3 gives it to the writer alone) is a 403, and a chapter or arc with a digest\nmissing is a 404 naming it -- a rollup of a partial set would read as the whole.",
+        "operationId": "rollup_digests_agents_digests_rollup_post",
+        "parameters": [
+          {
+            "description": "The Figure 3 role performing this write. Required on every write.",
+            "in": "header",
+            "name": "X-Agent-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "The Figure 3 role performing this write. Required on every write.",
+              "title": "X-Agent-Role"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollupRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RollupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Roll a chapter or an arc up into its digest",
+        "tags": [
+          "agents"
+        ]
+      }
+    },
     "/canon/axioms": {
       "get": {
         "description": "IF-03. The identifiers of this kind, sorted. Never the records themselves.",
@@ -6471,7 +6648,7 @@
     },
     "/scenes/{id}/audit": {
       "post": {
-        "description": "IF-05, `POST /scenes/{id}/audit`. Reports; does not repair (AC 15, AC 16).\n\nThe checks read the scene, the book's other scene records, the draft, the lexicon, the\ntime system, the setups, the threads, every knowledge file and the POV's voice, and\nreturn every finding with the list of checks that ran and those that did not -- so an\nempty list of violations is never read as a pass on a check that was skipped.\n\nReading needs no role: without `persist` the route writes nothing and is safe to call\nfrom anywhere. With `persist`, the role is required before anything runs (IF-02, a 400\nwhen absent) and the write is decided by Figure 3 inside the store layer, never here. The\nrole header is declared on this route rather than taken from `RoleDep` because `RoleDep`\nwould make it mandatory for the read-only call as well.",
+        "description": "IF-05, `POST /scenes/{id}/audit`. Reports; does not repair (AC 15, AC 16).\n\nThe checks read the scene, the book's other scene records, the draft, the lexicon, the\ntime system, the setups, the threads, every knowledge file and the POV's voice, and\nreturn every finding with the list of checks that ran and those that did not -- so an\nempty list of violations is never read as a pass on a check that was skipped.\n\nWith `semantic` (the default, IF-05's \"full, auditor role\") the mechanical half runs\nfirst and the auditor role judges the rest (FR-AGENT-07): its findings join the report\nwith `source: model`, what it judged joins `checked`, and what it could not -- a failed\nmodel step, an input the cap pruned -- joins `skipped` (FR-AUD-09, FR-CTX-04).\n\nReading needs no role: without `persist` the route writes nothing and is safe to call\nfrom anywhere. With `persist`, the role is required before anything runs (IF-02, a 400\nwhen absent) and the write is decided by Figure 3 inside the store layer, never here. The\nrole header is declared on this route rather than taken from `RoleDep` because `RoleDep`\nwould make it mandatory for the read-only call as well.",
         "operationId": "audit_scene_scenes__id__audit_post",
         "parameters": [
           {
@@ -6487,13 +6664,13 @@
             }
           },
           {
-            "description": "Request the model-backed half too (FR-AUD-09: invariants 3 and 6, and the prose halves of 1 and 8). Until plan step 17 it cannot run, and its invariants are listed in `skipped`. `false` is the mechanical audit only.",
+            "description": "Request the model-backed half too (FR-AUD-09: invariants 3 and 6, and the prose halves of 1 and 8), judged by the auditor role after the mechanical checks, with their findings handed to it as data. When the model step fails, or no auditor is wired, its invariants are listed in `skipped`. `false` is the mechanical audit only, and calls no model.",
             "in": "query",
             "name": "semantic",
             "required": false,
             "schema": {
               "default": true,
-              "description": "Request the model-backed half too (FR-AUD-09: invariants 3 and 6, and the prose halves of 1 and 8). Until plan step 17 it cannot run, and its invariants are listed in `skipped`. `false` is the mechanical audit only.",
+              "description": "Request the model-backed half too (FR-AUD-09: invariants 3 and 6, and the prose halves of 1 and 8), judged by the auditor role after the mechanical checks, with their findings handed to it as data. When the model step fails, or no auditor is wired, its invariants are listed in `skipped`. `false` is the mechanical audit only, and calls no model.",
               "title": "Semantic",
               "type": "boolean"
             }

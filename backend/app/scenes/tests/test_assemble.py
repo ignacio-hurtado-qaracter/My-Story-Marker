@@ -863,3 +863,70 @@ def test_the_route_404s_for_a_missing_scene(fixture_client: TestClient) -> None:
     response = fixture_client.post("/scenes/099/assemble")
 
     assert response.status_code == 404
+
+
+# --- plan step 17: the calling role's own documents ------------------------------------------
+
+RECORD = "scenes/003.yaml"
+
+
+# spec 001 / FR-CTX-03, FR-PERM-07 -- a role's own documents come first, verbatim, mandatory,
+# and change nothing else about the assembly.
+def test_role_inputs_come_first_verbatim_and_leave_the_rest_unchanged(
+    fixture_store: Store,
+) -> None:
+    plain = assemble(fixture_store, "003")
+    text = "  a record, verbatim: leading spaces and a trailing blank line kept\n\n"
+    context = service.assemble_context(
+        fixture_store, "003", FULL, role_inputs=[(RECORD, text), ("manuscript/003.md", "prose")]
+    )
+    first, second, *rest = context.entries
+    assert (first.key, first.part, first.path, first.sources) == (
+        RECORD,
+        ContextPart.ROLE_INPUT,
+        RECORD,
+        [RECORD],
+    )
+    assert first.text == text
+    assert first.mandatory
+    assert first.tokens == estimate_tokens(text)
+    assert second.key == "manuscript/003.md"
+    assert rest == plain.entries
+    assert context.removed == plain.removed
+    assert context.fixed_block_tokens == plain.fixed_block_tokens
+    assert context.estimate == plain.estimate + estimate_tokens(text) + estimate_tokens("prose")
+
+
+# spec 001 / AC 33, FR-CTX-03 -- they count in the mandatory part: the selected entities fill
+# only what is left, and a role input the cap cannot hold refuses the call.
+def test_role_inputs_are_counted_in_the_mandatory_part(fixture_store: Store) -> None:
+    plain = assemble(fixture_store, "003")
+    mandatory = sum(entry.tokens for entry in plain.entries if entry.mandatory)
+    kept_prunable = [entry for entry in plain.entries if not entry.mandatory]
+    assert kept_prunable, "the fixture context has prunable entries"
+    padding = "x" * (3 * kept_prunable[-1].tokens)
+    squeezed = service.assemble_context(
+        fixture_store, "003", FULL, cap=plain.estimate, role_inputs=[(RECORD, padding)]
+    )
+    assert squeezed.truncated_at == kept_prunable[-1].key
+    assert squeezed.removed[0] == kept_prunable[-1].key
+    with pytest.raises(ContextBudgetExceeded):
+        service.assemble_context(
+            fixture_store,
+            "003",
+            FULL,
+            cap=mandatory + 10,
+            role_inputs=[(RECORD, "y" * 3 * 11)],
+        )
+
+
+# spec 001 / FR-CTX-03 -- a document has one name.
+def test_role_inputs_may_not_share_or_steal_a_key(fixture_store: Store) -> None:
+    with pytest.raises(ValueError, match="one name"):
+        service.assemble_context(
+            fixture_store, "003", FULL, role_inputs=[(RECORD, "a"), (RECORD, "b")]
+        )
+    with pytest.raises(ValueError, match="reuses the key"):
+        service.assemble_context(
+            fixture_store, "003", FULL, role_inputs=[(paths.PROJECT, "a forged fixed block")]
+        )

@@ -12,8 +12,10 @@ through a `Store` and never written:
   rendered by the client's own `render_prompt` parses back into exactly the (path, text) pairs
   that were read, each between its BEGIN and END lines, with the instruction last.
 
-The turn-level half -- every recorded call of a real turn -- is plan step 18's
-`test_prompts_as_data` rows; this file proves the assembly those calls are built from. The
+The turn-level half -- every recorded call of whole turns (plan step 18) -- is at the end of
+this file; before it, the assembly those calls are built from, and every role call of plan
+step 17 one by one: the prompt file as system, no store text
+in the instruction beyond the language name, every document a labelled block. The
 prompt checks at the end are the ones Figure 2 and "A warning about over-constraint" ask of the
 writer and FR-AGENT-06 of the auditor; `prompt_version` is FR-AGENT-10.
 """
@@ -30,14 +32,17 @@ from pydantic import BaseModel
 
 from app.agents import roles
 from app.agents.roles import (
+    MECHANICAL_FINDINGS,
     MODEL_ROLES,
     PROMPTS,
     documents_for,
     prompt_version,
     system_prompt,
 )
+from app.agents.tests.test_roles import CALL_NAMES, ROLE_CALLS
 from app.commons.llm import (
     DATA_STATEMENT,
+    FakeCall,
     FakeModelClient,
     Reply,
     render_prompt,
@@ -48,6 +53,7 @@ from app.commons.permissions import AgentRole, may_receive
 from app.commons.schemas import (
     ExtractOutput,
     PolishOutput,
+    Scene,
     SemanticAuditOutput,
     SetupsFile,
     WriterOutput,
@@ -67,6 +73,9 @@ OUTPUTS: Mapping[AgentRole, BaseModel] = {
     AgentRole.AUDITOR: SemanticAuditOutput(violations=[]),
     AgentRole.CANONISER: ExtractOutput(facts=[]),
 }
+
+STORE_FAMILIES = frozenset({"canon", "cast", "structure", "scenes", "manuscript", "ledger"})
+"""The six store roots of the storage layout: a document labelled under one was read from it."""
 
 BLOCK = re.compile(
     r"^=== BEGIN DOCUMENT (?P<boundary>[0-9a-f]+) path=(?P<path>[^\n]*) ===\n"
@@ -274,3 +283,50 @@ def test_a_role_with_no_model_has_no_prompt(role: AgentRole) -> None:
 def test_an_empty_prompt_file_is_refused() -> None:
     with pytest.raises(ValueError, match="empty"):
         roles.prompt_from_bytes(AgentRole.WRITER, b" \r\n\n")
+
+
+# --- plan step 17: every role call, as the fake recorded it ---------------------------------
+
+
+def _recorded(name: str, store: Store) -> FakeCall:
+    case = ROLE_CALLS[name]
+    client = FakeModelClient({case.role: [Reply.of(case.output)]})
+    case.run(store, client)
+    [call] = client.calls
+    return call
+
+
+# spec 001 / AC 23, FR-AGENT-10 -- each role call's system is its prompt file, and nothing else.
+@pytest.mark.parametrize("name", CALL_NAMES)
+def test_every_role_call_sends_its_prompt_file_as_system(
+    name: str, fixture_store: Store, fixture_texts: dict[str, str]
+) -> None:
+    call = _recorded(name, fixture_store)
+    assert call.system == _prompt_file(call.role)
+    assert _shared(render_system(call.system), _runs(fixture_texts)) == []
+
+
+# spec 001 / AC 23, FR-PERM-07, FR-LLM-10 -- the instruction carries no store text; the prose
+# language is the one name that crosses, and it is too short to count as a copied clause.
+@pytest.mark.parametrize("name", CALL_NAMES)
+def test_no_role_call_carries_store_text_in_its_instruction(
+    name: str, fixture_store: Store, fixture_texts: dict[str, str]
+) -> None:
+    call = _recorded(name, fixture_store)
+    assert _shared(call.instruction, _runs(fixture_texts)) == []
+    scene = fixture_store.read("scenes/003.yaml", Scene)
+    for field in (scene.goal, scene.conflict, scene.value_change, scene.notes or scene.goal):
+        assert _flatten(field) not in _flatten(call.instruction)
+
+
+# spec 001 / AC 23 -- every document of every role call is a delimited block labelled with its
+# path, and the computed findings block with its own label, exactly as it was sent.
+@pytest.mark.parametrize("name", CALL_NAMES)
+def test_every_role_call_renders_as_labelled_blocks(name: str, fixture_store: Store) -> None:
+    call = _recorded(name, fixture_store)
+    rendered = render_prompt(call.documents, call.instruction)
+    blocks = [(match["path"], match["text"]) for match in BLOCK.finditer(rendered)]
+    assert blocks == [(document.path, document.text) for document in call.documents]
+    assert rendered.endswith(f"{INSTRUCTION_HEADER}\n{call.instruction}\n")
+    labels = [path for path, _ in blocks]
+    assert (MECHANICAL_FINDINGS in labels) is (call.role is AgentRole.AUDITOR)

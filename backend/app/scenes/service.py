@@ -28,6 +28,9 @@ is being added -- the architect would have to create the parts in an order nobod
 `assemble.py` and are published here, because this module is the surface the orchestrator may
 import (NFR-04: a feature reaches another only through its `service` and `models`). They are
 the load-bearing calls of this feature, and both read the record `save_scene` writes.
+`render_record` is published with them: the roles of `agents` hand the model records they read
+themselves (the scene record, the style editor's inputs, the auditor's axioms), and a record
+must read the same in every role's context as it does in the writer's.
 """
 
 from __future__ import annotations
@@ -42,6 +45,7 @@ from app.commons.schemas import Scene, SelectedEntity
 from app.commons.stores import Store
 from app.commons.stores.provenance import ProvenanceRecord
 from app.scenes import assemble, repository, select
+from app.scenes.assemble import render_record
 from app.scenes.models import ArcsFile, AssembledContext, ChaptersFile, Selection
 
 
@@ -95,12 +99,19 @@ def assemble_context(
     system: str = "",
     instruction: str = "",
     cap: int = CONTEXT_TOKEN_CAP,
+    role_inputs: Sequence[tuple[str, str]] = (),
 ) -> AssembledContext:
     """FR-OPS-03, FR-OPS-04, AC 12. The writer's documents for a scene, as of its story time,
-    in loading order and fitted to the cap with `system` and `instruction` counted. See
-    `assemble.assemble_context`."""
+    in loading order and fitted to the cap with `system`, `instruction` and the calling role's
+    own documents (`role_inputs`, FR-CTX-03) counted. See `assemble.assemble_context`."""
     return assemble.assemble_context(
-        store, identifier, selected, system=system, instruction=instruction, cap=cap
+        store,
+        identifier,
+        selected,
+        system=system,
+        instruction=instruction,
+        cap=cap,
+        role_inputs=role_inputs,
     )
 
 
@@ -177,6 +188,7 @@ __all__ = [
     "read_arcs",
     "read_chapters",
     "read_scene",
+    "render_record",
     "save_arcs",
     "save_chapters",
     "save_scene",

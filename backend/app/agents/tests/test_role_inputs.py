@@ -8,17 +8,22 @@ Figure 3 refusal (`PermissionDenied`) rather than a quiet drop.
 The cases are written out by hand from the table in
 `docs/architecture.md#figure-3--agents-and-write-permissions`, not derived from
 `INPUT_TABLE`, so the test disagrees with the code when someone edits the table. The turn-level
-half -- every document of every recorded fake call inside its role's row -- is plan step 18's.
+half -- every document of every recorded fake call of whole turns inside its role's row (plan
+step 18) -- closes this file, after the role calls of plan step 17 checked one by one, with the
+computed document of FR-AGENT-07 and the every-source rule of `call_role`.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from app.agents.roles import documents_for
+from app.agents.roles import MECHANICAL_FINDINGS, RoleInput, call_role, documents_for
+from app.agents.tests.test_roles import CALL_NAMES, ROLE_CALLS
 from app.commons.errors import PermissionDenied
-from app.commons.llm import Document
-from app.commons.permissions import AgentRole
+from app.commons.llm import Document, FakeModelClient, Reply
+from app.commons.permissions import AgentRole, may_receive
+from app.commons.schemas import PolishOutput
+from app.commons.stores import Store
 
 TEXT = "Any text; only the path is judged."
 
@@ -126,3 +131,105 @@ def test_documents_keep_their_order_and_carry_normalised_paths() -> None:
         Document(path="manuscript/004.md", text="prose"),
         Document(path="cast/ilan/dossier.md", text="dossier"),
     )
+
+
+# --- plan step 17: the computed document, every source, every role call ---------------------
+
+FINDINGS = "violations: []"
+
+
+# spec 001 / FR-AGENT-07, FR-AGENT-09 -- the mechanical findings travel under one label, to one
+# role.
+def test_the_mechanical_findings_label_is_accepted_for_the_auditor_only() -> None:
+    assert documents_for(AgentRole.AUDITOR, [(MECHANICAL_FINDINGS, FINDINGS)]) == (
+        Document(path=MECHANICAL_FINDINGS, text=FINDINGS),
+    )
+    for role in AgentRole:
+        if role is AgentRole.AUDITOR:
+            continue
+        with pytest.raises(PermissionDenied):
+            documents_for(role, [(MECHANICAL_FINDINGS, FINDINGS)])
+
+
+# spec 001 / FR-AGENT-09 -- no other computed label, and no other spelling of this one.
+@pytest.mark.parametrize(
+    "label",
+    [
+        "computed/other-findings",
+        "computed/mechanical-findings/extra",
+        "./computed/mechanical-findings",
+        r"computed\mechanical-findings",
+        "COMPUTED/MECHANICAL-FINDINGS",
+    ],
+)
+def test_no_other_computed_label_reaches_the_auditor(label: str) -> None:
+    with pytest.raises(PermissionDenied):
+        documents_for(AgentRole.AUDITOR, [(label, FINDINGS)])
+
+
+# spec 001 / FR-AGENT-09 -- every source of an input is checked, not only the one it is
+# labelled with: a voice file carrying a knowledge file is refused to the style editor.
+def test_an_input_carrying_an_out_of_row_source_is_refused_before_any_call() -> None:
+    carried = RoleInput(
+        key="cast/vance/voice.md",
+        path="cast/vance/voice.md",
+        text="the voice, with the knowledge folded in",
+        sources=("cast/vance/knowledge.yaml",),
+    )
+    client = FakeModelClient()
+    with pytest.raises(PermissionDenied) as refused:
+        call_role(
+            client,
+            role=AgentRole.STYLE_EDITOR,
+            instruction="Polish.",
+            mandatory=[carried],
+            output_schema=PolishOutput,
+        )
+    assert refused.value.context["path"] == "cast/vance/knowledge.yaml"
+    assert client.calls == []
+
+
+# spec 001 / FR-AGENT-09 -- a pruned input is still checked: the budget does not hide a bug.
+def test_an_out_of_row_input_is_refused_even_where_the_cap_would_prune_it() -> None:
+    inside = RoleInput(key="canon/style.md", path="canon/style.md", text="style")
+    outside = RoleInput(key="axiom:x", path="canon/axioms/x.md", text="x" * 3_000)
+    client = FakeModelClient()
+    with pytest.raises(PermissionDenied):
+        call_role(
+            client,
+            role=AgentRole.STYLE_EDITOR,
+            instruction="Polish.",
+            mandatory=[inside],
+            prunable=[outside],
+            output_schema=PolishOutput,
+            cap=10,
+        )
+    assert client.calls == []
+
+
+# spec 001 / FR-CTX-03 -- two inputs under one key would make `removed` ambiguous.
+def test_two_inputs_with_one_key_are_refused() -> None:
+    twice = RoleInput(key="canon/style.md", path="canon/style.md", text="style")
+    with pytest.raises(ValueError, match="share a key"):
+        call_role(
+            FakeModelClient(),
+            role=AgentRole.STYLE_EDITOR,
+            instruction="Polish.",
+            mandatory=[twice, twice],
+            output_schema=PolishOutput,
+        )
+
+
+# spec 001 / FR-AGENT-09 -- every document of every role call, as the fake recorded it, is
+# inside that role's row; the computed label reaches the auditor and nobody else.
+@pytest.mark.parametrize("name", CALL_NAMES)
+def test_every_role_call_sends_only_documents_from_its_row(name: str, fixture_store: Store) -> None:
+    case = ROLE_CALLS[name]
+    client = FakeModelClient({case.role: [Reply.of(case.output)]})
+    case.run(fixture_store, client)
+    [call] = client.calls
+    assert call.role is case.role
+    assert call.documents
+    for document in call.documents:
+        computed = document.path == MECHANICAL_FINDINGS and case.role is AgentRole.AUDITOR
+        assert computed or may_receive(case.role, document.path), document.path

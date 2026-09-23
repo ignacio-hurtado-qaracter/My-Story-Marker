@@ -420,7 +420,7 @@ class ClaudeCodeModelClient:
         self,
         settings: Settings | None = None,
         *,
-        runner: Runner = run_subprocess,
+        runner: Runner | None = None,
         which: Callable[[str], str | None] = shutil.which,
         sleep: Callable[[float], None] = time.sleep,
         clock: Callable[[], float] = time.monotonic,
@@ -428,7 +428,10 @@ class ClaudeCodeModelClient:
         cap: int = CONTEXT_TOKEN_CAP,
     ) -> None:
         self._settings = settings or get_settings()
-        self._runner = runner
+        # Looked up when the client is built rather than bound as a default argument, so the
+        # offline suite can replace `run_subprocess` once, in conftest, and no test that forgets
+        # to inject a recorder can ever start the real CLI (NFR-09).
+        self._runner = runner if runner is not None else run_subprocess
         self._which = which
         self._sleep = sleep
         self._clock = clock

@@ -50,6 +50,13 @@ caller's system prompt and instruction are counted in the mandatory part, becaus
 over the whole call (FR-CTX-01): assembly stops where the writer's call would, which is why
 FR-CTX-03 is "the same rule seen from the call". A mandatory part over the cap raises
 `ContextBudgetExceeded` (FR-CTX-05).
+
+**The caller's own documents** (`role_inputs`, plan step 17). FR-PERM-07 keeps store text out
+of the instruction, so what a writer call is *about* travels as data too: the scene record for
+`write`, the draft and the blocking violations for `revise`, which FR-CTX-03 lists as
+mandatory for revise. They are placed first and counted in the mandatory part, so the
+selected entities fill only what the whole call leaves. Nothing else changes: with no
+`role_inputs` the assembly is exactly FR-OPS-03's.
 """
 
 from __future__ import annotations
@@ -539,6 +546,34 @@ class _Assembly:
         return [builder.build() for *_, builder in offered]
 
 
+def role_input_entries(role_inputs: Sequence[tuple[str, str]]) -> list[ContextEntry]:
+    """The caller's own documents as mandatory entries, verbatim and keyed by their path.
+
+    The path is only a label here: whether the calling role may receive it is the role's
+    check against Figure 3's `In` column (FR-AGENT-09), made on every source of every entry
+    before the call. Two inputs under one path would be two documents with one name.
+    """
+    entries: list[ContextEntry] = []
+    for path, text in role_inputs:
+        if any(entry.key == path for entry in entries):
+            message = f"two role inputs are labelled {path}; a document has one name"
+            raise ValueError(message)
+        entries.append(
+            ContextEntry(
+                key=path,
+                part=ContextPart.ROLE_INPUT,
+                label=path,
+                path=path,
+                sources=[path],
+                carries=[],
+                mandatory=True,
+                text=text,
+                tokens=estimate_tokens(text),
+            )
+        )
+    return entries
+
+
 def assemble_context(
     store: Store,
     scene_id: str,
@@ -547,14 +582,17 @@ def assemble_context(
     system: str = "",
     instruction: str = "",
     cap: int = CONTEXT_TOKEN_CAP,
+    role_inputs: Sequence[tuple[str, str]] = (),
 ) -> AssembledContext:
     """FR-OPS-03, FR-OPS-04, AC 12. The writer's documents for `scene_id`, fitted to the cap.
 
     `selected` is the list `select_entities` returned -- in a turn, the list the turn record
     persists, so the writer and the auditor work from one list (FR-OPS-05). `system` and
     `instruction` are the writer call's, counted in the mandatory part; the route passes
-    neither. `cap` may be lowered, by a test, and never raised: the 100k is a module constant
-    precisely so no caller can move it (NFR-05).
+    neither. `role_inputs` are `(path, text)` pairs the calling role sends as documents of its
+    own (FR-PERM-07): placed first, counted in the mandatory part, never pruned. `cap` may be
+    lowered, by a test, and never raised: the 100k is a module constant precisely so no caller
+    can move it (NFR-05).
     """
     if cap < 0:
         message = f"a context cap cannot be negative, got {cap}"
@@ -565,10 +603,15 @@ def assemble_context(
     scene = repository.read_scene(store, scene_id)
     assembly = _Assembly(store, scene, _scene_records(store))
 
+    own = role_input_entries(role_inputs)
     fixed = assembly.fixed_block()
     pov = assembly.pov_dossier()
     previous, tail_state, tail = assembly.literal_tail()
-    mandatory = [*fixed, pov, *([tail] if tail is not None else [])]
+    mandatory = [*own, *fixed, pov, *([tail] if tail is not None else [])]
+    clash = {entry.key for entry in own} & {entry.key for entry in mandatory[len(own) :]}
+    if clash:
+        message = f"a role input reuses the key of a loaded entry: {sorted(clash)}"
+        raise ValueError(message)
 
     prunable = assembly.pov_terms()
     for entity in selected:
@@ -615,4 +658,5 @@ __all__ = [
     "covered_scenes",
     "entity_key",
     "render_record",
+    "role_input_entries",
 ]

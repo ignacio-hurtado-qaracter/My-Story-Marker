@@ -39,8 +39,9 @@ from fastapi.testclient import TestClient
 from starlette.routing import BaseRoute
 
 from app.commons.config import get_settings
-from app.commons.deps import get_embedder
+from app.commons.deps import get_embedder, get_model_client
 from app.commons.embeddings import FakeEmbedder
+from app.commons.llm import FakeModelClient
 from app.commons.stores import paths
 from app.main import create_app
 from scripts.export_openapi import openapi_path, render
@@ -138,19 +139,26 @@ IF_05_OPERATIONS = frozenset(
 )
 """IF-03's as-of read and IF-05's operations, as each step publishes them."""
 
-DEFERRED_ROUTES = {
-    ("GET", "/agents/turns"): "the orchestrator",
-    ("POST", "/agents/turns"): "the orchestrator",
-    ("GET", "/agents/provenance"): "the orchestrator",
+IF_06_AGENTS = frozenset(
+    {
+        ("POST", "/agents/digests/rollup"),  # FR-AGENT-08, plan step 17
+    }
+)
+"""IF-06's routes under `/agents`, as each step publishes them."""
+
+DEFERRED_ROUTES: dict[tuple[str, str], str] = {
+    ("GET", "/agents/turns"): "the orchestrator, plan step 18",
+    ("POST", "/agents/turns"): "the orchestrator, plan step 18",
+    ("GET", "/agents/provenance"): "the orchestrator, plan step 18",
 }
-"""IF-01, IF-03 and IF-05 routes this step does not serve, each with what it is waiting for.
+"""IF-01, IF-03 and IF-05 routes a step does not serve yet, each with what it is waiting for.
 
 Recorded rather than omitted. A route missing from a table is indistinguishable from a route
 forgotten, and this list is what lets the reverse-direction check below tell "not written
 yet" apart from "written and never mounted".
 """
 
-EXPECTED_ROUTES = META_ROUTES | IF_03_READS | IF_04_WRITES | IF_05_OPERATIONS
+EXPECTED_ROUTES = META_ROUTES | IF_03_READS | IF_04_WRITES | IF_05_OPERATIONS | IF_06_AGENTS
 
 
 def normalise_template(path: str) -> str:
@@ -249,6 +257,7 @@ def app(story_repo: Path) -> FastAPI:
     del story_repo
     served = create_app()
     served.dependency_overrides[get_embedder] = FakeEmbedder  # NFR-09: no real model
+    served.dependency_overrides[get_model_client] = lambda: FakeModelClient()  # NFR-06
     return served
 
 
@@ -336,9 +345,7 @@ def test_write_without_a_role_header_is_400(client: TestClient) -> None:
 def test_write_with_an_unknown_role_is_400(client: TestClient) -> None:
     arcs = client.get("/structure/arcs").json()
 
-    response = client.put(
-        "/structure/arcs", json=arcs, headers={"X-Agent-Role": "editor_in_chief"}
-    )
+    response = client.put("/structure/arcs", json=arcs, headers={"X-Agent-Role": "editor_in_chief"})
 
     assert response.status_code == 400
     body = response.json()
@@ -347,9 +354,7 @@ def test_write_with_an_unknown_role_is_400(client: TestClient) -> None:
 
 
 # spec 001 / AC 2 - IF-02, FR-PERM-03: Figure 3 refuses with a 403 and no byte is written.
-def test_forbidden_role_is_403_and_changes_no_byte(
-    client: TestClient, story_repo: Path
-) -> None:
+def test_forbidden_role_is_403_and_changes_no_byte(client: TestClient, story_repo: Path) -> None:
     arcs = client.get("/structure/arcs").json()
     before = tree_digest(story_repo)
 
@@ -372,9 +377,7 @@ def test_the_allowed_role_may_write(client: TestClient, story_repo: Path) -> Non
 
     assert response.status_code == 200
     after = tree_digest(story_repo)
-    assert {path for path in after if after[path] != before.get(path)} == {
-        "structure/arcs.yaml"
-    }
+    assert {path for path in after if after[path] != before.get(path)} == {"structure/arcs.yaml"}
     assert client.get("/structure/arcs").json() == arcs
 
 

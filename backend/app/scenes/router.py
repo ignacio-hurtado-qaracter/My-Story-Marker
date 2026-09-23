@@ -39,7 +39,9 @@ show, which is the point of a log no caller can skip.
 load-bearing calls of this feature, and each needs machinery of its own: the index and the
 embedder for selection, the token estimate and the 100k cap for assembly, the invariant
 modules for the audit. The audit delegates to `app.ledger.audit`, the ledger's public surface
-for it (scenes sits above ledger in NFR-04's layers).
+for it (scenes sits above ledger in NFR-04's layers). Its model-backed half is the auditor role
+of `agents`, which sits above scenes: the route receives it through `SemanticAuditorDep`, a
+protocol `commons` defines and the app factory wires, and never imports it.
 """
 
 from __future__ import annotations
@@ -52,6 +54,7 @@ from app.commons.deps import (
     ActorDep,
     EmbedderDep,
     RoleDep,
+    SemanticAuditorDep,
     SettingsDep,
     StoreDep,
     require_role,
@@ -185,14 +188,17 @@ def assemble_context(
 def audit_scene(
     store: StoreDep,
     actor: ActorDep,
+    auditor: SemanticAuditorDep,
     scene: SceneIdParam,
     semantic: Annotated[
         bool,
         Query(
             description=(
                 "Request the model-backed half too (FR-AUD-09: invariants 3 and 6, and the "
-                "prose halves of 1 and 8). Until plan step 17 it cannot run, and its "
-                "invariants are listed in `skipped`. `false` is the mechanical audit only."
+                "prose halves of 1 and 8), judged by the auditor role after the mechanical "
+                "checks, with their findings handed to it as data. When the model step "
+                "fails, or no auditor is wired, its invariants are listed in `skipped`. "
+                "`false` is the mechanical audit only, and calls no model."
             ),
         ),
     ] = True,
@@ -224,6 +230,11 @@ def audit_scene(
     return every finding with the list of checks that ran and those that did not -- so an
     empty list of violations is never read as a pass on a check that was skipped.
 
+    With `semantic` (the default, IF-05's "full, auditor role") the mechanical half runs
+    first and the auditor role judges the rest (FR-AGENT-07): its findings join the report
+    with `source: model`, what it judged joins `checked`, and what it could not -- a failed
+    model step, an input the cap pruned -- joins `skipped` (FR-AUD-09, FR-CTX-04).
+
     Reading needs no role: without `persist` the route writes nothing and is safe to call
     from anywhere. With `persist`, the role is required before anything runs (IF-02, a 400
     when absent) and the write is decided by Figure 3 inside the store layer, never here. The
@@ -231,7 +242,17 @@ def audit_scene(
     would make it mandatory for the read-only call as well.
     """
     role = require_role(x_agent_role) if persist else None
-    report = audit.audit_scene(store, scene, semantic=semantic)
+    if semantic and auditor is not None:
+        mechanical = audit.audit_scene(store, scene, semantic=False)
+        findings = auditor(store, scene, mechanical.violations)
+        report = audit.with_semantic(
+            mechanical,
+            violations=findings.violations,
+            checked=findings.checked,
+            skipped=[(skip.invariant, skip.reason) for skip in findings.skipped],
+        )
+    else:
+        report = audit.audit_scene(store, scene, semantic=semantic)
     if role is None:
         return report
     record = audit.persist(store, report, role=role, actor=actor)
