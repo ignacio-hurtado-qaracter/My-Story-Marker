@@ -4,6 +4,155 @@
  */
 
 export interface paths {
+    "/agents/digests/rollup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Roll a chapter or an arc up into its digest
+         * @description IF-06, FR-AGENT-08. The writer rolls the digests below a chapter or an arc into one.
+         *
+         *     A chapter reads the scene digests of its scenes, in discourse order; an arc the chapter
+         *     digests of its chapters. The digest is filed under `manuscript/digests/` as `900 + k` for
+         *     the k-th chapter of `structure/chapters.yaml` and `989 + k` for the k-th arc, with the
+         *     covered range in `scene_ref` and the POVs the scene records name in `povs`.
+         *
+         *     Refused before any model call: a role whose tool set does not reach the digest file
+         *     (Figure 3 gives it to the writer alone) is a 403, and a chapter or arc with a digest
+         *     missing is a 404 naming it -- a rollup of a partial set would read as the whole.
+         */
+        post: operations["rollup_digests_agents_digests_rollup_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agents/provenance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the provenance log
+         * @description IF-03, FR-STORE-04. Who wrote what, under which role, and whether a human was behind it,
+         *     in the order the writes landed. Filters, never aggregates.
+         */
+        get: operations["read_provenance_agents_provenance_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agents/turns": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the turn records
+         * @description IF-03, FR-TURN-07. Every turn record under `.index/turns/`, by scene and attempt.
+         */
+        get: operations["list_turns_agents_turns_get"];
+        put?: never;
+        /**
+         * Run one writing turn on a scene, streaming a progress event per step
+         * @description FR-TURN-01, IF-06. Figure 4 on one scene: assemble, write, audit, revise while blocking
+         *     violations remain (at most three times), polish, digest, extract, promote.
+         *
+         *     Refused before the stream starts: a scene with no record (404), another turn running on
+         *     this store root or a collision of this scene waiting for a ruling (409, FR-TURN-05). The
+         *     final event carries the outcome -- `merged`, `awaiting_ruling` or `escalated` with its
+         *     category -- and the record id; `GET /agents/turns/{id}` has the rest.
+         */
+        post: operations["start_turn_agents_turns_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agents/turns/{turn_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one turn record
+         * @description IF-03, FR-TURN-07. The record of one turn: its steps with their models and token counts,
+         *     the selected list, the violations of each iteration and what became of its facts.
+         */
+        get: operations["read_turn_agents_turns__turn_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agents/turns/{turn_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume a turn a crash interrupted, streaming a progress event per step
+         * @description FR-TURN-09. Continue a `running` turn from its record, without re-running the steps it
+         *     records as done. A turn that ended is a 409; a missing record a 404.
+         */
+        post: operations["resume_turn_agents_turns__turn_id__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/agents/turns/{turn_id}/rulings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rule on a turn's collided facts
+         * @description FR-TURN-08, FR-OPS-07. `accept` promotes a collided fact despite the collision, `reject`
+         *     refuses it; each ruling is recorded on the fact with its reason, an accepted fact is
+         *     reconciled, and the turn moves from `awaiting_ruling` to `merged` when none is left.
+         *
+         *     The human gate: only the canoniser with `X-Actor: human` gets past the ledger's `rule`
+         *     (403 otherwise). A fact that is not one of this turn's collisions is a 404; a turn that is
+         *     not awaiting a ruling, or another turn running, a 409. The batch is checked before the first
+         *     ruling lands.
+         */
+        post: operations["rule_on_turn_agents_turns__turn_id__rulings_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/canon/axioms": {
         parameters: {
             query?: never;
@@ -1007,6 +1156,11 @@ export interface paths {
          *     return every finding with the list of checks that ran and those that did not -- so an
          *     empty list of violations is never read as a pass on a check that was skipped.
          *
+         *     With `semantic` (the default, IF-05's "full, auditor role") the mechanical half runs
+         *     first and the auditor role judges the rest (FR-AGENT-07): its findings join the report
+         *     with `source: model`, what it judged joins `checked`, and what it could not -- a failed
+         *     model step, an input the cap pruned -- joins `skipped` (FR-AUD-09, FR-CTX-04).
+         *
          *     Reading needs no role: without `persist` the route writes nothing and is safe to call
          *     from anywhere. With `persist`, the role is required before anything runs (IF-02, a 400
          *     when absent) and the write is decided by Figure 3 inside the store layer, never here. The
@@ -1289,6 +1443,24 @@ export interface components {
          * @enum {string}
          */
         AssemblyWarning: "fixed_block_over_budget";
+        /**
+         * AuditIteration
+         * @description The violation ids of one audit (FR-TURN-07: "violation ids per iteration").
+         *
+         *     `violations` is every finding the audit reported; `blocking` the scene's open blocking
+         *     findings read back from `ledger/violations.yaml` after the auditor's write -- what the next
+         *     revision, if any, is handed (FR-AGENT-11).
+         */
+        AuditIteration: {
+            /** Blocking */
+            blocking?: string[];
+            /** Iteration */
+            iteration: number;
+            /** Skipped */
+            skipped?: components["schemas"]["SkippedRecord"][];
+            /** Violations */
+            violations?: string[];
+        };
         /**
          * AuditReport
          * @description IF-05, `POST /scenes/{id}/audit`. The audit of one scene. Reports; does not repair.
@@ -1748,7 +1920,7 @@ export interface components {
             label: string;
             /**
              * Mandatory
-             * @description True for the fixed block, the POV dossier and the tail (FR-CTX-03). Pruning never removes a mandatory entry; if they alone do not fit the call is refused with `ContextBudgetExceeded` (FR-CTX-05).
+             * @description True for the role's own inputs, the fixed block, the POV dossier and the tail (FR-CTX-03). Pruning never removes a mandatory entry; if they alone do not fit the call is refused with `ContextBudgetExceeded` (FR-CTX-05).
              */
             mandatory: boolean;
             /** @description The block of Figure 2 the entry belongs to. */
@@ -1778,12 +1950,13 @@ export interface components {
          * ContextPart
          * @description Which of Figure 2's blocks an entry belongs to, in the order they are loaded.
          *
-         *     The first three are the mandatory part of the writer's input (FR-CTX-03): the fixed
-         *     block, the POV's as-of dossier and the previous scene's tail. The last three are the
-         *     prunable part, removed whole from the end when the estimate would cross the cap.
+         *     `role_input` and the three after it are the mandatory part of the writer's input
+         *     (FR-CTX-03): what the calling role adds, the fixed block, the POV's as-of dossier and the
+         *     previous scene's tail. The last three are the prunable part, removed whole from the end
+         *     when the estimate would cross the cap.
          * @enum {string}
          */
-        ContextPart: "fixed" | "pov" | "literal_tail" | "lexicon" | "selected" | "setup";
+        ContextPart: "role_input" | "fixed" | "pov" | "literal_tail" | "lexicon" | "selected" | "setup";
         /**
          * DatedValence
          * @description DR-08. One reading of an edge, anchored to the scene that produced it.
@@ -1854,6 +2027,19 @@ export interface components {
          */
         DigestLevel: "scene" | "chapter" | "arc";
         /**
+         * DigestMeasure
+         * @description A digest's `words` against its level's target (FR-TURN-07, DR-11).
+         */
+        DigestMeasure: {
+            /** Digest Id */
+            digest_id: string;
+            level: components["schemas"]["DigestLevel"];
+            /** Target */
+            target: number;
+            /** Words */
+            words: number;
+        };
+        /**
          * Draft
          * @description DR-11. The whole of `manuscript/NNN.md`: the prose of one scene, subordinate to canon.
          *
@@ -1909,6 +2095,16 @@ export interface components {
             words: number;
         };
         /**
+         * DraftMeasure
+         * @description The draft's `words` against the scene `budget` (FR-TURN-07, DR-11).
+         */
+        DraftMeasure: {
+            /** Budget */
+            budget: number;
+            /** Words */
+            words: number;
+        };
+        /**
          * Escalation
          * @description FR-OPS-06. The target already holds a different value, and nothing was overwritten.
          *
@@ -1955,6 +2151,18 @@ export interface components {
             writes: components["schemas"]["ProvenanceRecord"][];
         };
         /**
+         * EscalationCategory
+         * @description Why a turn ended `escalated` (FR-TURN-02, FR-LLM-04..08, FR-CTX-05, FR-AGENT-02, -04).
+         *
+         *     The five model failures carry the IF-07 code of the error that stopped the step, so the
+         *     record and an HTTP error body say the same thing. The three that are not errors are the
+         *     turn's own bounds. Any other refusal of the harness -- a record that does not validate, an
+         *     input that is missing -- carries its IF-07 code too; `harness_error` is the catch-all for a
+         *     code this list does not name.
+         * @enum {string}
+         */
+        EscalationCategory: "context_budget_exceeded" | "malformed_model_output" | "model_refused" | "model_call_failed" | "output_truncated" | "revision_bound" | "revise_scope" | "polish_recheck" | "invalid_record" | "not_found" | "permission_denied" | "index_busy" | "harness_error";
+        /**
          * Evidence
          * @description DR-07. A quotation and where it is, so a violation can be pointed at rather than
          *     argued about.
@@ -1970,6 +2178,48 @@ export interface components {
              * @description The offending text, verbatim.
              */
             quote: string;
+        };
+        /**
+         * FactRecord
+         * @description One of this turn's proposed facts and what became of it (FR-TURN-03, -04, -07).
+         *
+         *     `status` mirrors the fact in `ledger/proposed.yaml`. `conflict` is a collision left for a
+         *     human ruling; `refused` is why `promote` could not act on the fact at all (an entity that
+         *     does not exist, a field no string can fill), in which case it stays `pending` for a person.
+         *     `reconciled_scenes` are the scenes `reconcile(target_entity)` returned after the promotion
+         *     or the accepting ruling, and `written_scenes` those of them that already have a draft --
+         *     the retroactive change, named when it is made.
+         */
+        FactRecord: {
+            /**
+             * Changed
+             * @default false
+             */
+            changed: boolean;
+            /**
+             * Conflict
+             * @default false
+             */
+            conflict: boolean;
+            /** Fact Id */
+            fact_id: string;
+            /** Proposed By */
+            proposed_by?: string[];
+            /** Reconciled Scenes */
+            reconciled_scenes?: string[];
+            /** Reconciled Turns */
+            reconciled_turns?: string[];
+            /** Refused */
+            refused?: string | null;
+            ruling?: components["schemas"]["RulingKind"] | null;
+            /** @default pending */
+            status: components["schemas"]["FactStatus"];
+            /** Target Entity */
+            target_entity: string;
+            /** Target Field */
+            target_field: string;
+            /** Written Scenes */
+            written_scenes?: string[];
         };
         /**
          * FactStatus
@@ -2487,6 +2737,74 @@ export interface components {
             hours: number;
         };
         /**
+         * ModelCallRecord
+         * @description One model call that settled (FR-TURN-07, FR-LLM-03, FR-LLM-09, FR-CTX-06, NFR-01).
+         */
+        ModelCallRecord: {
+            /**
+             * Attempts
+             * @description Attempts the call took (FR-LLM-04, -08).
+             * @default 1
+             */
+            attempts: number;
+            /**
+             * Cache Creation Input Tokens
+             * @default 0
+             */
+            cache_creation_input_tokens: number;
+            /**
+             * Cache Read Input Tokens
+             * @default 0
+             */
+            cache_read_input_tokens: number;
+            /**
+             * Cli Version
+             * @description The CLI version (NFR-01).
+             */
+            cli_version?: string | null;
+            /**
+             * Elapsed Seconds
+             * @default 0
+             */
+            elapsed_seconds: number;
+            /**
+             * Estimate
+             * @description The pre-call input estimate (FR-CTX-02).
+             */
+            estimate: number;
+            /**
+             * Input Tokens
+             * @default 0
+             */
+            input_tokens: number;
+            /**
+             * Model Id
+             * @description The model id the CLI reported having used; null when it reported none.
+             */
+            model_id: string | null;
+            /**
+             * Output Tokens
+             * @default 0
+             */
+            output_tokens: number;
+            /**
+             * Over Cap
+             * @description FR-CTX-06: the real input count, less the CLI's overhead, exceeded the cap.
+             * @default false
+             */
+            over_cap: boolean;
+            /**
+             * Prompt Version
+             * @description SHA-256 of the role's prompt file (FR-AGENT-10).
+             */
+            prompt_version: string;
+            /**
+             * Requested Model
+             * @description The model passed as `--model` (FR-LLM-03).
+             */
+            requested_model: string;
+        };
+        /**
          * Outcome
          * @description DR-03. The four-value scene outcome.
          *
@@ -2959,6 +3277,22 @@ export interface components {
             schema_version: 1;
         };
         /**
+         * RevisionScopeRecord
+         * @description FR-AGENT-02. How much of the draft a revision changed, against the limit.
+         */
+        RevisionScopeRecord: {
+            /** Changed */
+            changed: number;
+            /** Limit */
+            limit: number;
+            /** Ratio */
+            ratio: number;
+            /** Sentences */
+            sentences: number;
+            /** Within */
+            within: boolean;
+        };
+        /**
          * RolePermissions
          * @description One row of Figure 3, as the API reports it.
          */
@@ -2974,6 +3308,67 @@ export interface components {
              * @description FR-PERM-02. Store globs this role may write.
              */
             writes: string[];
+        };
+        /**
+         * RollupRequest
+         * @description IF-06, the body of `POST /agents/digests/rollup`: one chapter or one arc, never both.
+         */
+        RollupRequest: {
+            /**
+             * Arc Id
+             * @description Roll the chapter digests of this arc of `structure/arcs.yaml` into an arc digest.
+             */
+            arc_id?: string | null;
+            /**
+             * Chapter Id
+             * @description Roll the scene digests of this chapter of `structure/chapters.yaml` into a chapter digest.
+             */
+            chapter_id?: string | null;
+        };
+        /**
+         * RollupResponse
+         * @description IF-06. The digest written, where, under whom, and what the call cost.
+         */
+        RollupResponse: {
+            /**
+             * Claimed Povs
+             * @description The `povs` the model reported. The record's `povs` come from the scene records; the two are compared, not merged.
+             */
+            claimed_povs: string[];
+            /** @description The record as written, `words` measured. */
+            digest: components["schemas"]["SceneDigest"];
+            /**
+             * Digest Id
+             * @description The file under `manuscript/digests/`: 900 + k for the k-th chapter of `structure/chapters.yaml`, 989 + k for the k-th arc of `structure/arcs.yaml`.
+             */
+            digest_id: string;
+            /**
+             * Estimate
+             * @description The pre-call input estimate (FR-CTX-02).
+             */
+            estimate: number;
+            /**
+             * Model Id
+             * @description The model id the CLI reported (FR-LLM-03).
+             */
+            model_id: string | null;
+            /**
+             * Over Cap
+             * @description FR-CTX-06: the real count exceeded the cap.
+             */
+            over_cap: boolean;
+            /** @description The provenance line of the write. */
+            persisted: components["schemas"]["ProvenanceRecord"];
+            /**
+             * Povs Agree
+             * @description Whether `claimed_povs` names the same characters.
+             */
+            povs_agree: boolean;
+            /**
+             * Prompt Version
+             * @description FR-AGENT-10: the writer prompt's SHA-256.
+             */
+            prompt_version: string;
         };
         /**
          * RuleRequest
@@ -3053,6 +3448,25 @@ export interface components {
          * @enum {string}
          */
         RulingKind: "accept" | "reject";
+        /**
+         * RulingRequest
+         * @description FR-TURN-08, one entry of the body of `POST /agents/turns/{id}/rulings`: a human's
+         *     decision on one collided fact of the turn, with the reason FR-OPS-07 records on it.
+         */
+        RulingRequest: {
+            /**
+             * Fact Id
+             * @description A fact of this turn left `pending` on a collision.
+             */
+            fact_id: string;
+            /**
+             * Reason
+             * @description Why; recorded on the fact so the same fact is not argued twice.
+             */
+            reason: string;
+            /** @description `accept` promotes despite it; `reject` refuses it. */
+            ruling: components["schemas"]["RulingKind"];
+        };
         /**
          * Scene
          * @description DR-03. The whole of `scenes/NNN.yaml`, with the fields `definitions.md` Scene gives it.
@@ -3403,6 +3817,66 @@ export interface components {
             /** @description The half that runs it, as DR-07 `source` names it: `mechanical` or `model`. A finding with this source can only come from a check listed as run. */
             source: components["schemas"]["ViolationSource"];
         };
+        /**
+         * SkippedRecord
+         * @description A check of the audit that did not run, or ran without one of its inputs (FR-AUD-09,
+         *     FR-CTX-04).
+         */
+        SkippedRecord: {
+            /** Check */
+            check: string;
+            /** Invariant */
+            invariant: number;
+            /** Reason */
+            reason: string;
+            /** Source */
+            source: string;
+        };
+        /**
+         * StepRecord
+         * @description One step of the turn, whatever it did (FR-TURN-07, FR-CTX-03).
+         *
+         *     `role` is the role Figure 4 gives the step (FR-TURN-06); the assembly has none, because
+         *     the orchestrator holds no role. `estimate` is the input estimate of the call, or of the
+         *     assembled context for the assembly, and is present even when the cap stopped the call
+         *     (FR-CTX-05). `removed` and `truncated_at` name what the cap pruned, in rank order.
+         *     `error` is the IF-07 code of what stopped a failed step.
+         */
+        StepRecord: {
+            call?: components["schemas"]["ModelCallRecord"] | null;
+            /** Ended At */
+            ended_at: string;
+            /** Error */
+            error?: string | null;
+            /** Estimate */
+            estimate?: number | null;
+            /**
+             * Iteration
+             * @description The revise-audit iteration: 0 for the written draft, k after revision k.
+             * @default 0
+             */
+            iteration: number;
+            /** Removed */
+            removed?: string[];
+            /** Role */
+            role?: string | null;
+            scope?: components["schemas"]["RevisionScopeRecord"] | null;
+            /** Started At */
+            started_at: string;
+            /** @default completed */
+            status: components["schemas"]["StepStatus"];
+            step: components["schemas"]["TurnStep"];
+            /** Truncated At */
+            truncated_at?: string | null;
+            /** Writes */
+            writes?: components["schemas"]["WriteRecord"][];
+        };
+        /**
+         * StepStatus
+         * @description How one step ended.
+         * @enum {string}
+         */
+        StepStatus: "completed" | "rejected" | "failed";
         /**
          * StyleBible
          * @description DR-01, DR-02, DR-10. The whole of `canon/style.md`: the rules of the textual surface.
@@ -3831,6 +4305,169 @@ export interface components {
              */
             wants: string;
         };
+        /**
+         * TurnEscalation
+         * @description Why the turn stopped, where, and with what the provider said (AC 19, 21, 22).
+         */
+        TurnEscalation: {
+            category: components["schemas"]["EscalationCategory"];
+            /**
+             * Detail
+             * @description What stopped the step; never prompt or draft text.
+             */
+            detail: string;
+            /**
+             * Iteration
+             * @default 0
+             */
+            iteration: number;
+            /**
+             * Reason
+             * @description FR-LLM-08: the failure reason of a failed model call.
+             */
+            reason?: string | null;
+            /**
+             * Refusal Category
+             * @description FR-LLM-06: the refusal's category, when the provider gave one.
+             */
+            refusal_category?: string | null;
+            step: components["schemas"]["TurnStep"];
+        };
+        /**
+         * TurnEvent
+         * @description IF-06. One Server-Sent Event of a running turn: one per step, then one with the outcome.
+         *
+         *     `kind` is also the SSE `event` field. A `step` event names the step that just ended, its
+         *     iteration and how it ended, and where the turn goes next; the final `outcome` event carries
+         *     the turn's outcome and, for an escalated turn, why. The turn record at
+         *     `GET /agents/turns/{turn_id}` holds everything else -- an event carries identifiers and
+         *     states only, never text a role produced (NFR-10).
+         */
+        TurnEvent: {
+            /** @description Why the turn escalated, once it has. */
+            escalation?: components["schemas"]["EscalationCategory"] | null;
+            /** Iteration */
+            iteration?: number | null;
+            /**
+             * Kind
+             * @description `step`, or the final `outcome`.
+             * @enum {string}
+             */
+            kind: "step" | "outcome";
+            /** @description The step that runs next, `done` when none does. */
+            next_step: components["schemas"]["TurnStep"];
+            /** @description The turn's outcome as of this event. */
+            outcome: components["schemas"]["TurnOutcome"];
+            /** Scene */
+            scene: string;
+            status?: components["schemas"]["StepStatus"] | null;
+            /** @description The step that ended; null on the outcome event. */
+            step?: components["schemas"]["TurnStep"] | null;
+            /**
+             * Turn Id
+             * @description The turn record's id, `NNN-<n>`.
+             */
+            turn_id: string;
+        };
+        /**
+         * TurnOutcome
+         * @description Figure 4's terminal states, plus the two a record can be read in before one.
+         * @enum {string}
+         */
+        TurnOutcome: "running" | "awaiting_ruling" | "merged" | "escalated";
+        /**
+         * TurnRecord
+         * @description `.index/turns/NNN-<n>.yaml`. Written after every step, so a crash leaves the steps
+         *     completed so far on disk (FR-TURN-09).
+         */
+        TurnRecord: {
+            /**
+             * Chapter
+             * @description The chapter listing the scene.
+             */
+            chapter?: string | null;
+            /**
+             * Closes Chapter
+             * @description The scene is the last its chapter lists: a hint for the manual rollup.
+             * @default false
+             */
+            closes_chapter: boolean;
+            /** Digests */
+            digests?: components["schemas"]["DigestMeasure"][];
+            draft?: components["schemas"]["DraftMeasure"] | null;
+            /** Ended At */
+            ended_at?: string | null;
+            escalation?: components["schemas"]["TurnEscalation"] | null;
+            /** Facts */
+            facts?: components["schemas"]["FactRecord"][];
+            /**
+             * Id
+             * @description `NNN-<n>`: scene id and attempt.
+             */
+            id: string;
+            /** Iterations */
+            iterations?: components["schemas"]["AuditIteration"][];
+            /**
+             * @description The step a resume runs next (FR-TURN-09).
+             * @default assemble
+             */
+            next_step: components["schemas"]["TurnStep"];
+            /** @default running */
+            outcome: components["schemas"]["TurnOutcome"];
+            /**
+             * Revise Rejections
+             * @description Rejected revisions in the current iteration (FR-AGENT-02).
+             * @default 0
+             */
+            revise_rejections: number;
+            /**
+             * Revisions
+             * @description Revisions accepted so far (FR-TURN-02).
+             * @default 0
+             */
+            revisions: number;
+            /**
+             * Rollup Ready
+             * @description Every scene of the chapter has a scene digest, so a rollup would not be refused as partial (FR-AGENT-08).
+             * @default false
+             */
+            rollup_ready: boolean;
+            /** Scene */
+            scene: string;
+            /**
+             * Schema Version
+             * @default 1
+             * @constant
+             */
+            schema_version: 1;
+            /** Selected */
+            selected?: components["schemas"]["SelectedEntity"][];
+            /** Started At */
+            started_at?: string | null;
+            /** Steps */
+            steps?: components["schemas"]["StepRecord"][];
+        };
+        /**
+         * TurnRequest
+         * @description IF-06, the body of `POST /agents/turns`: the scene to write. Nothing else -- the scene
+         *     record says what the scene is for, and the stores say everything the roles may read.
+         */
+        TurnRequest: {
+            /**
+             * Scene Id
+             * @description The scene to run one turn on (FR-TURN-01).
+             */
+            scene_id: string;
+        };
+        /**
+         * TurnStep
+         * @description The steps of Figure 4 as the orchestrator runs them, in order (FR-TURN-01).
+         *
+         *     `recheck` is FR-AGENT-04's mechanical lexicon and voice check of the polished draft;
+         *     `done` is the cursor of a turn with nothing left to run.
+         * @enum {string}
+         */
+        TurnStep: "assemble" | "write" | "audit" | "revise" | "polish" | "recheck" | "digest" | "extract" | "promote" | "done";
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -4025,6 +4662,20 @@ export interface components {
              */
             reason: string;
         };
+        /**
+         * WriteRecord
+         * @description One store write a step made, as the provenance log recorded it (FR-STORE-04, AC 32).
+         */
+        WriteRecord: {
+            /** Actor */
+            actor: string;
+            /** Content Hash */
+            content_hash: string;
+            /** Path */
+            path: string;
+            /** Role */
+            role: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -4034,6 +4685,238 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    rollup_digests_agents_digests_rollup_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The Figure 3 role performing this write. Required on every write. */
+                "X-Agent-Role"?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RollupRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RollupResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_provenance_agents_provenance_get: {
+        parameters: {
+            query?: {
+                /** @description Only the writes of this store-relative path. */
+                path?: string | null;
+                /** @description Only the writes at or after this ISO-8601 instant. */
+                since?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProvenanceRecord"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_turns_agents_turns_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TurnRecord"][];
+                };
+            };
+        };
+    };
+    start_turn_agents_turns_post: {
+        parameters: {
+            query?: {
+                /** @description Run the assembly only and answer the `AssembledContext` (FR-TURN-10). */
+                dry_run?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TurnRequest"];
+            };
+        };
+        responses: {
+            /** @description One `TurnEvent` per step as `text/event-stream` (SSE `event: step`), then one with the outcome (`event: outcome`). With `dry_run=true`, the `AssembledContext` as JSON instead. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssembledContext"];
+                    "text/event-stream": components["schemas"]["TurnEvent"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_turn_agents_turns__turn_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description `NNN-<n>`. */
+                turn_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TurnRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resume_turn_agents_turns__turn_id__resume_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description `NNN-<n>`. */
+                turn_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One `TurnEvent` per step as `text/event-stream` (SSE `event: step`), then one with the outcome (`event: outcome`). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["TurnEvent"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rule_on_turn_agents_turns__turn_id__rulings_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The Figure 3 role performing this write. Required on every write. */
+                "X-Agent-Role"?: string | null;
+                /** @description `human` when a person is acting under the role, absent or `agent` otherwise. A human acts under a role, never beside it. */
+                "X-Actor"?: string | null;
+            };
+            path: {
+                /** @description `NNN-<n>`. */
+                turn_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RulingRequest"][];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TurnRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_axioms_canon_axioms_get: {
         parameters: {
             query?: never;
@@ -5701,7 +6584,7 @@ export interface operations {
     audit_scene_scenes__id__audit_post: {
         parameters: {
             query?: {
-                /** @description Request the model-backed half too (FR-AUD-09: invariants 3 and 6, and the prose halves of 1 and 8). Until plan step 17 it cannot run, and its invariants are listed in `skipped`. `false` is the mechanical audit only. */
+                /** @description Request the model-backed half too (FR-AUD-09: invariants 3 and 6, and the prose halves of 1 and 8), judged by the auditor role after the mechanical checks, with their findings handed to it as data. When the model step fails, or no auditor is wired, its invariants are listed in `skipped`. `false` is the mechanical audit only, and calls no model. */
                 semantic?: boolean;
                 /** @description Write the findings into `ledger/violations.yaml`, merged with what is there. Requires `X-Agent-Role`; Figure 3 lets only the auditor write that file. Without it nothing is written. */
                 persist?: boolean;
