@@ -4,7 +4,7 @@ status: draft             # draft · approved · done
 ---
 
 Implementation plan for [`001-backend-foundation.md`](./001-backend-foundation.md)
-(status `approved`, 2026-09-22). The spec says *what* and *why*; this file says *how* and
+(status `draft` since 2026-09-23; last approved 2026-09-22). The spec says *what* and *why*; this file says *how* and
 *in what order*. Anything not listed under "Files to touch" is out of scope; a file that
 turns out to be needed means this plan is wrong and goes back to `draft`.
 
@@ -16,6 +16,11 @@ turns out to be needed means this plan is wrong and goes back to `draft`.
 > `.env.example` rows, steps 12, 15, 16, 18 and 20, and the verification rows for AC 22, 26
 > and 33-35. Steps 1-8 are done. Steps 9-14 do not touch the model client and proceed
 > during review at the user's explicit authorisation; step 15 onward waits for re-approval.
+>
+> **R3-5, same day.** The cap is whole over the context the system sends; the CLI's overhead
+> is not budgeted (P7, step 12, AC 26 and AC 35 rows). `commons/llm/tokens.py` and its
+> `test_budget.py`, drafted for step 12 but not yet committed, still add the overhead to the
+> estimate; they are brought in line with R3-5 before step 12 is committed.
 
 Branch: `spec/001-backend`. Commit prefixes: `backend:`, `contract:`, `chore:`. Every step
 is one commit, small enough to review alone, and names the acceptance criteria it advances.
@@ -37,7 +42,7 @@ without touching the spec.
 | P4 | **`fastembed`** pinned; `EMBED_MODEL` default `sentence-transformers/all-MiniLM-L6-v2`; cache under `.index/models/`. | Spec FR-EMB. |
 | P5 | Server-Sent Events via **`sse-starlette`**; the turn runs synchronously inside the request on a **single uvicorn worker**. The lock file makes a second worker pointless. | Spec IF-06, FR-TURN-05. |
 | P6 | Provenance is **JSON Lines** (`.index/provenance.jsonl`, one object per write); turn records are **YAML** (`.index/turns/NNN-<n>.yaml`, rewritten after each step). | Append-only vs. update-in-place shapes. |
-| P7 | Input tokens are estimated by one local function in `commons/llm/tokens.py`, `ceil(characters / 3)` per text plus the measured CLI overhead constant, used identically by the live and the fake client. Tests that need a budget breach lower the cap rather than faking the count. | Spec FR-LLM-07, FR-CTX-02, R3-2. |
+| P7 | Input tokens are estimated by one local function in `commons/llm/tokens.py`, `ceil(characters / 3)` per text the system sends and nothing else, used identically by the assembler, the orchestrator, the live and the fake client. `CLI_OVERHEAD_TOKENS` lives in the same module but is used only to read the real count for `over_cap`. Tests that need a budget breach lower the cap rather than faking the count. | Spec FR-LLM-07, FR-CTX-02, FR-CTX-06, R3-2, R3-5. |
 | P8 | **`semgrep` does not run natively on Windows.** The rules of record for AC 3, 13 and 17 are `semgrep` and run in CI (Linux). A local mirror, `backend/tools/check_boundaries.py` (stdlib `ast`, same three rules), runs inside `pytest` on every platform so the local gate is not blind. Both must pass; a disagreement between them is a bug in the mirror. | Developer is on Windows 11. |
 | P9 | The fixture novel is written in **English**, so the default embedder is the right one for the fixture and the docs' language matches. Nothing in the fixture depends on the prose language. | Spec R2-3 note. |
 | P10 | Structured output is the CLI's `--json-schema` with the DR-12 model's own JSON Schema; the envelope's `structured_output` is validated with the Pydantic model and never repaired. Role prompts are Markdown files loaded at import time with a `prompt_version` equal to their content hash. | Spec FR-LLM-04, FR-AGENT-10. |
@@ -169,7 +174,7 @@ criterion is *satisfied* only when its verification in the mapping below passes.
 | 9 | `backend:` | SQLite layer: connection, migrations, FTS5, optional `vec0`, `rebuild` over `canon/` (one row per entity file, and **one row per term** of `lexicon.yaml`), `cast/` and **chapter-level digests only** (scene and arc digests are not rows), incremental update, `/index/rebuild`, `/index/status`, `/health.vector`; rebuild, migration, optional-vec and busy tests, plus a test that a scene digest never becomes a row. | AC 6, 7, 8 |
 | 10 | `backend:` | `dossier(character, at)` and `/cast/{id}/dossier?at=`; unit and property tests. | AC 10 |
 | 11 | `backend:` | `select_entities` with BM25 + cosine fused by reciprocal rank, pins first, POV excluded; `/scenes/{id}/select`. | AC 11 |
-| 12 | `backend:` | `assemble_context`: fixed block, POV dossier, literal tail, ranked as-of loading (chapter digests only when every covered scene is `<= T`, labelled "not witnessed" when `povs` lacks the POV; lexicon through `used_by`; open setups under a *may collect* label; resolved violations, paid setups and closed threads excluded), 100k stop, `truncated_at`, fixed-block warning; token counting through the `ModelClient` protocol (fake only at this step); `/scenes/{id}/assemble`. Tests include: no raw `manuscript/NNN.md` text in the context except the previous scene's tail. | AC 12 (assembly half) |
+| 12 | `backend:` | `assemble_context`: fixed block, POV dossier, literal tail, ranked as-of loading (chapter digests only when every covered scene is `<= T`, labelled "not witnessed" when `povs` lacks the POV; lexicon through `used_by`; open setups under a *may collect* label; resolved violations, paid setups and closed threads excluded), 100k stop counted with the writer's mandatory part first (spec FR-OPS-03), `truncated_at`, fixed-block warning; token estimate through the pure functions of `commons/llm/tokens.py` (P7), with no overhead in it; `/scenes/{id}/assemble`. Tests include: no raw `manuscript/NNN.md` text in the context except the previous scene's tail. | AC 12 (assembly half) |
 | 13 | `backend:` | `promote`, `rule`, `reconcile`; `semgrep` rule and mirror for canon writes outside `promote`/`rule`; routes. | AC 13, 14 |
 | 14 | `backend:` | Mechanical audit, one module per invariant, `/scenes/{id}/audit?semantic=false`, persistence only under auditor + `persist=true`; golden tests on the fixture and the write-scope test. | AC 15, 16 |
 | 15 | `backend:` | Model client: protocol, `ClaudeCodeModelClient` as P14 (Haiku default through `--model`, optional `--effort`, `--json-schema` structured output, envelope checks of `is_error` / `subtype` / `stop_reason` / `api_error_status`, the input-token estimate before the call and the real count after, `over_cap`, typed error chain), `FakeModelClient` with scripts and call log; unit tests, including the constructed command, working directory and environment. | AC 21, 22 (unit), 34, 35 |
@@ -217,7 +222,7 @@ this order so that every commit passes the gate on its own.
 | 23 | T | Inspect every recorded fake call: `system` contains no substring of any store file; every document block delimited and labelled with its path; no call carries a previous call's output except as a store-backed document; the writer's instruction offers setups under *may collect* and names none as required | `agents/tests/test_prompts_as_data.py` |
 | 24 | T | Kill after write step (script raises), resume → audit onward, exactly one `write` call in the log | `agents/tests/test_turn_resume.py` |
 | 25 | U | Registered | `docs/verification.md` U register (`95e0cd5`) |
-| 26 | D | `--live` full turn on the tempting scene through `claude -p`, run by the user; assert the axiom violation and the unregistered body change are flagged, the registered one is not; record shows real model ids, cache-read tokens, every step < 100k; output committed as evidence | `tests/live/test_turn_live.py`, `tests/live/last_run.md` |
+| 26 | D | `--live` full turn on the tempting scene through `claude -p`, run by the user; assert the axiom violation and the unregistered body change are flagged, the registered one is not; record shows real model ids, cache-read tokens, every step's estimate < 100k and real count minus `CLI_OVERHEAD_TOKENS` < 100k; output committed as evidence | `tests/live/test_turn_live.py`, `tests/live/last_run.md` |
 | 27 | D | `--live` extraction returns the two hand-labelled invented facts | `tests/live/test_extract_live.py` |
 | 28 | I | Human reads the fixture `README.md` against actual audit output; note in the PR | `tests/fixtures/repo/README.md` |
 | 29 | T | `export_openapi.py` output equals committed file (CI fails on diff); `schemathesis` run yields no `5xx` | `tests/test_schemathesis.py`; CI `contract` |
@@ -226,7 +231,7 @@ this order so that every commit passes the gate on its own.
 | 32 | T | After the fake turn, one provenance line per store write with the Figure 4 role and `actor: agent`; `PUT` with `X-Actor: human` → line with `actor: human` | `commons/stores/tests/test_provenance.py`, `agents/tests/test_turn_provenance.py` |
 | 33 | T | Cap lowered: whole prunable entries removed lowest rank first per role, none cut; removed ids and `truncated_at` on the record; auditor removals in `skipped`; mandatory overflow → `ContextBudgetExceeded`, no call | `agents/tests/test_context_pruning.py` |
 | 34 | T | Recorder in place of the subprocess: argv carries `--tools ""`, `--setting-sources ""`, `--json-schema`, `--no-session-persistence`, never `--bare`; cwd empty and outside the repo and store root; env has no `ANTHROPIC_API_KEY` / `ANTHROPIC_AUTH_TOKEN` although the parent's does | `commons/llm/tests/test_claude_code_command.py` |
-| 35 | T | Scripted envelope reporting more input tokens than the cap → step marked `over_cap: true` | `commons/llm/tests/test_over_cap.py` |
+| 35 | T | Scripted envelope reporting more input tokens than cap + `CLI_OVERHEAD_TOKENS` → step marked `over_cap: true`; one reporting between cap and cap + overhead → not marked; the estimate of an empty call is zero | `commons/llm/tests/test_over_cap.py` |
 
 Every **T** test is shown to fail before its step's code exists (Process 3 rule 15): the
 commit message of each step names the test and states that it was red on the parent commit.
