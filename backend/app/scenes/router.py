@@ -37,20 +37,22 @@ show, which is the point of a log no caller can skip.
 **Deliberately absent, not forgotten.** IF-05's three operations on a scene --
 `POST /scenes/{id}/select` (FR-OPS-02), `POST /scenes/{id}/assemble` (FR-OPS-03) and
 `POST /scenes/{id}/audit` (FR-AUD) -- arrive at plan steps 11, 12 and 14. They are the
-load-bearing calls of this feature and each needs machinery that does not exist yet: the
-index and the embedder for selection, the token counter for assembly, the invariant modules
-for the audit. Until then this router serves the records those operations will read.
+load-bearing calls of this feature and each needs machinery of its own: the index and the
+embedder for selection, the token counter for assembly, the invariant modules for the audit.
+The audit is served here from step 14, delegating to `app.ledger.audit`, the ledger's public
+surface for it (scenes sits above ledger in NFR-04's layers).
 """
 
 from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Path
+from fastapi import APIRouter, Header, Path, Query
 
-from app.commons.deps import ActorDep, RoleDep, StoreDep
+from app.commons.deps import ActorDep, RoleDep, StoreDep, require_role
 from app.commons.schemas import SCENE_ID_PATTERN, Scene
 from app.commons.stores.provenance import ProvenanceRecord
+from app.ledger import audit
 from app.scenes import service
 from app.scenes.models import ArcsFile, ChaptersFile
 
@@ -125,12 +127,68 @@ def write_scene(
 #   POST /scenes/{id}/select     FR-OPS-02, plan step 11 -- needs the index and the embedder
 #   POST /scenes/{id}/assemble   FR-OPS-03, plan step 12 -- needs the token counter and the
 #                                                           100k cap
-#   POST /scenes/{id}/audit      FR-AUD,    plan step 14 -- needs the invariant modules
 #
 # Each is a step of its own in the plan because each needs machinery that does not exist
 # yet. A reader who finds only reads and writes here is looking at an incomplete feature on
-# purpose, at the commit the plan puts them at.
+# purpose, at the commit the plan puts them at. The third, the audit, is below.
 # --------------------------------------------------------------------------------------
+
+
+@router.post("/{id}/audit", summary="Audit a scene against the domain invariants")
+def audit_scene(
+    store: StoreDep,
+    actor: ActorDep,
+    scene: SceneIdParam,
+    semantic: Annotated[
+        bool,
+        Query(
+            description=(
+                "Request the model-backed half too (FR-AUD-09: invariants 3 and 6, and the "
+                "prose halves of 1 and 8). Until plan step 17 it cannot run, and its "
+                "invariants are listed in `skipped`. `false` is the mechanical audit only."
+            ),
+        ),
+    ] = True,
+    persist: Annotated[
+        bool,
+        Query(
+            description=(
+                "Write the findings into `ledger/violations.yaml`, merged with what is there. "
+                "Requires `X-Agent-Role`; Figure 3 lets only the auditor write that file. "
+                "Without it nothing is written."
+            ),
+        ),
+    ] = False,
+    x_agent_role: Annotated[
+        str | None,
+        Header(
+            alias="X-Agent-Role",
+            description=(
+                "Required only with `persist=true`, where it must be `auditor`; any other "
+                "role is a 403 and leaves the tree byte-identical (AC 16)."
+            ),
+        ),
+    ] = None,
+) -> audit.AuditReport:
+    """IF-05, `POST /scenes/{id}/audit`. Reports; does not repair (AC 15, AC 16).
+
+    The checks read the scene, the book's other scene records, the draft, the lexicon, the
+    time system, the setups, the threads, every knowledge file and the POV's voice, and
+    return every finding with the list of checks that ran and those that did not -- so an
+    empty list of violations is never read as a pass on a check that was skipped.
+
+    Reading needs no role: without `persist` the route writes nothing and is safe to call
+    from anywhere. With `persist`, the role is required before anything runs (IF-02, a 400
+    when absent) and the write is decided by Figure 3 inside the store layer, never here. The
+    role header is declared on this route rather than taken from `RoleDep` because `RoleDep`
+    would make it mandatory for the read-only call as well.
+    """
+    role = require_role(x_agent_role) if persist else None
+    report = audit.audit_scene(store, scene, semantic=semantic)
+    if role is None:
+        return report
+    record = audit.persist(store, report, role=role, actor=actor)
+    return report.model_copy(update={"persisted": record})
 
 
 # --------------------------------------------------------------------------------------

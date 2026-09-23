@@ -129,6 +129,67 @@
         "title": "ArcsFile",
         "type": "object"
       },
+      "AuditReport": {
+        "additionalProperties": false,
+        "description": "IF-05, `POST /scenes/{id}/audit`. The audit of one scene. Reports; does not repair.",
+        "properties": {
+          "checked": {
+            "description": "The checks that ran. The absence of a violation vouches for these and nothing else.",
+            "items": {
+              "$ref": "#/components/schemas/CheckRef"
+            },
+            "title": "Checked",
+            "type": "array"
+          },
+          "persisted": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ProvenanceRecord"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The write to `ledger/violations.yaml`, when `persist=true` was requested under the auditor role; empty when nothing was written."
+          },
+          "scene": {
+            "description": "The scene audited.",
+            "pattern": "^\\d{3}$",
+            "title": "Scene",
+            "type": "string"
+          },
+          "semantic": {
+            "description": "Whether the model-backed half (FR-AUD-09) was requested. When it was and did not run, its invariants are listed in `skipped`.",
+            "title": "Semantic",
+            "type": "boolean"
+          },
+          "skipped": {
+            "description": "The checks that did not run, and why.",
+            "items": {
+              "$ref": "#/components/schemas/SkippedCheck"
+            },
+            "title": "Skipped",
+            "type": "array"
+          },
+          "violations": {
+            "description": "Every finding, mechanical checks in FR-AUD order, each with a deterministic id so a persisted re-run recognises its own findings.",
+            "items": {
+              "$ref": "#/components/schemas/Violation"
+            },
+            "title": "Violations",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scene",
+          "semantic",
+          "violations",
+          "checked",
+          "skipped"
+        ],
+        "title": "AuditReport",
+        "type": "object"
+      },
       "Axiom": {
         "additionalProperties": false,
         "description": "DR-01, DR-02, DR-10. One rule of the universe: `canon/axioms/<id>.md`.\n\nIn science fiction this is the highest-leverage record in the ontology, and invariant 6\nis stated over it: no scene violates an axiom selected for its context. \"Selected\" is\nexact - the axioms in force for a scene are the ones the turn recorded, whether pinned\nthrough the scene's `tags` or retrieved by `select_entities` - and `scope` is the set\na scene's `tags` intersect to pin this one in.\n\n**Failure mode** (`definitions.md` Axiom), in two halves. An axiom with no declared\n`consequences` is the origin of most plot holes: the rule is stated once, nobody derives\nwhat it forbids, and three hundred pages later something impossible happens that no check\ncan name. And an axiom that declares the capability while forgetting the limit drains the\ntension from every scene it touches, because a rule that only permits creates no\nobstacle. `consequences`, `exceptions` and `cost` are what make the rule cost something;\n`exceptions` is closed and enumerated, or they are not exceptions.",
@@ -577,6 +638,35 @@
           "body"
         ],
         "title": "Character",
+        "type": "object"
+      },
+      "CheckRef": {
+        "additionalProperties": false,
+        "description": "One check of the audit, named by its FR-AUD row, its invariant and its half.",
+        "properties": {
+          "check": {
+            "description": "The spec row: `FR-AUD-01` ... `FR-AUD-08` for the mechanical checks, `FR-AUD-09` for the model-backed half.",
+            "title": "Check",
+            "type": "string"
+          },
+          "invariant": {
+            "description": "The domain invariant of `definitions.md` served.",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Invariant",
+            "type": "integer"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ViolationSource",
+            "description": "The half that runs it, as DR-07 `source` names it: `mechanical` or `model`. A finding with this source can only come from a check listed as run."
+          }
+        },
+        "required": [
+          "check",
+          "invariant",
+          "source"
+        ],
+        "title": "CheckRef",
         "type": "object"
       },
       "DatedValence": {
@@ -2463,6 +2553,42 @@
         ],
         "title": "Severity",
         "type": "string"
+      },
+      "SkippedCheck": {
+        "additionalProperties": false,
+        "description": "A check that did not run. Its silence is not a pass (FR-AUD-09).",
+        "properties": {
+          "check": {
+            "description": "The spec row: `FR-AUD-01` ... `FR-AUD-08` for the mechanical checks, `FR-AUD-09` for the model-backed half.",
+            "title": "Check",
+            "type": "string"
+          },
+          "invariant": {
+            "description": "The domain invariant of `definitions.md` served.",
+            "maximum": 10.0,
+            "minimum": 1.0,
+            "title": "Invariant",
+            "type": "integer"
+          },
+          "reason": {
+            "description": "Why it did not run: the absent input, or the model step that is missing or failed.",
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ViolationSource",
+            "description": "The half that runs it, as DR-07 `source` names it: `mechanical` or `model`. A finding with this source can only come from a check listed as run."
+          }
+        },
+        "required": [
+          "check",
+          "invariant",
+          "source",
+          "reason"
+        ],
+        "title": "SkippedCheck",
+        "type": "object"
       },
       "StyleBible": {
         "additionalProperties": false,
@@ -5960,6 +6086,112 @@
           }
         },
         "summary": "Write a scene record",
+        "tags": [
+          "scenes"
+        ]
+      }
+    },
+    "/scenes/{id}/audit": {
+      "post": {
+        "description": "IF-05, `POST /scenes/{id}/audit`. Reports; does not repair (AC 15, AC 16).\n\nThe checks read the scene, the book's other scene records, the draft, the lexicon, the\ntime system, the setups, the threads, every knowledge file and the POV's voice, and\nreturn every finding with the list of checks that ran and those that did not -- so an\nempty list of violations is never read as a pass on a check that was skipped.\n\nReading needs no role: without `persist` the route writes nothing and is safe to call\nfrom anywhere. With `persist`, the role is required before anything runs (IF-02, a 400\nwhen absent) and the write is decided by Figure 3 inside the store layer, never here. The\nrole header is declared on this route rather than taken from `RoleDep` because `RoleDep`\nwould make it mandatory for the read-only call as well.",
+        "operationId": "audit_scene_scenes__id__audit_post",
+        "parameters": [
+          {
+            "description": "Stable scene id: `NNN`, three digits. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Stable scene id: `NNN`, three digits. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
+              "pattern": "^\\d{3}$",
+              "title": "Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Request the model-backed half too (FR-AUD-09: invariants 3 and 6, and the prose halves of 1 and 8). Until plan step 17 it cannot run, and its invariants are listed in `skipped`. `false` is the mechanical audit only.",
+            "in": "query",
+            "name": "semantic",
+            "required": false,
+            "schema": {
+              "default": true,
+              "description": "Request the model-backed half too (FR-AUD-09: invariants 3 and 6, and the prose halves of 1 and 8). Until plan step 17 it cannot run, and its invariants are listed in `skipped`. `false` is the mechanical audit only.",
+              "title": "Semantic",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Write the findings into `ledger/violations.yaml`, merged with what is there. Requires `X-Agent-Role`; Figure 3 lets only the auditor write that file. Without it nothing is written.",
+            "in": "query",
+            "name": "persist",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Write the findings into `ledger/violations.yaml`, merged with what is there. Requires `X-Agent-Role`; Figure 3 lets only the auditor write that file. Without it nothing is written.",
+              "title": "Persist",
+              "type": "boolean"
+            }
+          },
+          {
+            "description": "Required only with `persist=true`, where it must be `auditor`; any other role is a 403 and leaves the tree byte-identical (AC 16).",
+            "in": "header",
+            "name": "X-Agent-Role",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Required only with `persist=true`, where it must be `auditor`; any other role is a 403 and leaves the tree byte-identical (AC 16).",
+              "title": "X-Agent-Role"
+            }
+          },
+          {
+            "description": "`human` when a person is acting under the role, absent or `agent` otherwise. A human acts under a role, never beside it.",
+            "in": "header",
+            "name": "X-Actor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "`human` when a person is acting under the role, absent or `agent` otherwise. A human acts under a role, never beside it.",
+              "title": "X-Actor"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Audit a scene against the domain invariants",
         "tags": [
           "scenes"
         ]
