@@ -119,8 +119,9 @@
           "type": "string"
         },
         "reason": {
-          "description": "Why; a ruling without one is unreviewable.",
+          "description": "Why; a ruling without one is unreviewable, and blanks are not one.",
           "minLength": 1,
+          "pattern": "\\S",
           "title": "Reason",
           "type": "string"
         },
