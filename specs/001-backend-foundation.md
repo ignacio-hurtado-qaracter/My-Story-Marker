@@ -260,7 +260,7 @@ Source: [Memory and context budget](../docs/architecture.md#memory-and-context-b
 | FR-IDX-05 | Numbered SQL migrations recorded in `schema_migrations`; applying them to an old index yields the fresh schema. |
 | FR-IDX-06 | WAL mode, busy timeout, retry with backoff; `IndexBusy` only after the timeout. |
 | FR-IDX-07 | Index metadata records `embedding_model` and `embedding_dim`; a rebuild is forced when they change. `GET /index/status` reports orphan count (rows whose `path` is gone), which the rebuild test asserts is zero. |
-| FR-IDX-08 | Incremental update: a store write re-embeds only rows whose `content_hash` changed. |
+| FR-IDX-08 | Incremental update: only rows whose `content_hash` changed are re-embedded. The update runs at the start of every selection (FR-OPS-02), before any role call of a turn, so a selection sees every store write whoever made it, including the previous turn's promotions (FR-TURN-04); a write request itself never loads the embedder (FR-EMB-04). |
 
 ### FR-EMB — Embedder
 
@@ -279,7 +279,7 @@ Source: [Operations](../docs/architecture.md#operations), [Figure 2](../docs/arc
 
 | Id | Requirement |
 |---|---|
-| FR-OPS-01 | `dossier(character_id, at)` returns identity, competences, the arc entry anchored to the latest scene with `story_time <= at`, `KnowledgeState` rows whose `acquired_in` scene has `story_time <= at`, and per relationship the latest valence dated `<= at`. Nothing later appears. |
+| FR-OPS-01 | `dossier(character_id, at)` returns identity, competences, the arc entry anchored to the latest scene with `story_time <= at`, `KnowledgeState` rows whose `acquired_in` scene has `story_time <= at`, and per relationship the latest valence dated `<= at`. Physical attributes are `immutable_physical` as changed by the character's own `ChangeEvent`s at scenes with `story_time <= at`, and a `ChangeEvent` at or before `at` that forgets a fact removes its `KnowledgeState` rows — the character "as they were at that instant" ([`dossier`](../docs/architecture.md#dossiercharacter-atstory_time--trimmed-record)). Nothing later appears. |
 | FR-OPS-02 | `select_entities(scene)` builds the query text from `goal`, `conflict`, `value_change`, `pov`, `location`, `entry_state`, `exit_state` and `notes`; ranks by FTS5 BM25 and, when available, by vector cosine, fused by reciprocal rank; prepends the entities named in `pins` and every axiom whose `scope` intersects `tags`; excludes the POV. Returns identifiers, kinds and scores — never record text. |
 | FR-OPS-03 | `assemble_context(scene)` loads in order: fixed block (`canon/project.md`, `canon/style.md`); `dossier(pov, at=story_time)`; `literal_tail` of the previous scene in `discourse_order`; then each selected id in ranking order in its as-of form (dossier for characters; full record for axioms, technology, locations with parent chain, factions; chapter-level digest for prose; lexicon bound to loaded entities through `used_by`; open setups with `due_by >= scene`). It stops before the entry that would make the writer call's estimate (FR-CTX-02) exceed **100 000 tokens** — the mandatory part (role system prompt, instruction, fixed block, POV dossier, literal tail) is counted first, so the selected entities fill only what remains, and FR-CTX-03 is the same rule seen from the call — and records `truncated_at`; it never truncates inside an entry. **As-of forms.** A chapter digest is loaded only if every scene it covers has `story_time <= T`; a digest whose `povs` does not include the POV is labelled in the prompt as events the POV did not witness, so `povs` does the filtering job [SceneDigest](../docs/architecture.md#scenedigest) gives it. A setup is "open" when `paid_in` and `resolution` are empty and its `planted_in` scene has `story_time <= T`; a violation with a `resolution` set and a thread `resolved` or `abandoned` never enter the context (they "leave the working tier as they close"). Setups are presented under a *may collect* label, never as an instruction to pay a specific one. Raw `manuscript/NNN.md` prose never enters the context except as the previous scene's `literal_tail`. |
 | FR-OPS-04 | If the fixed block exceeds 800 tokens the response carries `warnings: ["fixed_block_over_budget"]`. |
@@ -418,7 +418,7 @@ Source: [Domain invariants](../docs/definitions.md#domain-invariants), [Violatio
 | IF-04 | Writes: `PUT /canon/{kind}/{id}`, `/canon/lexicon`, `/canon/time` (world_builder, canoniser); `PUT /cast/{id}/{dossier\|voice\|knowledge\|changes}`, `/cast/relationships` (canoniser); `PUT /structure/{arcs\|chapters}`, `PUT /scenes/{id}` (architect); `PUT /manuscript/{id}` (writer, style_editor); `PUT /manuscript/digests/{id}` (writer); `POST /ledger/proposed` (writer, canoniser — Figure 3 gives both `ledger/proposed.yaml`); `PUT /ledger/violations` (auditor). A human resolves an escalated violation through that last route, acting as the auditor with `X-Actor: human`, by setting `resolution` (`fix_prose · fix_canon · accept_with_reason`); the prose or canon edit itself goes through the owning role's route. This is the dotted "escalate ruling" edge of [Figure 1](../docs/architecture.md#figure-1--the-working-loop). |
 | IF-05 | Operations: `POST /scenes/{id}/select`, `/scenes/{id}/assemble`, `/scenes/{id}/audit?semantic=false` (mechanical only, no model), `/scenes/{id}/audit` (full, auditor role); `POST /ledger/proposed/{id}/promote` (canoniser) → `Promoted \| Escalation`; `POST /ledger/proposed/{id}/rule` (canoniser, human); `POST /canon/reconcile`; `POST /index/rebuild`; `GET /index/status`. |
 | IF-06 | Turns: `POST /agents/turns` `{scene_id}` (+ `?dry_run`), `GET /agents/turns/{id}`, `POST /agents/turns/{id}/rulings`, `POST /agents/turns/{id}/resume`, `POST /agents/digests/rollup` `{chapter_id \| arc_id}`. Turn execution is synchronous with streamed progress as Server-Sent Events (one event per step) so a client can follow a multi-minute turn. |
-| IF-07 | Error bodies share one shape. `InvalidRecord` → `422`, `NotFound` → `404`, `PermissionDenied` → `403`, `IndexBusy` → `503`, `TurnLocked` → `409`, `ContextBudgetExceeded` → `422`, `MalformedModelOutput` / `ModelRefused` → `502` with the category. |
+| IF-07 | Error bodies share one shape. `InvalidRecord` → `422`, `NotFound` → `404`, `PermissionDenied` → `403`, `IndexBusy` → `503`, `TurnLocked` → `409`, `ContextBudgetExceeded` → `422`, `MalformedModelOutput` / `ModelRefused` / `OutputTruncated` → `502` with the category, `ModelCallFailed` → `502` with its reason (FR-LLM-08: the CLI is missing, the call timed out, the envelope is unreadable, or the API returned an error status), `InvalidRole` → `400` (IF-02). |
 | IF-08 | `backend/openapi.json` is exported by script and committed; CI fails on drift. |
 
 ### NFR — Non-functional requirements
@@ -506,7 +506,7 @@ other, a build failure.
 | AC 10 | `dossier(character, at=T)` never includes knowledge or valence dated after `T` (property test). | **T** |
 | AC 11 | `select_entities` returns ids only; the entities named in `pins` come first; the POV is absent. | **T** |
 | AC 12 | `assemble_context` never includes a fact acquired after the scene; stops before 100k; never truncates inside an entry; the selected list persisted in the turn record equals the list the auditor step receives. | **T** |
-| AC 13 | `promote` on a non-conflicting fact updates the record; on a collision it returns `Escalation`, changes nothing, sets `conflict`. No code path under `ledger/` or `agents/` resolves a collision without a `rule` call carrying `actor: human`. | **T**, **A** (grep rule) |
+| AC 13 | `promote` on a non-conflicting fact updates the record; on a collision it returns `Escalation`, leaves `canon/` and `cast/` byte-identical, and writes only `conflict` (with the colliding `existing_value`) on the fact in `ledger/proposed.yaml`. No code path under `ledger/` or `agents/` resolves a collision without a `rule` call carrying `actor: human`. | **T**, **A** (grep rule) |
 | AC 14 | `reconcile` returns a superset of hand-labelled dependents for a character, a nested location and a tagged axiom. | **T** |
 | AC 15 | Mechanical `audit` on the fixture finds every planted violation for invariants 1r, 2, 4, 5, 7, 8r, 9, 10 with expected severity and nothing on the clean control scene. | **T** |
 | AC 16 | `audit` writes only `ledger/violations.yaml`, only under the auditor role; any other role → `403` and a byte-identical tree. | **T** |
@@ -684,6 +684,36 @@ satisfy the documents as written.
   to decide whether every covered scene is at or before `T`.
 - **`participants` is required and disjoint from `pov`** (DR-03). Optional, it let invariants
   4 and 5 narrow to the POV alone with nothing recording that they had.
+
+Four clarifications were folded in while implementing plan steps 9–15 (2026-09-23). None
+changes the scope or an acceptance criterion; each makes the text say what the design already
+required:
+
+- **FR-OPS-01 applies `ChangeEvent`s.** `architecture.md` defines the dossier as the character
+  "as they were at that instant"; a hand lost at scene 004 is not a hand at hour 400. The row
+  listed identity, knowledge, arc and valences but not the body.
+- **FR-IDX-08 says when the update runs.** "A store write re-embeds" could be read as running
+  the embedder inside every write request. It runs at the start of each selection instead,
+  which is also what makes FR-TURN-04's "the next scene's assembly sees the new facts" hold.
+- **AC 13's "changes nothing"** meant canon and cast: the collision itself is recorded on the
+  fact in `ledger/proposed.yaml`, which is how a human later finds it.
+- **IF-07 lists every error the API returns.** `InvalidRole` (IF-02) and `ModelCallFailed`
+  (FR-LLM-08) were raised by the code and missing from the table.
+
+Two things were found while implementing and are **deferred by name** (Process 3, rule 13):
+
+- **Figure 3's auditor `In` column is narrower than FR-AUD.** FR-AUD-02, -07 and -08 read
+  `ledger/setups.yaml`, the POV's `cast/{id}/voice.md` and `ledger/threads.yaml`, which the
+  column does not list. v1 reads them in the mechanical checks, which are backend code and
+  not a model's context; `INPUT_TABLE` (FR-AGENT-09) bounds what the model-backed auditor
+  receives, and FR-AGENT-06 hands it none of the three. Whether the column should list them,
+  or say that it bounds model context only, is a `docs/` decision (Process 1).
+- **The refusal category may not reach the envelope.** Claude Code 2.1.273's JSON result has
+  no `stop_details`; the category travels only in stream messages `--output-format json` does
+  not print, so AC 21's "escalates with the category" may carry an empty category live. The
+  same messages suggest the CLI can retry a refusal on another model by itself, which
+  FR-LLM-06 rules out for v1. Both are checked in the AC 26 live run, where `modelUsage`
+  would list two models.
 
 Two things are recorded here for the reviewer rather than asked:
 
