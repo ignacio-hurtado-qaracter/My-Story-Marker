@@ -655,14 +655,16 @@ change the design after approval, and R3-5 refines it while in draft:
   client and proceed while this is reviewed, at the user's explicit authorisation; step 15
   onward waits for re-approval.
 
-**Open, and to be settled before re-approval:**
+**Settled for re-approval** (user, 2026-09-23). Nothing is left open.
 
-- **Compression (FR-CTX-05).** The user asked for pruning or compression to be specified.
-  This draft specifies pruning per role and **no** model-written compression inside a turn,
-  because `architecture.md` requires loading to be reproducible and a call never to be
-  silently truncated; the compression the design already has is the digest ladder. An
-  in-turn compression step would change `architecture.md` first (Process 1).
-- **The organisation's managed instructions travel in every role call** (FR-LLM-05). The
+- **Closed — Compression (FR-CTX-05).** The user asked for pruning or compression to be
+  specified. The spec specifies pruning per role and **no** model-written compression inside
+  a turn, because `architecture.md` requires loading to be reproducible and a call never to
+  be silently truncated; the compression the design already has is the digest ladder. An
+  in-turn compression step would change `architecture.md` first (Process 1), under a new spec.
+- **Deferred to the AC 26 live run — the organisation's managed instructions travel in
+  every role call** (FR-LLM-05). Nothing to decide now; how to respond, if the live run shows
+  an effect, is the user's decision on that evidence. The
   probe of 2026-09-23 showed them in the model's context; the backend cannot remove them and
   should not. They tell the model to anonymise real personal names and append a privacy note.
   The novel's characters are fictional, so they should not trigger, but a model could
