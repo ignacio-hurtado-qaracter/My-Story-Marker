@@ -7,9 +7,11 @@
 # stage whose inputs do not exist yet is reported as SKIPPED by name, never passed over in
 # silence, because a green gate that quietly checked less is worse than a red one.
 #
-# `semgrep` does not run natively on Windows (plan decision P8). The rules of record for
-# AC 3, 13 and 17 run in CI on Linux; the AST mirror in `tools/check_boundaries.py` runs
-# inside pytest on every platform so the local gate is not blind to them.
+# `semgrep` runs here through `uvx`, pinned, so the rules of record for AC 3, 13 and 17 run
+# locally as well as in CI (plan decision P8, amended by correction C10: semgrep 1.177 runs
+# natively on Windows). Two stages: `--test` holds each rule to its annotated fixture under
+# `semgrep/tests/`, then a scan of `app/` must be clean. The AST mirror in
+# `tools/check_boundaries.py` still runs inside pytest against the same fixtures.
 
 $ErrorActionPreference = 'Continue'
 
@@ -45,7 +47,14 @@ Invoke-Stage 'mypy --strict' { uv run mypy . }
 Invoke-Stage 'bandit'       { uv run bandit -q -c pyproject.toml -r app tools scripts }
 Invoke-Stage 'import-linter' { uv run lint-imports }
 
-Skip-Stage 'semgrep' 'not supported natively on Windows; CI is the rule of record (P8)'
+$SemgrepVersion = '1.177.0'
+$env:PYTHONUTF8 = '1'
+Invoke-Stage 'semgrep rule tests' {
+    uvx --python 3.12 "semgrep==$SemgrepVersion" --test --metrics=off --disable-version-check --config semgrep/ semgrep/tests/
+}
+Invoke-Stage 'semgrep' {
+    uvx --python 3.12 "semgrep==$SemgrepVersion" scan --error --quiet --metrics=off --disable-version-check --config semgrep/ app
+}
 
 if (Test-Path 'schemas') {
     $schemaFiles = Get-ChildItem 'schemas' -Filter '*.json' -ErrorAction SilentlyContinue

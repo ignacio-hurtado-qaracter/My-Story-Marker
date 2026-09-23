@@ -87,10 +87,10 @@ ignore = [
 # are what the spec, the plan and the HTTP error codes all call them; renaming them to
 # please a naming convention would make the code disagree with its own contract.
 "app/commons/errors/__init__.py" = ["N818"]
-# The planted rule fixtures are deliberately wrong code: `semgrep/tests/positive/`
-# exists so the boundary rules can be shown to fire. Linting it would mean fixing the
-# bug the fixture is made of.
-"semgrep/tests/positive/*.py" = ["ALL"]
+# The annotated rule fixtures are deliberately wrong code: `semgrep/tests/<rule>.py`
+# exists so the boundary rules can be shown to fire, line by line. Linting it would mean
+# fixing the bug the fixture is made of.
+"semgrep/tests/*.py" = ["ALL"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]

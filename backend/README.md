@@ -48,10 +48,12 @@ shows everything that is wrong rather than the first thing.
 **A stage whose inputs do not exist yet is reported as `SKIPPED` by name.** A gate that
 quietly checked less than it looks like it did is worse than a red one.
 
-`semgrep` does not run natively on Windows (plan decision P8). The rules of record for
-AC 3, 13 and 17 run in CI on Linux; `tools/check_boundaries.py` mirrors the same three rules
-with the stdlib `ast` module and runs inside `pytest` on every platform, so the local gate is
-not blind to them. A disagreement between the two is a bug in the mirror.
+`semgrep` runs through `uvx`, pinned to one version in both gate scripts, on Windows as on
+Linux (plan decision P8, amended by correction C10). It runs twice: `semgrep --test` holds
+each rule of record for AC 3, 13 and 17 to its annotated fixture under `semgrep/tests/`, then
+a scan of `app/` must be clean. The first run downloads it once. `tools/check_boundaries.py`
+mirrors the same rules with the stdlib `ast` module and runs inside `pytest` against the same
+annotated fixtures, so a disagreement between the two fails one side or the other.
 
 ### Tests
 

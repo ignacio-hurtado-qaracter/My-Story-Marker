@@ -38,7 +38,7 @@ rules:
       - pattern-either:
           # Mutating primitives, whatever the path.
           - pattern: open($PATH, ...)
-          - pattern: $P.open($MODE, ...)
+          - pattern: $P.open(...)
           - pattern: $P.write_text(...)
           - pattern: $P.write_bytes(...)
           - pattern: $P.unlink(...)
@@ -87,3 +87,6 @@ rules:
           - pattern-regex: '"(canon|cast|structure|scenes|manuscript|ledger)/[^"]*"\s*%'
           - pattern-regex: 'f"(canon|cast|structure|scenes|manuscript|ledger)/[^"]*\{'
           - pattern-regex: "'(canon|cast|structure|scenes|manuscript|ledger)/[^']*'\\s*%"
+          - pattern-regex: "f'(canon|cast|structure|scenes|manuscript|ledger)/[^']*\\{"
+          # Concatenation: a literal store-path head joined to anything with `+`.
+          - pattern: '"=~/^(canon|cast|structure|scenes|manuscript|ledger)\//" + $REST'
