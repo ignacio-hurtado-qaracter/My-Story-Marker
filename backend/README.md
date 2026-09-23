@@ -58,7 +58,7 @@ not blind to them. A disagreement between the two is a bug in the mirror.
 ```bash
 uv run pytest                    # the offline suite; no network, fake model and embedder
 uv run pytest -m model           # needs the real 384-d embedding weights on disk
-uv run pytest --live             # needs real credentials; costs money (NFR-09)
+uv run pytest --live             # a real model through `claude -p`; uses your Claude Code login
 ```
 
 The offline suite runs with outbound network blocked at the socket layer (NFR-06). Loopback
@@ -83,7 +83,7 @@ app/
     schemas/       shared Pydantic models; JSON Schemas exported to ../schemas/
     db/            SQLite, migrations, FTS5, optional sqlite-vec
     embeddings/    fastembed behind a Protocol, with a deterministic fake
-    llm/           the Anthropic client behind a Protocol, with a scripted fake
+    llm/           the `claude -p` client behind a Protocol, with a scripted fake
     errors/        the error types and the IF-07 status-code mapping
     config.py      settings, and the constants no setting may move
   canon/ cast/ scenes/ manuscript/ ledger/ agents/
@@ -91,10 +91,12 @@ tests/             cross-feature and end-to-end only; feature tests live in the 
 conftest.py        the shared fixtures (root, so `app/*/tests/` sees them)
 ```
 
-Four boundaries are build failures, not conventions (NFR-04, enforced by `import-linter`):
-features are independent of each other, `commons/` imports no feature, only `commons.llm`
-names `anthropic`, only `commons.embeddings` names `fastembed`, and only `commons.db` speaks
-SQLite.
+These boundaries are build failures, not conventions (NFR-04, enforced by `import-linter`):
+a feature reaches another only through its `service` and `models`, never its `repository` or
+`router`; feature dependencies point downward only (`agents` above `scenes` above `ledger`
+above `canon`, `cast` and `manuscript`), so there are no cycles; `commons/` imports no
+feature; only `commons.llm` spawns a subprocess; only `commons.embeddings` names `fastembed`;
+and only `commons.db` speaks SQLite.
 
 ## Configuration
 
@@ -111,9 +113,11 @@ Two numbers are **module constants** in `app/commons/config.py` and deliberately
 environment key: the 100 000-token context cap (NFR-05) and `TURN_MAX_REVISIONS = 3`
 (FR-TURN-02). A setting that could raise either would be a hole in the design.
 
-Credentials come from the Anthropic SDK's own resolution (FR-LLM-01) — prefer
-`ant auth login` over putting a key in `.env`. No key is ever read from or written to the
-store tree.
+**No API key is used, anywhere.** Model calls go through the Claude Code CLI (`claude -p`)
+under your own Claude Code login (spec FR-LLM-01, decision R3-1), so the CLI must be installed
+and logged in on the machine that runs a turn. The backend removes `ANTHROPIC_API_KEY` from
+the CLI's environment even if your shell sets one, so a key can never silently take over.
+The offline test suite needs neither: it uses a scripted fake.
 
 ## `.index/`
 

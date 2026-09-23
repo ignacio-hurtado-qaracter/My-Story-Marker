@@ -42,6 +42,7 @@ router = APIRouter(prefix="/cast", tags=["cast"])
 CharacterId = Annotated[
     str,
     Path(
+        alias="id",
         pattern=ENTITY_ID_PATTERN,
         min_length=1,
         max_length=120,
@@ -96,7 +97,7 @@ def write_relationships(
     return service.save_relationships(store, record, role=role, actor=actor)
 
 
-@router.get("/{character}", summary="Read a character's dossier")
+@router.get("/{id}", summary="Read a character's dossier")
 def read_character(store: StoreDep, character: CharacterId) -> Character:
     """IF-03, `GET /cast/{id}`. The complete record.
 
@@ -110,7 +111,7 @@ def read_character(store: StoreDep, character: CharacterId) -> Character:
     return service.read_character(store, character)
 
 
-@router.get("/{character}/voice", summary="Read a character's voice profile")
+@router.get("/{id}/voice", summary="Read a character's voice profile")
 def read_voice(store: StoreDep, character: CharacterId) -> VoiceProfile:
     """IF-03, `GET /cast/{id}/voice`. Kept out of the dossier because it is read at a
     different moment, by a different role, and `never_says` is the only part of a voice a
@@ -118,21 +119,21 @@ def read_voice(store: StoreDep, character: CharacterId) -> VoiceProfile:
     return service.read_voice(store, character)
 
 
-@router.get("/{character}/knowledge", summary="Read what a character knows")
+@router.get("/{id}/knowledge", summary="Read what a character knows")
 def read_knowledge(store: StoreDep, character: CharacterId) -> KnowledgeFile:
     """IF-03, `GET /cast/{id}/knowledge`. Every recorded state, each anchored to the scene it
     was acquired in; deciding which of them a given scene may see is FR-OPS-01's job."""
     return service.read_knowledge(store, character)
 
 
-@router.get("/{character}/changes", summary="Read a character's registered changes")
+@router.get("/{id}/changes", summary="Read a character's registered changes")
 def read_changes(store: StoreDep, character: CharacterId) -> ChangesFile:
     """IF-03, `GET /cast/{id}/changes`. The register that tells a scar in chapter nine apart
     from a continuity error (invariant 3)."""
     return service.read_changes(store, character)
 
 
-@router.put("/{character}/dossier", summary="Write a character's dossier")
+@router.put("/{id}/dossier", summary="Write a character's dossier")
 def write_dossier(
     store: StoreDep,
     role: RoleDep,
@@ -144,7 +145,7 @@ def write_dossier(
     return service.save_dossier(store, character, record, role=role, actor=actor)
 
 
-@router.put("/{character}/voice", summary="Write a character's voice profile")
+@router.put("/{id}/voice", summary="Write a character's voice profile")
 def write_voice(
     store: StoreDep,
     role: RoleDep,
@@ -156,7 +157,7 @@ def write_voice(
     return service.save_voice(store, character, record, role=role, actor=actor)
 
 
-@router.put("/{character}/knowledge", summary="Write what a character knows")
+@router.put("/{id}/knowledge", summary="Write what a character knows")
 def write_knowledge(
     store: StoreDep,
     role: RoleDep,
@@ -173,7 +174,7 @@ def write_knowledge(
     return service.save_knowledge(store, character, record, role=role, actor=actor)
 
 
-@router.put("/{character}/changes", summary="Write a character's registered changes")
+@router.put("/{id}/changes", summary="Write a character's registered changes")
 def write_changes(
     store: StoreDep,
     role: RoleDep,

@@ -60,6 +60,7 @@ structure_router = APIRouter(prefix="/structure", tags=["structure"])
 SceneIdParam = Annotated[
     str,
     Path(
+        alias="id",
         pattern=SCENE_ID_PATTERN,
         description=(
             "Stable scene id: `NNN`, three digits. The grammar is FR-STORE-05's, declared "
@@ -89,7 +90,7 @@ def list_scenes(store: StoreDep) -> list[str]:
     return service.list_scenes(store)
 
 
-@router.get("/{scene}", summary="Read a scene record")
+@router.get("/{id}", summary="Read a scene record")
 def read_scene(store: StoreDep, scene: SceneIdParam) -> Scene:
     """IF-03, `GET /scenes/{id}`. The whole record.
 
@@ -100,7 +101,7 @@ def read_scene(store: StoreDep, scene: SceneIdParam) -> Scene:
     return service.read_scene(store, scene)
 
 
-@router.put("/{scene}", summary="Write a scene record")
+@router.put("/{id}", summary="Write a scene record")
 def write_scene(
     store: StoreDep,
     role: RoleDep,

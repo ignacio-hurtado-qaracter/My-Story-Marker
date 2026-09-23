@@ -15,7 +15,6 @@ dependencies = [
     "pydantic==2.13.5",
     "pydantic-settings==2.15.0",
     "pyyaml==6.0.3",
-    "anthropic==1.7.0",
     "fastembed==0.8.0",
     "sqlite-vec==0.1.9",
     "sse-starlette==3.4.11",
@@ -155,16 +154,120 @@ filterwarnings = ["error::DeprecationWarning:app.*"]
 root_packages = ["app"]
 include_external_packages = true
 
+# NFR-04 as spec decision R3-3 reads it, and as architecture.md rules 2 and 5 state it: a
+# feature calls another through its public surface (`service`, `models`) and never reaches
+# into its `repository` or `router`. One contract per feature, because a forbidden contract
+# cannot exempt a module from importing its own internals. `agents` has no repository or
+# router until plan step 18; its rows gain them then.
 [[tool.importlinter.contracts]]
-name = "Features are independent of one another"
-type = "independence"
-modules = [
-    "app.canon",
-    "app.cast",
-    "app.scenes",
-    "app.manuscript",
-    "app.ledger",
+name = "canon reaches other features only through their public surface"
+type = "forbidden"
+source_modules = ["app.canon"]
+forbidden_modules = [
+    "app.cast.repository",
+    "app.cast.router",
+    "app.scenes.repository",
+    "app.scenes.router",
+    "app.manuscript.repository",
+    "app.manuscript.router",
+    "app.ledger.repository",
+    "app.ledger.router",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "cast reaches other features only through their public surface"
+type = "forbidden"
+source_modules = ["app.cast"]
+forbidden_modules = [
+    "app.canon.repository",
+    "app.canon.router",
+    "app.scenes.repository",
+    "app.scenes.router",
+    "app.manuscript.repository",
+    "app.manuscript.router",
+    "app.ledger.repository",
+    "app.ledger.router",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "scenes reaches other features only through their public surface"
+type = "forbidden"
+source_modules = ["app.scenes"]
+forbidden_modules = [
+    "app.canon.repository",
+    "app.canon.router",
+    "app.cast.repository",
+    "app.cast.router",
+    "app.manuscript.repository",
+    "app.manuscript.router",
+    "app.ledger.repository",
+    "app.ledger.router",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "manuscript reaches other features only through their public surface"
+type = "forbidden"
+source_modules = ["app.manuscript"]
+forbidden_modules = [
+    "app.canon.repository",
+    "app.canon.router",
+    "app.cast.repository",
+    "app.cast.router",
+    "app.scenes.repository",
+    "app.scenes.router",
+    "app.ledger.repository",
+    "app.ledger.router",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "ledger reaches other features only through their public surface"
+type = "forbidden"
+source_modules = ["app.ledger"]
+forbidden_modules = [
+    "app.canon.repository",
+    "app.canon.router",
+    "app.cast.repository",
+    "app.cast.router",
+    "app.scenes.repository",
+    "app.scenes.router",
+    "app.manuscript.repository",
+    "app.manuscript.router",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "agents reaches other features only through their public surface"
+type = "forbidden"
+source_modules = ["app.agents"]
+forbidden_modules = [
+    "app.canon.repository",
+    "app.canon.router",
+    "app.cast.repository",
+    "app.cast.router",
+    "app.scenes.repository",
+    "app.scenes.router",
+    "app.manuscript.repository",
+    "app.manuscript.router",
+    "app.ledger.repository",
+    "app.ledger.router",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+# Rule 5: cycles are forbidden. Dependencies point downward only: the orchestrator composes
+# scene operations, scene operations use the ledger's audit, and both read the data
+# owners. `|` makes the three data owners independent of one another as well.
+name = "Feature dependencies are acyclic and point downward"
+type = "layers"
+layers = [
     "app.agents",
+    "app.scenes",
+    "app.ledger",
+    "app.canon | app.cast | app.manuscript",
 ]
 
 [[tool.importlinter.contracts]]
@@ -189,16 +292,21 @@ layers = [
 # reaching sqlite through `commons.db` is the design, not a breach. A module that names
 # the library itself is what this forbids.
 [[tool.importlinter.contracts]]
-name = "Only commons.llm imports anthropic"
+# Spec decision R3-1: model calls go through the Claude Code CLI as a subprocess, so the one
+# module allowed to spawn a process is the model client. A process spawned anywhere else is a
+# second door out of the backend that nothing audits. The embedder test that proves
+# cross-process determinism is the named exception: it runs Python, not the model.
+name = "Only commons.llm spawns subprocesses"
 type = "forbidden"
 source_modules = [
     "app.main",
     "app.canon", "app.cast", "app.scenes", "app.manuscript", "app.ledger", "app.agents",
     "app.commons.config", "app.commons.errors", "app.commons.permissions",
     "app.commons.schemas", "app.commons.stores", "app.commons.db",
-    "app.commons.embeddings",
+    "app.commons.embeddings", "app.commons.deps",
 ]
-forbidden_modules = ["anthropic"]
+forbidden_modules = ["subprocess"]
+ignore_imports = ["app.commons.embeddings.tests.test_fake -> subprocess"]
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]

@@ -3739,22 +3739,22 @@
         ]
       }
     },
-    "/cast/{character}": {
+    "/cast/{id}": {
       "get": {
         "description": "IF-03, `GET /cast/{id}`. The complete record.\n\n`GET /cast/{id}/dossier?at=` -- the same record trimmed to the instant of a scene\n(FR-OPS-01) -- arrives at plan step 10. It is the load-bearing call of this feature, and\nthis one is its unsafe sibling: a writer handed the complete dossier uses facts the\ncharacter has not yet learned, because nothing in the text marks them as future. The\nrecord reads as true, and everything true in the context is fair to write. Until that\nstep this route is for a human reading their own tree, not for an assembled context.",
-        "operationId": "read_character_cast__character__get",
+        "operationId": "read_character_cast__id__get",
         "parameters": [
           {
             "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
             "in": "path",
-            "name": "character",
+            "name": "id",
             "required": true,
             "schema": {
               "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
               "maxLength": 120,
               "minLength": 1,
               "pattern": "^[a-z0-9][a-z0-9_-]*$",
-              "title": "Character",
+              "title": "Id",
               "type": "string"
             }
           }
@@ -3787,22 +3787,22 @@
         ]
       }
     },
-    "/cast/{character}/changes": {
+    "/cast/{id}/changes": {
       "get": {
         "description": "IF-03, `GET /cast/{id}/changes`. The register that tells a scar in chapter nine apart\nfrom a continuity error (invariant 3).",
-        "operationId": "read_changes_cast__character__changes_get",
+        "operationId": "read_changes_cast__id__changes_get",
         "parameters": [
           {
             "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
             "in": "path",
-            "name": "character",
+            "name": "id",
             "required": true,
             "schema": {
               "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
               "maxLength": 120,
               "minLength": 1,
               "pattern": "^[a-z0-9][a-z0-9_-]*$",
-              "title": "Character",
+              "title": "Id",
               "type": "string"
             }
           }
@@ -3836,19 +3836,19 @@
       },
       "put": {
         "description": "IF-04, `PUT /cast/{id}/changes` (canoniser).",
-        "operationId": "write_changes_cast__character__changes_put",
+        "operationId": "write_changes_cast__id__changes_put",
         "parameters": [
           {
             "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
             "in": "path",
-            "name": "character",
+            "name": "id",
             "required": true,
             "schema": {
               "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
               "maxLength": 120,
               "minLength": 1,
               "pattern": "^[a-z0-9][a-z0-9_-]*$",
-              "title": "Character",
+              "title": "Id",
               "type": "string"
             }
           },
@@ -3927,22 +3927,22 @@
         ]
       }
     },
-    "/cast/{character}/dossier": {
+    "/cast/{id}/dossier": {
       "put": {
         "description": "IF-04, `PUT /cast/{id}/dossier` (canoniser).",
-        "operationId": "write_dossier_cast__character__dossier_put",
+        "operationId": "write_dossier_cast__id__dossier_put",
         "parameters": [
           {
             "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
             "in": "path",
-            "name": "character",
+            "name": "id",
             "required": true,
             "schema": {
               "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
               "maxLength": 120,
               "minLength": 1,
               "pattern": "^[a-z0-9][a-z0-9_-]*$",
-              "title": "Character",
+              "title": "Id",
               "type": "string"
             }
           },
@@ -4021,22 +4021,22 @@
         ]
       }
     },
-    "/cast/{character}/knowledge": {
+    "/cast/{id}/knowledge": {
       "get": {
         "description": "IF-03, `GET /cast/{id}/knowledge`. Every recorded state, each anchored to the scene it\nwas acquired in; deciding which of them a given scene may see is FR-OPS-01's job.",
-        "operationId": "read_knowledge_cast__character__knowledge_get",
+        "operationId": "read_knowledge_cast__id__knowledge_get",
         "parameters": [
           {
             "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
             "in": "path",
-            "name": "character",
+            "name": "id",
             "required": true,
             "schema": {
               "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
               "maxLength": 120,
               "minLength": 1,
               "pattern": "^[a-z0-9][a-z0-9_-]*$",
-              "title": "Character",
+              "title": "Id",
               "type": "string"
             }
           }
@@ -4070,19 +4070,19 @@
       },
       "put": {
         "description": "IF-04, `PUT /cast/{id}/knowledge` (canoniser).\n\nThe whole file, not a row: a character holds successive states on the same fact --\n`suspects` at 012, `knows` at 031 -- and an append-one-row route would invite the caller\nto drop the earlier state, which is the history FR-OPS-01 reads as-of.",
-        "operationId": "write_knowledge_cast__character__knowledge_put",
+        "operationId": "write_knowledge_cast__id__knowledge_put",
         "parameters": [
           {
             "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
             "in": "path",
-            "name": "character",
+            "name": "id",
             "required": true,
             "schema": {
               "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
               "maxLength": 120,
               "minLength": 1,
               "pattern": "^[a-z0-9][a-z0-9_-]*$",
-              "title": "Character",
+              "title": "Id",
               "type": "string"
             }
           },
@@ -4161,22 +4161,22 @@
         ]
       }
     },
-    "/cast/{character}/voice": {
+    "/cast/{id}/voice": {
       "get": {
         "description": "IF-03, `GET /cast/{id}/voice`. Kept out of the dossier because it is read at a\ndifferent moment, by a different role, and `never_says` is the only part of a voice a\ncheck can run over (FR-AUD-07, invariant 9).",
-        "operationId": "read_voice_cast__character__voice_get",
+        "operationId": "read_voice_cast__id__voice_get",
         "parameters": [
           {
             "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
             "in": "path",
-            "name": "character",
+            "name": "id",
             "required": true,
             "schema": {
               "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
               "maxLength": 120,
               "minLength": 1,
               "pattern": "^[a-z0-9][a-z0-9_-]*$",
-              "title": "Character",
+              "title": "Id",
               "type": "string"
             }
           }
@@ -4210,19 +4210,19 @@
       },
       "put": {
         "description": "IF-04, `PUT /cast/{id}/voice` (canoniser).",
-        "operationId": "write_voice_cast__character__voice_put",
+        "operationId": "write_voice_cast__id__voice_put",
         "parameters": [
           {
             "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
             "in": "path",
-            "name": "character",
+            "name": "id",
             "required": true,
             "schema": {
               "description": "Stable character id; it names the `cast/{id}/` directory. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
               "maxLength": 120,
               "minLength": 1,
               "pattern": "^[a-z0-9][a-z0-9_-]*$",
-              "title": "Character",
+              "title": "Id",
               "type": "string"
             }
           },
@@ -4907,20 +4907,20 @@
         ]
       }
     },
-    "/scenes/{scene}": {
+    "/scenes/{id}": {
       "get": {
         "description": "IF-03, `GET /scenes/{id}`. The whole record.\n\nEverything the harness does to produce a chapter is a function of this record: selection\nreads it (FR-OPS-02), assembly is anchored to it (FR-OPS-03), and the mechanical\ninvariants run over its `story_time`, `location`, `pov` and `participants`.",
-        "operationId": "read_scene_scenes__scene__get",
+        "operationId": "read_scene_scenes__id__get",
         "parameters": [
           {
             "description": "Stable scene id: `NNN`, three digits. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
             "in": "path",
-            "name": "scene",
+            "name": "id",
             "required": true,
             "schema": {
               "description": "Stable scene id: `NNN`, three digits. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
               "pattern": "^\\d{3}$",
-              "title": "Scene",
+              "title": "Id",
               "type": "string"
             }
           }
@@ -4954,17 +4954,17 @@
       },
       "put": {
         "description": "IF-04, `PUT /scenes/{id}` (architect).\n\nThe architect is a human acting under the role in v1 (spec Decision 5), which changes\nnothing here: the role still arrives in the header and Figure 3 still decides, because a\nhuman acts under a role rather than beside it.",
-        "operationId": "write_scene_scenes__scene__put",
+        "operationId": "write_scene_scenes__id__put",
         "parameters": [
           {
             "description": "Stable scene id: `NNN`, three digits. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
             "in": "path",
-            "name": "scene",
+            "name": "id",
             "required": true,
             "schema": {
               "description": "Stable scene id: `NNN`, three digits. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
               "pattern": "^\\d{3}$",
-              "title": "Scene",
+              "title": "Id",
               "type": "string"
             }
           },
