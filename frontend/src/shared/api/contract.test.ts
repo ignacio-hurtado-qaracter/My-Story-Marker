@@ -1,3 +1,4 @@
+// @vitest-environment node
 // The contract gate of FR-API-03: `check:api` passes on the committed schema and fails after a
 // one-field edit that was not regenerated. It runs the real CLI, as the gate and CI do.
 // It runs in Node, so tsconfig.node.json type-checks it, not the browser project (spec 002, AC 4).
