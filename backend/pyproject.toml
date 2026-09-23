@@ -141,7 +141,7 @@ exclude_dirs = ["semgrep", ".venv", "tests", "*/tests", "*/tests/*"]
 testpaths = ["app", "tests"]
 addopts = "--strict-markers -q"
 markers = [
-    "live: needs real model credentials; excluded unless --live is passed",
+    "live: calls claude -p under your Claude Code login (no API key); excluded unless --live",
     "model: needs the real embedding model on disk; slow",
 ]
 filterwarnings = ["error::DeprecationWarning:app.*"]
