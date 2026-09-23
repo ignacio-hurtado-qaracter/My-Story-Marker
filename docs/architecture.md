@@ -425,6 +425,13 @@ as an input is not available to the agent.** An agent that needs a fact absent f
 inputs does not go and fetch it; the contract is wrong and gets amended. This is what
 keeps the context budget bounded and the behaviour reproducible.
 
+The `In` column bounds what reaches a model's context, not what the backend reads while
+running an operation. Mechanical checks are backend code with no model behind them, and
+they read the stores they need through the store layer: the auditor's checks for closed
+debts, a recognisable voice and thread latency (invariants 2, 9 and 10) read
+`ledger/setups.yaml`, the POV's `cast/{id}/voice.md` and `ledger/threads.yaml`, none of
+which is handed to the model-backed auditor.
+
 Some inputs and outputs are not artefacts and so do not appear above: the human intent
 that opens a planning turn, the human ruling the canoniser asks for on a collision, and
 the escalation it raises when the conflict is not its to settle.
