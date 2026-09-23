@@ -306,7 +306,10 @@ source_modules = [
     "app.commons.embeddings", "app.commons.deps",
 ]
 forbidden_modules = ["subprocess"]
-ignore_imports = ["app.commons.embeddings.tests.test_fake -> subprocess"]
+ignore_imports = [
+    "app.commons.embeddings.tests.test_fake -> subprocess",
+    "app.commons.embeddings.tests.test_fastembed -> subprocess",
+]
 allow_indirect_imports = true
 
 [[tool.importlinter.contracts]]
