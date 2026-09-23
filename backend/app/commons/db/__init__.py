@@ -2,8 +2,9 @@
 
 `commons/db/` is the only module that speaks SQLite (NFR-04, the import contract) and the
 only owner of `index.sqlite`. What callers outside it get is deliberately narrow: rebuild
-and update the index, ask for its status, and search it. **Searches answer identifiers,
-kinds and scores, never text** (FR-OPS-02) -- the row text never leaves this package.
+and update the index, ask for its status, search it, and ask which kinds carry an id.
+**Searches answer identifiers, kinds and scores, never text** (FR-OPS-02) -- the row text
+never leaves this package.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from app.commons.db.index import (
     IndexHit,
     IndexKind,
     IndexStatus,
+    kinds_of,
     search_text,
     search_vector,
     status,
@@ -30,6 +32,7 @@ __all__ = [
     "IndexReport",
     "IndexStatus",
     "ensure_current",
+    "kinds_of",
     "rebuild",
     "search_text",
     "search_vector",

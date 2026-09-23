@@ -19,15 +19,29 @@ puts `schema_version` on the file and a top-level list has nowhere to carry one.
 The scene record itself is in `commons/schemas/scene.py`: every feature in the system reads
 it, so DR-01 makes it shared. The models here are read by this feature and the architect,
 and import no other feature.
+
+`Selection` is the one model here that is not a store record: it is what
+`POST /scenes/{id}/select` answers (IF-05). A selection is identifiers, kinds and scores,
+**never text** (FR-OPS-02); its entries are `commons.schemas`' `SelectedEntity`, the model the
+turn record persists (FR-OPS-05), so what the route answers and what a turn records cannot
+drift into two shapes.
 """
 
 from __future__ import annotations
 
 from typing import Annotated
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
-from app.commons.schemas.common import EntityId, HarnessModel, SceneId, StoreDocument, Words
+from app.commons.db import IndexReport
+from app.commons.schemas.common import (
+    EntityId,
+    HarnessModel,
+    SceneId,
+    StoreDocument,
+    Words,
+)
+from app.commons.schemas.turn import SelectedEntity
 
 Tension = Annotated[int, Field(strict=True, ge=0, le=10)]
 """`definitions.md` Layer 3: the tension curve is 0-10, on entry and on exit.
@@ -138,11 +152,47 @@ class ChaptersFile(StoreDocument):
     )
 
 
+class Selection(BaseModel):
+    """FR-OPS-02, IF-05. What `select_entities` answers for one scene: ids, kinds and scores.
+
+    **No text field, by construction** (AC 11). What the writer receives is loaded by the
+    store after selection, as of the scene's instant (FR-OPS-03); a selection that carried
+    record text would be a second way into a context, one that could hand the writer a
+    version of a record the scene's instant forbids. `test_select.py` pins the field set.
+
+    `entities` is in the order assembly consumes it: the entities named in `pins`, in the
+    order the record names them, then the axioms whose `scope` intersects `tags`, by id, then
+    the fused ranking, best first. The POV is absent: it enters assembly by identifier,
+    unconditionally, and never competes for a place in the ranking.
+    """
+
+    scene: SceneId = Field(description="The scene the selection was made for.")
+    pov: EntityId = Field(
+        description="The scene's POV, excluded from `entities` by identifier: assembly loads"
+        " it unconditionally as `dossier(pov, at=story_time)` (FR-OPS-03).",
+    )
+    fused: bool = Field(
+        description="True when BM25 and vector cosine were fused by reciprocal rank; false when"
+        " the ranking is FTS5-only -- `sqlite-vec` unavailable (FR-IDX-03, AC 7) -- or the"
+        " record has no text to embed.",
+    )
+    entities: list[SelectedEntity] = Field(
+        description="Pinned entries first (`pinned: true`: `pins` in record order, then the"
+        " tag-scope axioms by id), then the ranking, best first, ties by kind and then id. A"
+        " pinned entry's `score` is its fused score when the ranking also found it, else 0.",
+    )
+    index_update: IndexReport = Field(
+        description="What the FR-IDX-08 incremental update at the start of this selection"
+        " did: a selection sees every store write made before it, whoever made it.",
+    )
+
+
 __all__ = [
     "Arc",
     "ArcsFile",
     "Chapter",
     "ChaptersFile",
+    "Selection",
     "StructureNode",
     "Tension",
 ]

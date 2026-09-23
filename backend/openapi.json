@@ -2448,6 +2448,88 @@
         "title": "SceneDigest",
         "type": "object"
       },
+      "SelectedEntity": {
+        "additionalProperties": false,
+        "description": "One entry of the selected list (FR-OPS-02, FR-OPS-05).\n\nRecorded rather than recomputed because selection is not reproducible: two runs may rank\ndifferently, and \"which axioms apply to this scene\" must have one answer per turn, shared\nby the writer and the auditor.",
+        "properties": {
+          "entity_id": {
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "kind": {
+            "description": "The index row's kind: axiom, character, ...",
+            "minLength": 1,
+            "title": "Kind",
+            "type": "string"
+          },
+          "pinned": {
+            "default": false,
+            "description": "True when the entity entered through `pins` or a tag-scope match.",
+            "title": "Pinned",
+            "type": "boolean"
+          },
+          "score": {
+            "description": "Fused rank score; higher is more relevant.",
+            "title": "Score",
+            "type": "number"
+          }
+        },
+        "required": [
+          "entity_id",
+          "kind",
+          "score"
+        ],
+        "title": "SelectedEntity",
+        "type": "object"
+      },
+      "Selection": {
+        "description": "FR-OPS-02, IF-05. What `select_entities` answers for one scene: ids, kinds and scores.\n\n**No text field, by construction** (AC 11). What the writer receives is loaded by the\nstore after selection, as of the scene's instant (FR-OPS-03); a selection that carried\nrecord text would be a second way into a context, one that could hand the writer a\nversion of a record the scene's instant forbids. `test_select.py` pins the field set.\n\n`entities` is in the order assembly consumes it: the entities named in `pins`, in the\norder the record names them, then the axioms whose `scope` intersects `tags`, by id, then\nthe fused ranking, best first. The POV is absent: it enters assembly by identifier,\nunconditionally, and never competes for a place in the ranking.",
+        "properties": {
+          "entities": {
+            "description": "Pinned entries first (`pinned: true`: `pins` in record order, then the tag-scope axioms by id), then the ranking, best first, ties by kind and then id. A pinned entry's `score` is its fused score when the ranking also found it, else 0.",
+            "items": {
+              "$ref": "#/components/schemas/SelectedEntity"
+            },
+            "title": "Entities",
+            "type": "array"
+          },
+          "fused": {
+            "description": "True when BM25 and vector cosine were fused by reciprocal rank; false when the ranking is FTS5-only -- `sqlite-vec` unavailable (FR-IDX-03, AC 7) -- or the record has no text to embed.",
+            "title": "Fused",
+            "type": "boolean"
+          },
+          "index_update": {
+            "$ref": "#/components/schemas/IndexReport",
+            "description": "What the FR-IDX-08 incremental update at the start of this selection did: a selection sees every store write made before it, whoever made it."
+          },
+          "pov": {
+            "description": "The scene's POV, excluded from `entities` by identifier: assembly loads it unconditionally as `dossier(pov, at=story_time)` (FR-OPS-03).",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "title": "Pov",
+            "type": "string"
+          },
+          "scene": {
+            "description": "The scene the selection was made for.",
+            "pattern": "^\\d{3}$",
+            "title": "Scene",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scene",
+          "pov",
+          "fused",
+          "entities",
+          "index_update"
+        ],
+        "title": "Selection",
+        "type": "object"
+      },
       "Setup": {
         "additionalProperties": false,
         "description": "DR-05. One promise made to the reader, and how it stands.\n\n`definitions.md` Setup/Payoff calls these explicit pairs carrying an open obligation.\nThe obligation is the point: a detail that merely appears is not a setup, and a setup\nthat is never collected is not a mystery, it is a loose end. `promise` therefore records\nwhat the *reader* now expects rather than what was planted, because that is the thing\ninvariant 2 asks about at the last scene.\n\n**Failure mode** (`definitions.md`): not distinguishing deliberate abandonment from\nforgetting. The two look identical on disk unless the decision is written down, so a\nchecker without `resolution` reports every unpaid promise, including the ones a writer\ndropped on purpose. That is noise, and noisy checkers get ignored - which costs more\nthan the check was ever worth, because a silenced invariant 2 is how a novel reaches its\nlast chapter still owing the reader an answer.\n\n`due_by` is required for the same reason `max_latency` is required on a thread: an open\ndebt with no deadline can never be late, so nothing ever reports it. With a deadline,\nFR-AUD-02 can say that a setup due at or before the current scene is still open, and\nescalate that from `reviewable` to `blocking` at the last scene.\n\n**FR-OPS-03** defines *open* as `paid_in` and `resolution` both empty, with `planted_in`\nat or before the story time being assembled. Open setups are offered to the writer under\na *may collect* label, never as an instruction to pay a specific one: the writer decides\nwhether this scene is where a debt comes due, and an assembler that instructed instead of\noffering would be planning the novel from inside the context window.",
@@ -6192,6 +6274,52 @@
           }
         },
         "summary": "Audit a scene against the domain invariants",
+        "tags": [
+          "scenes"
+        ]
+      }
+    },
+    "/scenes/{id}/select": {
+      "post": {
+        "description": "IF-05, `POST /scenes/{id}/select` (FR-OPS-02, AC 11). Ids, kinds and scores, never text.\n\nThe entities named in `pins` come first, in the record's order, then the axioms whose\n`scope` intersects `tags`, then BM25 and cosine fused by reciprocal rank; the POV is\nabsent. The FR-IDX-08 incremental update runs first, so the answer reflects every store\nwrite made before the call. A pin that names no entity is a 422 naming the `pins` field\nof the scene record, not a silent omission.\n\nNo `X-Agent-Role`: nothing in the stores is written, and the index is not a store (like\n`/index/rebuild`). Plain `def` because it blocks on SQLite and on the embedder.",
+        "operationId": "select_entities_scenes__id__select_post",
+        "parameters": [
+          {
+            "description": "Stable scene id: `NNN`, three digits. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Stable scene id: `NNN`, three digits. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
+              "pattern": "^\\d{3}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Selection"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Select the entities a scene needs",
         "tags": [
           "scenes"
         ]

@@ -34,13 +34,13 @@ Writes answer with the provenance line that was appended -- path, role, actor, c
 timestamp. A caller that has just written under a role can therefore see what the log will
 show, which is the point of a log no caller can skip.
 
-**Deliberately absent, not forgotten.** IF-05's three operations on a scene --
-`POST /scenes/{id}/select` (FR-OPS-02), `POST /scenes/{id}/assemble` (FR-OPS-03) and
-`POST /scenes/{id}/audit` (FR-AUD) -- arrive at plan steps 11, 12 and 14. They are the
-load-bearing calls of this feature and each needs machinery of its own: the index and the
-embedder for selection, the token counter for assembly, the invariant modules for the audit.
-The audit is served here from step 14, delegating to `app.ledger.audit`, the ledger's public
-surface for it (scenes sits above ledger in NFR-04's layers).
+**IF-05's three operations on a scene** -- `POST /scenes/{id}/select` (FR-OPS-02),
+`POST /scenes/{id}/assemble` (FR-OPS-03) and `POST /scenes/{id}/audit` (FR-AUD) -- are the
+load-bearing calls of this feature, and each needs machinery of its own: the index and the
+embedder for selection, the token estimate and the 100k cap for assembly, the invariant
+modules for the audit. Assembly arrives at plan step 12. The audit delegates to
+`app.ledger.audit`, the ledger's public surface for it (scenes sits above ledger in NFR-04's
+layers).
 """
 
 from __future__ import annotations
@@ -49,12 +49,19 @@ from typing import Annotated
 
 from fastapi import APIRouter, Header, Path, Query
 
-from app.commons.deps import ActorDep, RoleDep, StoreDep, require_role
+from app.commons.deps import (
+    ActorDep,
+    EmbedderDep,
+    RoleDep,
+    SettingsDep,
+    StoreDep,
+    require_role,
+)
 from app.commons.schemas import SCENE_ID_PATTERN, Scene
 from app.commons.stores.provenance import ProvenanceRecord
 from app.ledger import audit
 from app.scenes import service
-from app.scenes.models import ArcsFile, ChaptersFile
+from app.scenes.models import ArcsFile, ChaptersFile, Selection
 
 router = APIRouter(prefix="/scenes", tags=["scenes"])
 structure_router = APIRouter(prefix="/structure", tags=["structure"])
@@ -121,17 +128,29 @@ def write_scene(
 
 
 # --------------------------------------------------------------------------------------
-# IF-05's three operations on a scene belong here and are deliberately absent, not
-# forgotten:
-#
-#   POST /scenes/{id}/select     FR-OPS-02, plan step 11 -- needs the index and the embedder
-#   POST /scenes/{id}/assemble   FR-OPS-03, plan step 12 -- needs the token counter and the
-#                                                           100k cap
-#
-# Each is a step of its own in the plan because each needs machinery that does not exist
-# yet. A reader who finds only reads and writes here is looking at an incomplete feature on
-# purpose, at the commit the plan puts them at. The third, the audit, is below.
+# IF-05's operations on a scene: select and audit; assemble arrives at plan step 12.
 # --------------------------------------------------------------------------------------
+
+
+@router.post("/{id}/select", summary="Select the entities a scene needs")
+def select_entities(
+    store: StoreDep,
+    embedder: EmbedderDep,
+    settings: SettingsDep,
+    scene: SceneIdParam,
+) -> Selection:
+    """IF-05, `POST /scenes/{id}/select` (FR-OPS-02, AC 11). Ids, kinds and scores, never text.
+
+    The entities named in `pins` come first, in the record's order, then the axioms whose
+    `scope` intersects `tags`, then BM25 and cosine fused by reciprocal rank; the POV is
+    absent. The FR-IDX-08 incremental update runs first, so the answer reflects every store
+    write made before the call. A pin that names no entity is a 422 naming the `pins` field
+    of the scene record, not a silent omission.
+
+    No `X-Agent-Role`: nothing in the stores is written, and the index is not a store (like
+    `/index/rebuild`). Plain `def` because it blocks on SQLite and on the embedder.
+    """
+    return service.select_entities(store, embedder, settings, scene)
 
 
 @router.post("/{id}/audit", summary="Audit a scene against the domain invariants")

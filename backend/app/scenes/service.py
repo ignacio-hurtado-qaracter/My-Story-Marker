@@ -24,20 +24,24 @@ the book. Those are canon consistency questions, which `reconcile` answers at pl
 Refusing them here would make the structure unwritable during the window in which a chapter
 is being added -- the architect would have to create the parts in an order nobody chose.
 
-Still to come: `select_entities` (FR-OPS-02) at plan step 11 and `assemble_context`
-(FR-OPS-03) at step 12. They are the load-bearing calls of this feature, and both read the
-record `save_scene` writes.
+`select_entities` (FR-OPS-02) lives in `select.py` and is published here, because this
+module is the surface the orchestrator may import (NFR-04: a feature reaches another only
+through its `service` and `models`). Still to come: `assemble_context` (FR-OPS-03) at plan
+step 12. They are the load-bearing calls of this feature, and both read the record
+`save_scene` writes.
 """
 
 from __future__ import annotations
 
+from app.commons.config import Settings
+from app.commons.embeddings import Embedder
 from app.commons.errors import InvalidRecord
 from app.commons.permissions import Actor, AgentRole
 from app.commons.schemas import Scene
 from app.commons.stores import Store
 from app.commons.stores.provenance import ProvenanceRecord
-from app.scenes import repository
-from app.scenes.models import ArcsFile, ChaptersFile
+from app.scenes import repository, select
+from app.scenes.models import ArcsFile, ChaptersFile, Selection
 
 
 def _refuse_duplicate_ids(*, path: str, field: str, identifiers: list[str]) -> None:
@@ -67,6 +71,19 @@ def list_scenes(store: Store) -> list[str]:
 def read_scene(store: Store, identifier: str) -> Scene:
     """IF-03, `GET /scenes/{id}`."""
     return repository.read_scene(store, identifier)
+
+
+def select_entities(
+    store: Store,
+    embedder: Embedder,
+    settings: Settings,
+    identifier: str,
+    *,
+    limit: int = select.DEFAULT_LIMIT,
+) -> Selection:
+    """IF-05, `POST /scenes/{id}/select` (FR-OPS-02, AC 11). Ids, kinds and scores, never
+    text; the FR-IDX-08 update runs first. See `select.select_entities`."""
+    return select.select_entities(store, embedder, settings, identifier, limit=limit)
 
 
 def read_arcs(store: Store) -> ArcsFile:
@@ -144,4 +161,5 @@ __all__ = [
     "save_arcs",
     "save_chapters",
     "save_scene",
+    "select_entities",
 ]

@@ -397,6 +397,36 @@ def search_text(index_path: Path, query: str, *, limit: int = 20) -> list[IndexH
     ]
 
 
+def kinds_of(index_path: Path, entity_ids: Sequence[str]) -> dict[str, list[str]]:
+    """The kinds of the rows carrying each identifier: ids and kinds in, kinds out, no text.
+
+    For a caller holding an identifier without its kind -- a scene's `pins` name an entity by
+    id alone (FR-OPS-02, plan step 11). Every id asked about is a key of the answer, and an id
+    no row carries maps to an empty list rather than being left out, so "not found" cannot be
+    confused with "not asked". More than one kind means more than one record answers to the
+    id; the kinds are sorted, so the answer does not depend on how the rows were inserted.
+    One parameterised query per distinct id: pins are a handful, and no SQL is assembled.
+    """
+    found: dict[str, list[str]] = {identifier: [] for identifier in entity_ids}
+    if not found:
+        return found
+    with opened_index(index_path) as index:
+
+        def run() -> dict[str, list[str]]:
+            return {
+                identifier: [
+                    str(row["kind"])
+                    for row in index.connection.execute(
+                        "select kind from entity where entity_id = ? order by kind",
+                        (identifier,),
+                    ).fetchall()
+                ]
+                for identifier in found
+            }
+
+        return with_retry(run)
+
+
 class EmbeddingModelMismatchError(ValueError):
     """A query vector from one model searched against vectors from another.
 
@@ -577,6 +607,7 @@ __all__ = [
     "VectorState",
     "apply_changes",
     "fts_query",
+    "kinds_of",
     "opened_index",
     "read_metadata",
     "rebuild_reason_without_embedder",

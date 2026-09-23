@@ -126,6 +126,7 @@ allows is the store layer's decision and is tested in `app/commons/permissions/t
 IF_05_OPERATIONS = frozenset(
     {
         ("GET", "/cast/{}/dossier"),  # FR-OPS-01, plan step 10
+        ("POST", "/scenes/{}/select"),  # FR-OPS-02, plan step 11
         ("POST", "/scenes/{}/audit"),  # FR-AUD, plan step 14
         ("POST", "/canon/reconcile"),  # FR-OPS-08, plan step 13
         ("POST", "/ledger/proposed/{}/promote"),  # FR-OPS-06, plan step 13
@@ -137,7 +138,6 @@ IF_05_OPERATIONS = frozenset(
 """IF-03's as-of read and IF-05's operations, as each step publishes them."""
 
 DEFERRED_ROUTES = {
-    ("POST", "/scenes/{}/select"): "plan step 11, FR-OPS-02",
     ("POST", "/scenes/{}/assemble"): "plan step 12, FR-OPS-03",
     ("GET", "/agents/turns"): "the orchestrator",
     ("POST", "/agents/turns"): "the orchestrator",
