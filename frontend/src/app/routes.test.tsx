@@ -20,6 +20,9 @@ beforeEach(() => {
     http.get('/health', ({ response }) =>
       response(200).json({ status: 'ok', vector: 'available', embedding_model: 'm', store_root: '/s' }),
     ),
+    // `/` redirects to /scenes, whose table of contents loads these two.
+    http.get('/structure/chapters', ({ response }) => response(200).json({ schema_version: 1, chapters: [] })),
+    http.get('/scenes', ({ response }) => response(200).json([])),
   )
 })
 
