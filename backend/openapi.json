@@ -129,6 +129,143 @@
         "title": "ArcsFile",
         "type": "object"
       },
+      "AssembledContext": {
+        "description": "FR-OPS-03, IF-05. The writer's documents for one scene, as of the scene's instant.\n\n`entries` is in loading order: the fixed block, the POV's dossier, the previous scene's\ntail, then the prunable part -- terms bound to the POV, the selected entities in ranking\norder, the open setups. What did not fit is named in `removed`, first entry removed in\n`truncated_at`; nothing is ever cut inside an entry. `estimate` counts the caller's\nsystem prompt and instruction too, because the cap is over the whole call (FR-CTX-01).",
+        "properties": {
+          "cap": {
+            "description": "The cap the context was fitted to.",
+            "minimum": 0.0,
+            "title": "Cap",
+            "type": "integer"
+          },
+          "entries": {
+            "description": "What the writer receives, in order.",
+            "items": {
+              "$ref": "#/components/schemas/ContextEntry"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "estimate": {
+            "description": "FR-CTX-02's estimate of the call: system prompt, every kept entry and instruction. Never the CLI's own overhead (R3-5).",
+            "minimum": 0.0,
+            "title": "Estimate",
+            "type": "integer"
+          },
+          "fixed_block_tokens": {
+            "description": "The estimate of the fixed block alone, against FR-OPS-04's 800.",
+            "minimum": 0.0,
+            "title": "Fixed Block Tokens",
+            "type": "integer"
+          },
+          "literal_tail": {
+            "$ref": "#/components/schemas/TailState",
+            "description": "Whether the previous scene's tail was loaded, and if not why not."
+          },
+          "pov": {
+            "description": "Its POV, loaded unconditionally as its as-of dossier.",
+            "maxLength": 120,
+            "minLength": 1,
+            "pattern": "^[a-z0-9][a-z0-9_-]*$",
+            "title": "Pov",
+            "type": "string"
+          },
+          "previous_scene": {
+            "anyOf": [
+              {
+                "pattern": "^\\d{3}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The scene before this one in discourse order, or null for the first.",
+            "title": "Previous Scene"
+          },
+          "removed": {
+            "description": "Keys of the prunable entries that did not fit, in rank order: the entry named in `truncated_at` and every one ranked after it (FR-CTX-03).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Removed",
+            "type": "array"
+          },
+          "scene": {
+            "description": "The scene assembled for.",
+            "pattern": "^\\d{3}$",
+            "title": "Scene",
+            "type": "string"
+          },
+          "selected": {
+            "description": "The selected list the context was assembled from, as received. The turn record persists this list and the auditor reads it back (FR-OPS-05).",
+            "items": {
+              "$ref": "#/components/schemas/SelectedEntity"
+            },
+            "title": "Selected",
+            "type": "array"
+          },
+          "story_time": {
+            "description": "T, the instant every as-of form is read at: the scene's `story_time`.",
+            "title": "Story Time",
+            "type": "integer"
+          },
+          "truncated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The first prunable entry that would have crossed the cap, or null when everything fit.",
+            "title": "Truncated At"
+          },
+          "warnings": {
+            "description": "`fixed_block_over_budget` when the fixed block exceeds 800 tokens (FR-OPS-04); the context is still assembled.",
+            "items": {
+              "$ref": "#/components/schemas/AssemblyWarning"
+            },
+            "title": "Warnings",
+            "type": "array"
+          },
+          "withheld": {
+            "description": "Selected entities whose as-of form excludes them at this instant.",
+            "items": {
+              "$ref": "#/components/schemas/WithheldEntity"
+            },
+            "title": "Withheld",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scene",
+          "pov",
+          "story_time",
+          "previous_scene",
+          "literal_tail",
+          "selected",
+          "entries",
+          "removed",
+          "truncated_at",
+          "withheld",
+          "estimate",
+          "cap",
+          "fixed_block_tokens",
+          "warnings"
+        ],
+        "title": "AssembledContext",
+        "type": "object"
+      },
+      "AssemblyWarning": {
+        "description": "FR-OPS-04. A warning is carried on the response, never raised: the call still runs.",
+        "enum": [
+          "fixed_block_over_budget"
+        ],
+        "title": "AssemblyWarning",
+        "type": "string"
+      },
       "AuditReport": {
         "additionalProperties": false,
         "description": "IF-05, `POST /scenes/{id}/audit`. The audit of one scene. Reports; does not repair.",
@@ -668,6 +805,88 @@
         ],
         "title": "CheckRef",
         "type": "object"
+      },
+      "ContextEntry": {
+        "description": "One indivisible document of the writer's context: kept whole or removed whole.\n\n`text` is exactly what the writer receives, label first, and `tokens` is FR-CTX-02's\nestimate of it. `path` is the store path the entry is read from and labels the document\nin the prompt; `sources` is every store path whose content the text carries, `path`\nfirst. They differ only for an entry that folds several records into one: a dossier (the\nfour cast files), a location with its parent chain, an entity with the terms bound to it.",
+        "properties": {
+          "carries": {
+            "description": "The entities the text loads, as `kind:id`: the entry's own, then the parent chain or the bound terms folded into it. Empty for the fixed block and the tail, which are not entities.",
+            "items": {
+              "type": "string"
+            },
+            "title": "Carries",
+            "type": "array"
+          },
+          "key": {
+            "description": "Unique within the context. `kind:id` for an entity (`axiom:ax_brine_dark`, `character:vance`, `setup:su_readkey`), the store path for the fixed block and the tail. The names in `removed` and `truncated_at` are these keys.",
+            "title": "Key",
+            "type": "string"
+          },
+          "label": {
+            "description": "The heading the writer reads above the record: what it is, as of when, and for a digest or a setup how it may be used (not witnessed; may collect).",
+            "title": "Label",
+            "type": "string"
+          },
+          "mandatory": {
+            "description": "True for the fixed block, the POV dossier and the tail (FR-CTX-03). Pruning never removes a mandatory entry; if they alone do not fit the call is refused with `ContextBudgetExceeded` (FR-CTX-05).",
+            "title": "Mandatory",
+            "type": "boolean"
+          },
+          "part": {
+            "$ref": "#/components/schemas/ContextPart",
+            "description": "The block of Figure 2 the entry belongs to."
+          },
+          "path": {
+            "description": "The store path the entry is read from.",
+            "title": "Path",
+            "type": "string"
+          },
+          "sources": {
+            "description": "Every store path whose content the text carries, `path` first. Each is checked against the writer's `INPUT_TABLE` row before the call (FR-AGENT-09).",
+            "items": {
+              "type": "string"
+            },
+            "title": "Sources",
+            "type": "array"
+          },
+          "text": {
+            "description": "What the writer receives: the label, then the record.",
+            "title": "Text",
+            "type": "string"
+          },
+          "tokens": {
+            "description": "FR-CTX-02's estimate of `text`.",
+            "minimum": 0.0,
+            "title": "Tokens",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "part",
+          "label",
+          "path",
+          "sources",
+          "carries",
+          "mandatory",
+          "text",
+          "tokens"
+        ],
+        "title": "ContextEntry",
+        "type": "object"
+      },
+      "ContextPart": {
+        "description": "Which of Figure 2's blocks an entry belongs to, in the order they are loaded.\n\nThe first three are the mandatory part of the writer's input (FR-CTX-03): the fixed\nblock, the POV's as-of dossier and the previous scene's tail. The last three are the\nprunable part, removed whole from the end when the estimate would cross the cap.",
+        "enum": [
+          "fixed",
+          "pov",
+          "literal_tail",
+          "lexicon",
+          "selected",
+          "setup"
+        ],
+        "title": "ContextPart",
+        "type": "string"
       },
       "DatedValence": {
         "additionalProperties": false,
@@ -2773,6 +2992,16 @@
         "title": "StyleMetrics",
         "type": "object"
       },
+      "TailState": {
+        "description": "What happened to the previous scene's `literal_tail` (FR-OPS-03, DR-11).\n\nStated on the result rather than left to be inferred from a missing entry: a context\nwithout a tail because the previous scene has no draft yet and one without a tail because\nthe scene opens the book are different situations, and neither is repaired by inventing\na passage.",
+        "enum": [
+          "loaded",
+          "no_draft",
+          "no_previous_scene"
+        ],
+        "title": "TailState",
+        "type": "string"
+      },
       "Technology": {
         "additionalProperties": false,
         "description": "DR-01, DR-02, DR-10. One artifact or system: `canon/technology/<id>.md`.\n\nA technology derives from one or more axioms and inherits their restrictions, which is\nwhat `derives_from` records: not a citation, but the edge along which an axiom's\n`consequences` reach the machine, so that a rule pinned into a scene also constrains the\ndevices used in it.\n\n`cannot` is the field that actually matters. `can` is easy to write and easy for a model\nto honour; the limits are what make a scene hard, and a technology with an empty `cannot`\nquietly solves every problem the plot has.\n\n**Failure mode** (`definitions.md` Technology): no `sensory` field. The writer improvises\nthe texture each time and the ship sounds different in every chapter - a drift no\ninvariant catches, because nothing about it is false, only inconsistent.",
@@ -3366,6 +3595,27 @@
           "body"
         ],
         "title": "VoiceProfile",
+        "type": "object"
+      },
+      "WithheldEntity": {
+        "description": "A selected entity that its as-of form keeps out of this scene's context.\n\nNot a pruning removal: the budget had nothing to do with it. A chapter digest covering a\nscene later than the scene's instant, a historical event dated after it, a location\nparent that has no record -- each is named with the reason, so the absence is visible\nrather than silent.",
+        "properties": {
+          "key": {
+            "description": "The entity, as `kind:id`.",
+            "title": "Key",
+            "type": "string"
+          },
+          "reason": {
+            "description": "Why its as-of form does not load at this instant.",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "reason"
+        ],
+        "title": "WithheldEntity",
         "type": "object"
       }
     }
@@ -6168,6 +6418,52 @@
           }
         },
         "summary": "Write a scene record",
+        "tags": [
+          "scenes"
+        ]
+      }
+    },
+    "/scenes/{id}/assemble": {
+      "post": {
+        "description": "IF-05, `POST /scenes/{id}/assemble` (FR-OPS-03, FR-OPS-04, AC 12). Selects, then loads.\n\nThe selection is the one `/select` answers, made here first with its FR-IDX-08 update;\neach entry is then loaded as of the scene's story time, in ranking order after the fixed\nblock, the POV's dossier and the previous scene's tail, and the context is fitted to the\n100k cap: what did not fit is named in `removed` and `truncated_at`, what its as-of form\nexcludes in `withheld`, and nothing is cut inside an entry. `warnings` carries\n`fixed_block_over_budget` when the fixed block exceeds 800 tokens.\n\nAssembled with **no system prompt and no instruction**, so the estimate here is the\ndocuments alone. A turn's `dry_run` (plan step 18) assembles with the writer's system\nprompt and instruction counted in the mandatory part, and can therefore stop earlier than\nthis route on the same tree. A mandatory part over the cap on its own is a 422\n`ContextBudgetExceeded`: a record is too large and is fixed at the source (FR-CTX-05).\n\nNo `X-Agent-Role`: nothing in the stores is written. Plain `def` because it blocks on\nSQLite, the embedder and the store reads.",
+        "operationId": "assemble_context_scenes__id__assemble_post",
+        "parameters": [
+          {
+            "description": "Stable scene id: `NNN`, three digits. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "description": "Stable scene id: `NNN`, three digits. The grammar is FR-STORE-05's, declared here so a malformed id is a 422 at the edge rather than an exception from the store layer, and so the committed OpenAPI document (IF-08) states it.",
+              "pattern": "^\\d{3}$",
+              "title": "Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssembledContext"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Assemble the writer's context for a scene",
         "tags": [
           "scenes"
         ]

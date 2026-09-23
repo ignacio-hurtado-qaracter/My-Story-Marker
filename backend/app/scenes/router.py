@@ -38,9 +38,8 @@ show, which is the point of a log no caller can skip.
 `POST /scenes/{id}/assemble` (FR-OPS-03) and `POST /scenes/{id}/audit` (FR-AUD) -- are the
 load-bearing calls of this feature, and each needs machinery of its own: the index and the
 embedder for selection, the token estimate and the 100k cap for assembly, the invariant
-modules for the audit. Assembly arrives at plan step 12. The audit delegates to
-`app.ledger.audit`, the ledger's public surface for it (scenes sits above ledger in NFR-04's
-layers).
+modules for the audit. The audit delegates to `app.ledger.audit`, the ledger's public surface
+for it (scenes sits above ledger in NFR-04's layers).
 """
 
 from __future__ import annotations
@@ -61,7 +60,7 @@ from app.commons.schemas import SCENE_ID_PATTERN, Scene
 from app.commons.stores.provenance import ProvenanceRecord
 from app.ledger import audit
 from app.scenes import service
-from app.scenes.models import ArcsFile, ChaptersFile, Selection
+from app.scenes.models import ArcsFile, AssembledContext, ChaptersFile, Selection
 
 router = APIRouter(prefix="/scenes", tags=["scenes"])
 structure_router = APIRouter(prefix="/structure", tags=["structure"])
@@ -128,7 +127,7 @@ def write_scene(
 
 
 # --------------------------------------------------------------------------------------
-# IF-05's operations on a scene: select and audit; assemble arrives at plan step 12.
+# IF-05's operations on a scene: select, assemble, audit.
 # --------------------------------------------------------------------------------------
 
 
@@ -151,6 +150,35 @@ def select_entities(
     `/index/rebuild`). Plain `def` because it blocks on SQLite and on the embedder.
     """
     return service.select_entities(store, embedder, settings, scene)
+
+
+@router.post("/{id}/assemble", summary="Assemble the writer's context for a scene")
+def assemble_context(
+    store: StoreDep,
+    embedder: EmbedderDep,
+    settings: SettingsDep,
+    scene: SceneIdParam,
+) -> AssembledContext:
+    """IF-05, `POST /scenes/{id}/assemble` (FR-OPS-03, FR-OPS-04, AC 12). Selects, then loads.
+
+    The selection is the one `/select` answers, made here first with its FR-IDX-08 update;
+    each entry is then loaded as of the scene's story time, in ranking order after the fixed
+    block, the POV's dossier and the previous scene's tail, and the context is fitted to the
+    100k cap: what did not fit is named in `removed` and `truncated_at`, what its as-of form
+    excludes in `withheld`, and nothing is cut inside an entry. `warnings` carries
+    `fixed_block_over_budget` when the fixed block exceeds 800 tokens.
+
+    Assembled with **no system prompt and no instruction**, so the estimate here is the
+    documents alone. A turn's `dry_run` (plan step 18) assembles with the writer's system
+    prompt and instruction counted in the mandatory part, and can therefore stop earlier than
+    this route on the same tree. A mandatory part over the cap on its own is a 422
+    `ContextBudgetExceeded`: a record is too large and is fixed at the source (FR-CTX-05).
+
+    No `X-Agent-Role`: nothing in the stores is written. Plain `def` because it blocks on
+    SQLite, the embedder and the store reads.
+    """
+    selection = service.select_entities(store, embedder, settings, scene)
+    return service.assemble_context(store, scene, selection.entities)
 
 
 @router.post("/{id}/audit", summary="Audit a scene against the domain invariants")
