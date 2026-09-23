@@ -4,7 +4,7 @@ Generado por `python exam/check.py` a partir de `exam/requirements.toml`. No se 
 
 Las comprobaciones son heurísticas: ✅ dice que el artefacto existe, no que sea bueno.
 
-**Obligatorios comprobables cumplidos: 12 de 72.**
+**Obligatorios comprobables cumplidos: 13 de 72.**
 
 Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ existe, revisar a mano
 
@@ -14,7 +14,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 |---|---|---|---|---|
 | Entregables | 3 | 0 | 2 | 3 |
 | Presentación | 1 | 0 | 4 | 0 |
-| Claude Code | 2 | 1 | 3 | 0 |
+| Claude Code | 3 | 1 | 2 | 0 |
 | 1. Configuración | 0 | 0 | 4 | 0 |
 | 2. Lectura | 0 | 0 | 7 | 0 |
 | 3. Harness | 1 | 0 | 4 | 1 |
@@ -57,7 +57,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
 | K01 | ✅ | Comandos personalizados versionados en .claude/commands/ | ✓ 1 file(s) for .claude/commands/*.md (need 1) |
-| K02 | ❌ | Ficheros de memoria versionados en .claude/ (provisional: .claude/memory/) | ✗ 0 file(s) for .claude/memory/*.md (need 1) |
+| K02 | ✅ | Ficheros de memoria versionados en .claude/ (provisional: .claude/memory/) | ✓ 4 file(s) for .claude/memory/*.md (need 1) |
 | K03 | ✅ | Configuración MCP con un servidor de inspección de navegador | ✓ /(?i)(playwright\|chrome)/ in .mcp.json |
 | K04 | 🟡 | Skills del desarrollo en el repo y referenciadas desde /docs | ✓ 4 file(s) for .claude/skills/*/SKILL.md (need 1)<br>✗ /\.claude/skills/ found 0x in docs/**/*.md (need 1) |
 | K05 | ❌ | Subagentes y comandos propios documentados en /docs con propósito y resultado | ✗ /(?i)(subagent\|\.claude/commands\|\.claude/agents)/ found 0x in docs/**/*.md (need 1) |
