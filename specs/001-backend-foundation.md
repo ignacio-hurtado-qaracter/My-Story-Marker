@@ -1,7 +1,7 @@
 ---
 id: 001
 title: Backend v1 — stores, permissions, index, operations, agent roles and the writing turn
-status: approved         # draft · approved · implemented · superseded
+status: draft            # draft · approved · implemented · superseded
 supersedes: null
 docs:
   - docs/architecture.md#governing-principle
@@ -29,6 +29,16 @@ docs:
 > committed (`b8e76ed`, `1578513`, `f39300b`, `95e0cd5`) and every requirement below now
 > links to a doc section that says what it assumes. **Approved by the user on 2026-09-22**;
 > the approval was recorded by the agent at the user's explicit instruction.
+>
+> **Returned to `draft` on 2026-09-23** (Process 2, rule 10). The user decided that model
+> calls go through the Claude Code CLI (`claude -p`) under their Claude Code login and that an
+> Anthropic API key is never used (Decision R3-1). That rewrites FR-LLM and NFR-01/-04/-06 and
+> supersedes R2-2, so the approval above no longer covers the spec as written. The same
+> revision adds FR-CTX (the context budget and pruning, per role), reads NFR-04 as
+> `architecture.md` rules 2 and 5 do, and carries two clarifications. Every change is listed
+> at the top of [Open questions](#open-questions). The user authorised steps 9-14, which do not
+> touch the model client, to proceed while this draft is reviewed; step 15 onward waits for
+> re-approval.
 
 This document is written as a Software Requirements Specification (SRS) for the first
 version of `backend/`. It keeps the fixed sections that `AGENTS.md` prescribes for every
@@ -75,11 +85,11 @@ flowchart LR
     ST["commons/stores<br/>the ONLY path to the tree"]
     DB["commons/db<br/>SQLite · FTS5 · sqlite-vec"]
     EMB["commons/embeddings<br/>fastembed"]
-    LLM["commons/llm<br/>Anthropic SDK client"]
+    LLM["commons/llm<br/>Claude Code CLI client"]
   end
   TREE[("Store tree<br/>canon/ cast/ structure/<br/>scenes/ manuscript/ ledger/")]
   IDX[("index.sqlite<br/>derived · rebuildable")]
-  CLAUDE["Claude API"]
+  CLAUDE["claude -p<br/>(user Claude Code login)"]
 
   FE -.-> API
   OP --> API
@@ -102,8 +112,8 @@ flowchart LR
 write through it is checked against `commons/permissions` first. Agent roles never hold a
 file handle: they receive an assembled context and return typed output, and the
 orchestrator writes that output through the store layer under the role's name. The only
-outbound network edges are the model API and, at index-build time, the embedding model
-download.
+outbound edges are the `claude -p` subprocess, which reaches the model under the user's
+Claude Code login, and, at index-build time, the embedding model download.
 
 ### Order of adoption
 
@@ -143,8 +153,9 @@ datasets of step 6, and steps 7–10 are later specs.
 7. **Deterministic operations**: `dossier`, `select_entities`, `assemble_context` (100k
    hard cap), `promote` with collision escalation, `reconcile`, and the record- and
    string-level checks of `audit`.
-8. **Model client** (`commons/llm/`): one wrapper over the official Anthropic Python SDK
-   with structured output, refusal handling, token counting and a fake for tests.
+8. **Model client** (`commons/llm/`): one wrapper that runs each role call through the Claude
+   Code CLI (`claude -p`) under the user's Claude Code login, with structured output, refusal
+   handling, a pre-call input-token estimate and a fake for tests. No Anthropic API key is used.
 9. **Agent roles** (`agents/`): writer `write` and `revise`, style editor `polish`,
    canoniser `extract_facts` and `promote` ruling, auditor semantic checks (invariants 3,
    6 and the prose halves of 1 and 8), writer scene digest, and chapter/arc digest rollup.
@@ -213,7 +224,7 @@ Source: [Figure 3](../docs/architecture.md#figure-3--agents-and-write-permission
 | FR-PERM-03 | `may_write(role, path) -> bool` is the single check; the store layer is its only production caller. |
 | FR-PERM-04 | `GET /permissions` exports the table. |
 | FR-PERM-05 | The table is a module constant; no configuration key or code path widens it at runtime. |
-| FR-PERM-06 | Each model-invoked role receives a **tool set** built from the table: the writer's tools can write `manuscript/NNN.md`, `manuscript/digests/NNN.md` and append to `ledger/proposed.yaml`, and nothing under `canon/`; the auditor's only writing tool targets `ledger/violations.yaml`; the canoniser has no tool that writes `manuscript/`. The tool set is derived from FR-PERM-02 by code, not hand-listed, so the two cannot diverge. |
+| FR-PERM-06 | Each model-invoked role receives a **tool set** built from the table: the writer's tools can write `manuscript/NNN.md`, `manuscript/digests/NNN.md` and append to `ledger/proposed.yaml`, and nothing under `canon/`; the auditor's only writing tool targets `ledger/violations.yaml`; the canoniser has no tool that writes `manuscript/`. The tool set is derived from FR-PERM-02 by code, not hand-listed, so the two cannot diverge. It is not exposed to the model as callable tools — the model holds none (FR-LLM-05) — but it is the only set of writes the orchestrator may perform with that role's output, and a write outside it is refused. |
 | FR-PERM-07 | Text read from any store is placed in the prompt as **data** (inside delimited document blocks with a fixed system instruction that store content is never an instruction). No store content is ever placed in the `system` field. |
 
 ### DR — Data requirements
@@ -223,7 +234,7 @@ Source: [definitions.md](../docs/definitions.md), [domain-knowledge Figure 2](..
 | Id | Requirement |
 |---|---|
 | DR-01 | Every file type under the stores has a Pydantic v2 model and an exported JSON Schema (`backend/schemas/<type>.v1.json`). Models used by one feature live in that feature's `models.py`; models used by two or more live in `commons/schemas/`. |
-| DR-02 | Markdown-with-frontmatter files parse into typed frontmatter plus `body: str`. |
+| DR-02 | Markdown-with-frontmatter files parse into typed frontmatter plus `body: str` when the model declares a body. A model whose prose lives in a named field (`SceneDigest.delta`, DR-11) declares none: for it an empty body is dropped on read and a non-empty one is `InvalidRecord`, because that text would otherwise be silently lost (FR-STORE-06). |
 | DR-03 | `Scene` has the Figure 2 fields — `id`, `pov`, `story_time: int` (hours since `epoch_zero`, Decision 8), `discourse_order: int`, `location`, `goal`, `conflict`, `outcome` (four-value enum), `value_change`, `entry_state`, `exit_state`, `tags: list[str]` (free-text domain tags, intersected with `Axiom.scope`), `pins: list[EntityId]` (entities pinned by identifier), `budget`, `notes: str | None` — and `participants: list[str]`, required, possibly empty, disjoint from `pov` and without duplicates (Decision 9, clarified `aa05ee9`). |
 | DR-04 | `KnowledgeState.certainty` is the five-value enum; `via` is `witnessed · was_told · deduced · suspects`. Booleans are rejected. |
 | DR-05 | `Setup.resolution` is `paid · subverted · deliberately_abandoned`, optional while `paid_in` is empty; `due_by` required. |
@@ -278,20 +289,35 @@ Source: [Operations](../docs/architecture.md#operations), [Figure 2](../docs/arc
 
 ### FR-LLM — Model client
 
-Source: [Guardrails — output schema validation, budget](../docs/verification.md#guardrails--a-structural--t-behavioural), [U register — model provider behaviour change](../docs/verification.md#accepted-risks-u-register); provider facts from the `claude-api` skill (2026-06 cache).
+Source: [Guardrails — output schema validation, budget](../docs/verification.md#guardrails--a-structural--t-behavioural), [U register — model provider behaviour change](../docs/verification.md#accepted-risks-u-register); CLI facts from `claude --help` (Claude Code 2.1.273) and two probe calls on 2026-09-23 (Decision R3-1).
 
 | Id | Requirement |
 |---|---|
-| FR-LLM-01 | `commons/llm/` wraps the official `anthropic` Python SDK; no raw HTTP, no other provider. Credentials come from the SDK's default resolution (`ANTHROPIC_API_KEY` or an `ant auth login` profile); no key is read from or written to the store tree or source. |
-| FR-LLM-02 | `ModelClient` is a `Protocol` with `complete(role, system, documents, instruction, output_schema) -> Parsed[T]` and `count_tokens(...) -> int`. Implementations: `AnthropicModelClient` and `FakeModelClient` (scripted responses from fixtures; records every call). |
-| FR-LLM-03 | Default model for every role is `claude-haiku-4-5` (Decision R2-4), configurable per role (`MODEL_<ROLE>`). Haiku 4.5 takes extended thinking as `{type: "enabled", budget_tokens: N}` and does not accept `effort`, so thinking is off by default and enabled per role through `THINKING_BUDGET_<ROLE>` (minimum 1024, below `max_tokens`); if a role is later pointed at a 4.6+ model the client switches that role to `{type: "adaptive"}` by model family, never by hand. The model id actually used is recorded on every turn (FR-TURN-07). |
-| FR-LLM-04 | Every role call requests structured output (`output_config.format`) against the role's DR-12 schema and parses with the SDK's typed parse helper. A response that fails schema validation is **rejected, not repaired**: the call is retried once, then the turn step fails with `MalformedModelOutput`. |
-| FR-LLM-05 | Requests stream and use the SDK's final-message helper; `max_tokens` is sized from the scene `budget` with headroom, never below 16 000 for prose roles. |
-| FR-LLM-06 | `stop_reason` is checked before `content` is read on every response. `refusal` fails the step with `ModelRefused` (carrying `stop_details.category` when present) and the turn is escalated; `max_tokens` fails the step with `OutputTruncated` and is retried once with a larger `max_tokens`. No refusal is retried against a different model in v1. |
-| FR-LLM-07 | Before every call the client counts the prompt with `messages.count_tokens`; a count above 100 000 raises `ContextBudgetExceeded` and the call is **not** made (Decision R2-2). `FakeModelClient.count_tokens` uses a local approximation so the offline suite runs without network. |
-| FR-LLM-08 | Typed SDK exceptions are caught most-specific-first (`RateLimitError` → retry with backoff; `APIStatusError` 4xx → fail step; `APIConnectionError` → retry). A step never swallows an error into an empty draft. |
-| FR-LLM-09 | Prompt caching: the stable prefix (role system prompt, fixed block) is placed first and marked with `cache_control`; volatile content follows. `usage.cache_read_input_tokens` is recorded per step so a zero across a turn is visible. |
+| FR-LLM-01 | `commons/llm/` runs every role call as a subprocess of the Claude Code CLI (`claude -p`) and nothing else: no `anthropic` SDK, no raw HTTP, no other provider. Authentication is the user's Claude Code login. **No Anthropic API key is ever used**: the client removes `ANTHROPIC_API_KEY` and `ANTHROPIC_AUTH_TOKEN` from the subprocess environment, so a key present in the shell cannot silently take over, and it never passes `--bare`, which accepts only a key. No credential is read from or written to the store tree or source (Decision R3-1). |
+| FR-LLM-02 | `ModelClient` is a `Protocol` with `complete(role, system, documents, instruction, output_schema) -> Parsed[T]` and `estimate_input_tokens(system, documents, instruction) -> int`. Implementations: `ClaudeCodeModelClient` and `FakeModelClient` (scripted responses from fixtures; records every call). |
+| FR-LLM-03 | Default model for every role is `claude-haiku-4-5` (Decision R2-4), passed as `--model` and configurable per role (`MODEL_<ROLE>`). Reasoning effort is optional per role through `EFFORT_<ROLE>`, passed as `--effort` (low, medium, high, xhigh, max); unset means the CLI default. The model id actually used, as the CLI reports it in `modelUsage`, is recorded on every turn (FR-TURN-07). |
+| FR-LLM-04 | Every role call passes the role's DR-12 schema as `--json-schema`, reads `structured_output` from the CLI's JSON result and validates it against the Pydantic model. A response that fails validation is **rejected, not repaired**: the call is retried once, then the step fails with `MalformedModelOutput`. |
+| FR-LLM-05 | Each call is isolated so the role sees only what the orchestrator hands it (FR-AGENT-09): `--tools ""` (no tools, so the model can neither read nor write the tree), `--setting-sources ""` (no user or project settings, and so no user or project hooks), `--strict-mcp-config` with no servers, `--disable-slash-commands`, `--no-session-persistence`, a fresh empty working directory outside the repository and the store root (so no `CLAUDE.md` is auto-discovered), `--output-format json`, the role system prompt through `--system-prompt-file`, and documents plus instruction on stdin (the Windows command line cannot carry a 100k-token context). What the CLI adds regardless — its structured-output tool, environment details and the organisation's managed instructions — is measured as a fixed overhead (FR-CTX-02) and accepted: managed instructions are imposed by the organisation's administrator and are not the backend's to remove. |
+| FR-LLM-06 | The result envelope is checked before `structured_output` is read: `is_error`, `subtype`, `stop_reason` and `api_error_status`. `stop_reason: refusal` fails the step with `ModelRefused` and the turn is escalated; `stop_reason: max_tokens` fails the step with `OutputTruncated` and is retried once. No refusal is retried against a different model in v1. |
+| FR-LLM-07 | Before every call the client **estimates the input tokens** — system prompt, documents, instruction and the fixed overhead — with the conservative local estimator of FR-CTX-02; an estimate above 100 000 raises `ContextBudgetExceeded` and the call is **not** made. Output tokens are not counted against the cap (Decision R3-2). After the call the real input count reported by the CLI is recorded, and a real count above the cap marks the step (FR-CTX-06). |
+| FR-LLM-08 | Failures are classified from the subprocess and its envelope, most specific first: a rate-limit or overload status → retry with backoff; any other API error status → fail the step; a non-zero exit, a timeout or an unparseable envelope → retry once, then fail. A step never swallows an error into an empty draft. |
+| FR-LLM-09 | Prompt caching is managed by the CLI and not controlled by the backend. The stable prefix (role system prompt, fixed block) is still placed first so the CLI can reuse it, and `usage.cache_read_input_tokens` is recorded per step so a zero across a turn is visible. |
 | FR-LLM-10 | Role prompts are written in English; the language the prose is written in is read from `canon/style.md` and stated in the writer's and style editor's instruction (Decision R2-9). |
+
+### FR-CTX — Context budget and pruning
+
+Source: [Memory and context budget](../docs/architecture.md#memory-and-context-budget) ("one hard cap: 100k tokens per invocation, for every role"; "a call that would exceed it is stopped and traced, never silently truncated"; "selection is not reproducible; loading is"), [Guardrails — budget](../docs/verification.md#guardrails--a-structural--t-behavioural), Decision R3-2.
+
+FR-OPS-03 already prunes the writer's selected entities by rank. These requirements extend the same rule to every role call and make the fixed cost of a call part of the budget.
+
+| Id | Requirement |
+|---|---|
+| FR-CTX-01 | The cap is **100 000 input tokens per model call**, identical for every role (NFR-05). Output tokens do not count against it. |
+| FR-CTX-02 | Input tokens are estimated locally and conservatively: `ceil(characters / 3)` for each text, plus a fixed CLI overhead constant measured from the CLI's own usage report (2 500 tokens, measured on 2026-09-23 and re-measured when the CLI is upgraded; a module constant, not a setting). Dividing by three overestimates English prose, which is the safe direction for a hard cap. |
+| FR-CTX-03 | Every role's inputs are split into a **mandatory** part and a **prunable, ranked** part. Pruning removes whole prunable entries from the lowest rank upward until the estimate fits; it never cuts inside an entry (FR-OPS-03), and the removed identifiers are recorded on the turn record with `truncated_at`. **write / revise** — prunable: the selected entities in FR-OPS-03 order; mandatory: fixed block, POV dossier, literal tail, instruction, and for `revise` the draft and the blocking violations. **extract_facts** — prunable: the canon documents in rank order; mandatory: the accepted draft. **audit_semantic** — prunable: the non-pinned selected axioms in rank order, then participants' knowledge and changes in the order the participants are listed; mandatory: draft, scene record, pinned axioms, POV dossier. **polish, digest, rollup** — all mandatory, bounded by construction. |
+| FR-CTX-04 | An auditor input removed by pruning is listed in the audit's `skipped`, as FR-AUD-09 does for a failed model step, so the absence of a violation is never mistaken for a pass on something that was never checked. |
+| FR-CTX-05 | There is **no model-written compression inside a turn**: loading must stay reproducible, and a summary written by a model would be a record nobody reviewed entering the context. The compression the design already has — the digest ladder of scene, chapter and arc — keeps past prose small by construction. If the mandatory part alone exceeds the cap, the call is not made, `ContextBudgetExceeded` is raised and the turn escalates: the fault is a record that is too large, and the fix belongs in that record rather than in the system shortening it silently. |
+| FR-CTX-06 | After each call the real input count reported by the CLI is recorded beside the estimate. A real count above the cap marks the step `over_cap: true` on the turn record: the call was made on an estimate that proved wrong, which is visible rather than silent and is the signal to make FR-CTX-02 more conservative. |
 
 ### FR-AGENT — Agent roles
 
@@ -312,7 +338,7 @@ available to the role.**
 | FR-AGENT-06 | Auditor · `audit_semantic(scene) -> SemanticAuditOutput` | Inputs: `manuscript/NNN.md`, `scenes/NNN.yaml`, the turn's selected-entity list and the axioms it names, `cast/{id}/knowledge.yaml` and `cast/{id}/changes.yaml` for participants, `cast/{id}/dossier.md#immutable_physical`. Checks invariants **3** (stable bodies: a physical attribute in the prose that differs from `immutable_physical` with no `ChangeEvent` at or before this scene), **6** (axiomatic respect against the selected axioms only), and the prose halves of **1** (a character voices a fact whose state at story time is not `believes`/`knows`/`believes_falsely`) and **8** (the prose delivers the declared `value_change`). Each violation carries a quote and offset. `source: model`. |
 | FR-AGENT-07 | Auditor · combined | `audit(scene)` = mechanical checks (FR-AUD) ∪ `audit_semantic`. Mechanical results are computed first and included in the semantic prompt as data so the model does not re-report them. |
 | FR-AGENT-08 | Writer · `rollup(chapter_id \| arc_id) -> DigestOutput` | Rolls scene digests into a chapter digest (~250 words) or chapter digests into an arc digest (~400 words), written under `manuscript/digests/` by the writer role, whose Figure 3 row already owns that path (Decision R2-6). Invoked by `POST /agents/digests/rollup`, outside any scene turn. |
-| FR-AGENT-09 | All roles | No role receives a tool that reads the tree: reads are done by the orchestrator through the store layer and handed in as documents. The only tools a role holds are the writes FR-PERM-06 derives. The documents a role may receive are listed as data too — `INPUT_TABLE`, transcribed from Figure 3's `In` column — and a document from any other path is a bug, so "anything not listed as an input is not available to the agent" is checkable. |
+| FR-AGENT-09 | All roles | No role receives a tool that reads the tree: reads are done by the orchestrator through the store layer and handed in as documents. A role holds no tools at all (FR-LLM-05); the writes performed with its output are exactly the tool set FR-PERM-06 derives. The documents a role may receive are listed as data too — `INPUT_TABLE`, transcribed from Figure 3's `In` column — and a document from any other path is a bug, so "anything not listed as an input is not available to the agent" is checkable. |
 | FR-AGENT-11 | All roles | Roles exchange work **through the stores, never through messages**: the auditor reads the draft from `manuscript/NNN.md` after the writer's write has landed, and `revise` receives the blocking violations read back from `ledger/violations.yaml` after the auditor's write, not the in-memory objects. The orchestrator carries identifiers between steps, not content. |
 | FR-AGENT-10 | All roles | Role system prompts live in `agents/prompts/<role>.md`, versioned in git, with a `prompt_version` recorded per turn. |
 
@@ -388,7 +414,7 @@ Source: [Domain invariants](../docs/definitions.md#domain-invariants), [Violatio
 | IF-01 | Routes mount per feature (`/canon`, `/cast`, `/structure`, `/scenes`, `/manuscript`, `/ledger`, `/agents`) plus `/health`, `/permissions`, `/index`. |
 | IF-02 | Write routes require `X-Agent-Role`; a human operator adds `X-Actor: human`, absent means `agent`, and the orchestrator always sends `agent` (Decision R2-7). Missing role → `400`; forbidden → `403` `{"error": "permission_denied", "role", "path"}`. |
 | IF-03 | Reads: `GET /canon/project`, `/canon/style`, `/canon/{kind}`, `/canon/{kind}/{id}`, `/canon/lexicon`, `/canon/time`; `GET /cast`, `/cast/{id}`, `/cast/{id}/dossier?at=`, `/cast/{id}/knowledge`, `/cast/{id}/voice`, `/cast/relationships`; `GET /structure/arcs`, `/structure/chapters`; `GET /scenes`, `/scenes/{id}`; `GET /manuscript/{id}`, `/manuscript/digests/{id}`; `GET /cast/{id}/changes`; `GET /ledger/{setups\|threads\|timeline\|proposed\|violations}`; `GET /agents/turns`, `/agents/turns/{id}`, `/agents/provenance?path=&since=`. |
-| IF-04 | Writes: `PUT /canon/{kind}/{id}`, `/canon/lexicon`, `/canon/time` (world_builder, canoniser); `PUT /cast/{id}/{dossier\|voice\|knowledge\|changes}`, `/cast/relationships` (canoniser); `PUT /structure/{arcs\|chapters}`, `PUT /scenes/{id}` (architect); `PUT /manuscript/{id}` (writer, style_editor); `PUT /manuscript/digests/{id}` (writer); `POST /ledger/proposed` (writer); `PUT /ledger/violations` (auditor). A human resolves an escalated violation through that last route, acting as the auditor with `X-Actor: human`, by setting `resolution` (`fix_prose · fix_canon · accept_with_reason`); the prose or canon edit itself goes through the owning role's route. This is the dotted "escalate ruling" edge of [Figure 1](../docs/architecture.md#figure-1--the-working-loop). |
+| IF-04 | Writes: `PUT /canon/{kind}/{id}`, `/canon/lexicon`, `/canon/time` (world_builder, canoniser); `PUT /cast/{id}/{dossier\|voice\|knowledge\|changes}`, `/cast/relationships` (canoniser); `PUT /structure/{arcs\|chapters}`, `PUT /scenes/{id}` (architect); `PUT /manuscript/{id}` (writer, style_editor); `PUT /manuscript/digests/{id}` (writer); `POST /ledger/proposed` (writer, canoniser — Figure 3 gives both `ledger/proposed.yaml`); `PUT /ledger/violations` (auditor). A human resolves an escalated violation through that last route, acting as the auditor with `X-Actor: human`, by setting `resolution` (`fix_prose · fix_canon · accept_with_reason`); the prose or canon edit itself goes through the owning role's route. This is the dotted "escalate ruling" edge of [Figure 1](../docs/architecture.md#figure-1--the-working-loop). |
 | IF-05 | Operations: `POST /scenes/{id}/select`, `/scenes/{id}/assemble`, `/scenes/{id}/audit?semantic=false` (mechanical only, no model), `/scenes/{id}/audit` (full, auditor role); `POST /ledger/proposed/{id}/promote` (canoniser) → `Promoted \| Escalation`; `POST /ledger/proposed/{id}/rule` (canoniser, human); `POST /canon/reconcile`; `POST /index/rebuild`; `GET /index/status`. |
 | IF-06 | Turns: `POST /agents/turns` `{scene_id}` (+ `?dry_run`), `GET /agents/turns/{id}`, `POST /agents/turns/{id}/rulings`, `POST /agents/turns/{id}/resume`, `POST /agents/digests/rollup` `{chapter_id \| arc_id}`. Turn execution is synchronous with streamed progress as Server-Sent Events (one event per step) so a client can follow a multi-minute turn. |
 | IF-07 | Error bodies share one shape. `InvalidRecord` → `422`, `NotFound` → `404`, `PermissionDenied` → `403`, `IndexBusy` → `503`, `TurnLocked` → `409`, `ContextBudgetExceeded` → `422`, `MalformedModelOutput` / `ModelRefused` → `502` with the category. |
@@ -398,12 +424,12 @@ Source: [Domain invariants](../docs/definitions.md#domain-invariants), [Violatio
 
 | Id | Requirement | Source |
 |---|---|---|
-| NFR-01 | Python 3.12, FastAPI, Pydantic v2, `anthropic`, `fastembed`, `sqlite-vec`, managed with `uv`, all pinned; the model id per role is pinned in configuration and recorded per turn, so a provider-side change is attributable (U register: "model provider behaviour change"). Once FastAPI is pinned, the vendored `fastapi` skill is replaced by the managed install. | `CLAUDE.md` |
+| NFR-01 | Python 3.12, FastAPI, Pydantic v2, `fastembed`, `sqlite-vec`, managed with `uv`, all pinned. The Claude Code CLI is a host prerequisite rather than a Python dependency, and its version is recorded per turn beside the model id; the model id per role is pinned in configuration and recorded per turn, so a provider-side change is attributable (U register: "model provider behaviour change"). Once FastAPI is pinned, the vendored `fastapi` skill is replaced by the managed install. | `CLAUDE.md` |
 | NFR-02 | `mypy --strict` clean; no `Any`; no `type: ignore` without a comment linking this spec. | Process 3 rule 9 |
 | NFR-03 | `ruff` and `bandit` clean; all YAML via `safe_load`. | [SAST](../docs/verification.md#static-analysis--sast--a) |
-| NFR-04 | `import-linter`: features independent; `commons` imports no feature; only `commons.stores` touches file primitives under the root; only `commons.llm` imports `anthropic`; only `commons.embeddings` imports `fastembed`. | [SAST — boundaries](../docs/verification.md#static-analysis--sast--a) |
+| NFR-04 | `import-linter`: a feature reaches another only through its public surface (`service`, `models`), never its `repository` or `router`, and feature dependencies are acyclic, as `architecture.md` rules 2 and 5 state (Decision R3-3); `commons` imports no feature; only `commons.stores` touches file primitives under the root; only `commons.llm` spawns subprocesses; only `commons.embeddings` imports `fastembed`. | [SAST — boundaries](../docs/verification.md#static-analysis--sast--a) |
 | NFR-05 | 100 000 tokens is a module constant, identical for every role, with no configuration key that raises it. | [Memory and context budget](../docs/architecture.md#memory-and-context-budget) |
-| NFR-06 | Outbound network is limited to the Anthropic API host and, only during `rebuild()` without `EMBED_OFFLINE`, the embedding-model download host. An `httpx` transport allow-list enforces it in-process; the test suite runs with network disabled. | [Red-teaming — data exfiltration](../docs/verification.md#red-teaming--adversarial-testing--t--i) |
+| NFR-06 | The backend process itself opens no outbound connection except, only during `rebuild()` without `EMBED_OFFLINE`, to the embedding-model download host. Model traffic leaves through the `claude -p` subprocess (FR-LLM-01) and nowhere else. The test suite runs with network disabled and with the subprocess replaced by `FakeModelClient`. | [Red-teaming — data exfiltration](../docs/verification.md#red-teaming--adversarial-testing--t--i) |
 | NFR-07 | On the fixture with the fake model client: `assemble_context` < 2 s cold; `rebuild()` with the fake embedder < 10 s; a full fake turn < 5 s. Measured, not gating (Decision 12). | proposed |
 | NFR-08 | Every test that satisfies a criterion carries `# spec 001 / AC n`. | Process 3 rule 16 |
 | NFR-09 | Tests run on a temporary copy of the fixture; live-model tests are marked `live`, excluded by default, and run only with `--live` and credentials present. | [Unit/integration testing](../docs/verification.md#unit--integration-testing--t) |
@@ -413,13 +439,19 @@ Source: [Domain invariants](../docs/definitions.md#domain-invariants), [Violatio
 
 ```mermaid
 flowchart TB
-  subgraph F["features (independent of each other)"]
+  subgraph L1["orchestration"]
+    agents
+  end
+  subgraph L2["scene operations"]
+    scenes
+  end
+  subgraph L3["ledger operations"]
+    ledger
+  end
+  subgraph L4["data owners"]
     canon
     cast
-    scenes
     manuscript
-    ledger
-    agents
   end
   subgraph C["commons (imports no feature)"]
     stores
@@ -431,20 +463,29 @@ flowchart TB
     errors
     config
   end
-  F --> C
+  L1 --> L2
+  L2 --> L3
+  L3 --> L4
+  L1 & L2 & L3 & L4 --> C
   stores --> permissions
   stores --> schemas
   db --> embeddings
   FS[("store tree")]
   NET(("network"))
+  CLI(["claude -p"])
   stores --> FS
-  llm --> NET
+  llm --> CLI
+  CLI --> NET
   embeddings -. "download only" .-> NET
 ```
 
-*Reading it.* Three arrows leave the process: files from `stores`, the model API from
-`llm`, and the one-time model download from `embeddings`. The `import-linter` contracts of
-NFR-04 make each of these, and the absence of every other, a build failure.
+*Reading it.* Three edges leave the process: files from `stores`, the model through the
+`claude -p` subprocess that `llm` spawns, and the one-time model download from `embeddings`.
+Features depend on one another only downward through the four layers, and only through a
+`service` or `models` module, as `architecture.md` rules 2 and 5 state: the orchestrator
+composes scene operations, scene operations use the ledger's audit, and both read the data
+owners. The `import-linter` contracts of NFR-04 make each of these, and the absence of every
+other, a build failure.
 
 ---
 
@@ -473,17 +514,20 @@ NFR-04 make each of these, and the absence of every other, a build failure.
 | AC 19 | With a scripted fake that always returns a blocking violation, the turn ends `escalated` after exactly 3 revisions, with the last draft and all violations on disk. With a fake that changes 60 % of sentences on revise, the revision is rejected and the turn escalates after the second attempt. | **T** |
 | AC 20 | With a fake extraction that collides with canon, the turn ends `awaiting_ruling`; `rulings` with `accept` promotes and moves it to `merged`; `reject` marks the fact and also moves it to `merged`; a second turn on the scene is refused (`409`) while a ruling is pending. | **T** |
 | AC 21 | With a fake returning schema-invalid output, the step retries once then fails `MalformedModelOutput`; nothing is written to `manuscript/`. With a fake returning `stop_reason: refusal`, the turn escalates with the category. | **T** |
-| AC 22 | With a fake `count_tokens` exceeding 100k, no model call is made and the turn escalates `ContextBudgetExceeded`. | **T** |
+| AC 22 | With an estimated input above 100k (FR-LLM-07, FR-CTX-02), no model call is made and the turn escalates `ContextBudgetExceeded`. | **T** |
 | AC 23 | No store content appears in the `system` field of any recorded fake call; every document block is delimited and labelled as data. | **T** |
 | AC 24 | Resuming a turn killed after the write step re-runs audit onward without a second write call (fake call log). | **T** |
 | AC 25 | The role header is trusted without authentication. | **U** — registered |
-| AC 26 | Live run (`--live`, real model, real embedder) of one turn on the fixture's tempting scene: the semantic auditor flags the planted axiom violation and the planted unregistered body change, and does not flag the registered one in `changes.yaml`; the turn ends `merged` or `awaiting_ruling`; the turn record shows real model ids, cache-read tokens and token counts under 100k per step. Output attached to the PR. | **D** |
+| AC 26 | Live run (`--live`, real model through `claude -p` under the user's Claude Code login, real embedder) of one turn on the fixture's tempting scene: the semantic auditor flags the planted axiom violation and the planted unregistered body change, and does not flag the registered one in `changes.yaml`; the turn ends `merged` or `awaiting_ruling`; the turn record shows real model ids, cache-read tokens and token counts under 100k per step. Output attached to the PR. | **D** |
 | AC 27 | Live run: `extract_facts` on the fixture's accepted draft returns at least the two hand-labelled invented facts. | **D** |
 | AC 28 | Fixture repository documented with expected mechanical audit output and the tempting scene's expected semantic finding; reviewed by a human. | **I** |
 | AC 29 | `backend/openapi.json` equals the exported schema; `schemathesis` against it on the fixture yields no `5xx`. | **T** |
 | AC 30 | The local gate passes in one command from `backend/`; output pasted in the PR. | **D** |
 | AC 31 | Turn records and the provenance log under `.index/` are not rebuildable from the tree. | **U** — registered |
 | AC 32 | Every store write made during AC 18's fake turn has exactly one provenance line with the role Figure 4 assigns to that step and `actor: agent`; a `PUT` with `X-Actor: human` produces a line with `actor: human`. | **T** |
+| AC 33 | Pruning follows FR-CTX-03 for every role: with the cap lowered in a test, whole prunable entries are removed lowest rank first and none is cut; the removed ids and `truncated_at` are on the turn record; every auditor input removed appears in `skipped`; a mandatory part that alone exceeds the cap escalates `ContextBudgetExceeded` with no call made. | **T** |
+| AC 34 | The CLI invocation isolates the role (FR-LLM-01, FR-LLM-05): the command carries `--tools ""`, `--setting-sources ""`, `--json-schema` and `--no-session-persistence`, and never `--bare`; the working directory is empty and outside the repository and the store root; the subprocess environment carries no `ANTHROPIC_API_KEY` or `ANTHROPIC_AUTH_TOKEN` even when the parent's does. Verified on the constructed command and environment with the subprocess replaced by a recorder. | **T** |
+| AC 35 | A real input count above the cap, reported after a call, marks the step `over_cap: true` on the turn record (FR-CTX-06). | **T** |
 
 ---
 
@@ -512,6 +556,9 @@ NFR-04 make each of these, and the absence of every other, a build failure.
 | 25 | U | `docs/verification.md` U register, row "role trusted, not authenticated" (commit `95e0cd5`) | Reason: local single operator; mitigation: provenance |
 | 31 | U | `docs/verification.md` U register, row ".index/ records not rebuildable" (commit `95e0cd5`) | Mitigation: git history, structured logs, Langfuse later |
 | 32 | T | `commons/stores/tests/test_provenance.py`, `agents/tests/test_turn_provenance.py` | Log inspection after fake turn |
+| 33 | T | `agents/tests/test_context_pruning.py` | Unit, and integration on a fixture copy with the cap lowered |
+| 34 | T | `commons/llm/tests/test_claude_code_command.py` | Inspection of the constructed command, working directory and environment |
+| 35 | T | `commons/llm/tests/test_over_cap.py` | Scripted CLI envelope |
 | 26–27 | D | `backend/tests/live/test_turn_live.py` (`--live`), output in PR | Demonstrated run |
 | 28 | I | `backend/tests/fixtures/repo/README.md` | Human review in PR |
 | 29 | T | `scripts/export_openapi.py`, CI `contract`, `backend/tests/test_schemathesis.py` | Contract |
@@ -562,23 +609,64 @@ Every Process 0 decision, so the spec is self-contained. Answered by the user on
 | # | Decision |
 |---|---|
 | R2-1 | **(c)** Turn records and the provenance log live under `.index/`, outside the store tree, not governed by Figure 3 and written by the store layer and the orchestrator directly. The cost — they are not rebuildable — is stated in `architecture.md` (`f39300b`) and registered as **U** (AC 31, `95e0cd5`). |
-| R2-2 | Exact token count with `messages.count_tokens` before every live call; local approximation only in the fake. |
+| R2-2 | **Superseded by R3-2.** Exact token count with `messages.count_tokens` before every live call; local approximation only in the fake. |
 | R2-3 | Embedding model configurable, default `all-MiniLM-L6-v2` as the user named it; the switch to the multilingual 384-d MiniLM for Spanish prose is documented, not decided here. |
-| R2-4 | **`claude-haiku-4-5` for every role.** Consequences absorbed in FR-LLM-03 and FR-LLM-06: `budget_tokens`-style thinking, no `effort`, no server-side refusal fallback. |
+| R2-4 | **`claude-haiku-4-5` for every role.** Consequences absorbed in FR-LLM-03 and FR-LLM-06: `budget_tokens`-style thinking, no `effort`, no server-side refusal fallback. *Revised by R3-1: the model is passed as `--model`, and reasoning is set with `--effort` rather than a thinking budget.* |
 | R2-5 | `ChangeEvent` defined in `definitions.md`, stored at `cast/{id}/changes.yaml`, canoniser writes, auditor reads; Figure 1 updated (`1578513`). |
 | R2-6 | Chapter and arc rollup run under the writer role, which already owns `manuscript/digests/`. |
 | R2-7 | `X-Actor: human` header; absent means `agent`; the orchestrator always sends `agent`. |
 | R2-8 | Revise scope guard at 35 % changed sentences, configurable. |
 | R2-9 | Role prompts in English; prose language read from `canon/style.md`. |
 
+### Round 3
+
+Answered by the user on 2026-09-23, after plan steps 1-8 were implemented.
+
+| # | Decision |
+|---|---|
+| R3-1 | **Model calls go through the Claude Code CLI (`claude -p`) under the user's Claude Code login; an Anthropic API key is never used.** Supersedes the SDK design of FR-LLM-01..09 and NFR-01/-06. Verified on 2026-09-23: the login works in `-p` mode, `--json-schema` returns validated `structured_output`, and the result reports the real model id and token usage including cache reads. |
+| R3-2 | **Only input tokens are counted, estimated before the call, and the call is not made above 100k.** Supersedes R2-2, since the CLI has no counting call. When a context would exceed the cap it must be pruned, specified per role in FR-CTX. |
+| R3-3 | **Features cross only through each other's public surface, without cycles** (NFR-04), which is what `architecture.md` rules 2 and 5 state. The `independence` contract of step 2 was stricter than the docs and would have made the orchestrator impossible to write. |
+| R3-4 | The agent pushes nothing and opens no PR; the PR description is left written for the user. |
+
 ---
 
 ## Open questions
 
-Three clarifications were folded in after approval, each recorded here rather than left to be
-rediscovered. None changes the scope or an acceptance criterion, so the status stays
-`approved`; all three came from implementation finding that the code could not satisfy the
-documents as written.
+**Why this spec is back in `draft`** (Process 2, rule 10; 2026-09-23). Decisions R3-1 to R3-4
+change the design after approval:
+
+- FR-LLM-01..09 rewritten for the Claude Code CLI; FR-LLM-02's `count_tokens` becomes
+  `estimate_input_tokens`. FR-PERM-06 and FR-AGENT-09 now say the model holds no tools.
+- FR-CTX-01..06 added: the cap counts input only, is estimated before each call, reserves the
+  CLI's fixed overhead, and prunes per role.
+- NFR-01 drops `anthropic`; NFR-04 reads as `architecture.md` rules 2 and 5; NFR-06
+  describes the subprocess. The module dependency figure follows NFR-04.
+- AC 22 reworded, AC 26 names the CLI login, AC 33-35 added with their verification rows.
+- Clarifications carried in the same revision: DR-02 (a Markdown model with no `body`) and
+  IF-04 (the canoniser also appends to `ledger/proposed.yaml`, as Figure 3 gives it).
+- The implementation plan returns to `draft` with it. Steps 9-14 do not touch the model
+  client and proceed while this is reviewed, at the user's explicit authorisation; step 15
+  onward waits for re-approval.
+
+**Open, and to be settled before re-approval:**
+
+- **Compression (FR-CTX-05).** The user asked for pruning or compression to be specified.
+  This draft specifies pruning per role and **no** model-written compression inside a turn,
+  because `architecture.md` requires loading to be reproducible and a call never to be
+  silently truncated; the compression the design already has is the digest ladder. An
+  in-turn compression step would change `architecture.md` first (Process 1).
+- **The organisation's managed instructions travel in every role call** (FR-LLM-05). The
+  probe of 2026-09-23 showed them in the model's context; the backend cannot remove them and
+  should not. They tell the model to anonymise real personal names and append a privacy note.
+  The novel's characters are fictional, so they should not trigger, but a model could
+  over-apply them inside the prose. The live run of AC 26 is where this would show, and it is
+  recorded here so that a miss there is read correctly.
+
+Three clarifications were folded in after the first approval, each recorded here rather than
+left to be rediscovered. None changed the scope or an acceptance criterion, so at the time the
+status stayed `approved`; all three came from implementation finding that the code could not
+satisfy the documents as written.
 
 - **`tags` split into `tags` and `pins`** (docs `aa05ee9`, DR-03, FR-OPS-02). One field could
   not both intersect `Axiom.scope` as free text and name an entity by identifier; an axiom
