@@ -81,6 +81,7 @@ def canon_kind(value: str) -> str:
 
 # --- canon/ ---------------------------------------------------------------------------
 
+CANON = "canon"
 PROJECT = "canon/project.md"
 STYLE = "canon/style.md"
 LEXICON = "canon/lexicon.yaml"
@@ -92,8 +93,14 @@ def canon_entity(kind: str, identifier: str) -> str:
     return f"canon/{canon_kind(kind)}/{entity_id(identifier)}.md"
 
 
+def canon_dir(kind: str) -> str:
+    """`canon/<kind>`, for listing one kind's records."""
+    return f"canon/{canon_kind(kind)}"
+
+
 # --- cast/ ----------------------------------------------------------------------------
 
+CAST = "cast"
 RELATIONSHIPS = "cast/relationships.yaml"
 
 
@@ -105,9 +112,15 @@ def cast_file(character: str, which: str) -> str:
     return f"cast/{entity_id(character)}/{CAST_FILES[which]}"
 
 
+def cast_dir(character: str) -> str:
+    """`cast/<id>`, one directory per character."""
+    return f"cast/{entity_id(character)}"
+
+
 # --- structure/ and scenes/ -----------------------------------------------------------
 
 ARCS = "structure/arcs.yaml"
+SCENES = "scenes"
 CHAPTERS = "structure/chapters.yaml"
 
 
@@ -117,6 +130,9 @@ def scene(identifier: str) -> str:
 
 
 # --- manuscript/ ----------------------------------------------------------------------
+
+MANUSCRIPT = "manuscript"
+DIGESTS = "manuscript/digests"
 
 
 def draft(identifier: str) -> str:
@@ -175,22 +191,29 @@ def relative_to_root(root: Path, target: Path) -> str:
 
 __all__ = [
     "ARCS",
+    "CANON",
     "CANON_KINDS",
+    "CAST",
     "CAST_FILES",
     "CHAPTERS",
+    "DIGESTS",
     "LEDGER_FILES",
     "LEXICON",
+    "MANUSCRIPT",
     "PROJECT",
     "PROPOSED",
     "RELATIONSHIPS",
+    "SCENES",
     "SETUPS",
     "STYLE",
     "THREADS",
     "TIME",
     "TIMELINE",
     "VIOLATIONS",
+    "canon_dir",
     "canon_entity",
     "canon_kind",
+    "cast_dir",
     "cast_file",
     "digest",
     "draft",

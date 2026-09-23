@@ -20,7 +20,8 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from app.commons.permissions import Actor, AgentRole
-from app.commons.stores import paths, provenance, reader, writer
+from app.commons.schemas.turn import TurnRecord
+from app.commons.stores import paths, provenance, reader, turns, writer
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +45,10 @@ class Store:
 
     def read_raw(self, relative: str) -> str:
         return reader.read_raw(self.root, relative)
+
+    def read_mapping(self, relative: str) -> dict[str, object]:
+        """Parsed but not validated; for the derived index only (see `reader.read_mapping`)."""
+        return reader.read_mapping(self.root, relative)
 
     def list_files(self, directory: str, suffix: str) -> list[str]:
         return reader.list_records(self.root, directory, suffix)
@@ -100,5 +105,9 @@ class Store:
         """IF-03. Read-only; the log is append-only and nothing here can rewrite it."""
         return provenance.read(self.index_dir, path=path, since=since)
 
+    def turn_records(self) -> list[TurnRecord]:
+        """FR-TURN-07 records under `.index/turns/`, read-only (`reconcile`, FR-OPS-08)."""
+        return turns.read_turn_records(self.index_dir)
 
-__all__ = ["Store", "paths", "provenance", "reader", "writer"]
+
+__all__ = ["Store", "paths", "provenance", "reader", "turns", "writer"]

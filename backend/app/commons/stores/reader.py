@@ -106,6 +106,22 @@ def parse_for_test[RecordT: BaseModel](
     return record
 
 
+def read_mapping(root: Path, relative: str) -> dict[str, object]:
+    """A store file parsed but not validated: the frontmatter fields and `body` as a mapping.
+
+    For the one consumer that needs text rather than a record -- the derived index, which
+    must build one row per entity from files whose models live in features `commons/` may
+    not import (NFR-04). Everything that reasons about content uses `read_record`. A file
+    that does not even parse is still an `InvalidRecord` naming it: the index does not get
+    to skip what the rest of the system would refuse.
+    """
+    text = read_raw(root, relative)
+    try:
+        return fm.parse_markdown(text) if fm.is_markdown(relative) else fm.parse_yaml(text)
+    except (ValueError, TypeError) as error:
+        raise InvalidRecord(f"{relative} is not readable: {error}", file=relative) from error
+
+
 def list_records(root: Path, directory: str, suffix: str) -> list[str]:
     """Store-relative paths of every file directly under `directory`, sorted.
 
@@ -143,6 +159,7 @@ __all__ = [
     "list_records",
     "list_subdirectories",
     "parse_for_test",
+    "read_mapping",
     "read_raw",
     "read_record",
 ]

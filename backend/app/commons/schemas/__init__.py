@@ -61,6 +61,7 @@ from app.commons.schemas.scene import Scene
 from app.commons.schemas.setup import Setup, SetupsFile
 from app.commons.schemas.thread import PlotThread, ThreadsFile
 from app.commons.schemas.time import Calendar, TemporalSystem
+from app.commons.schemas.turn import SelectedEntity, TurnOutcome, TurnRecord
 from app.commons.schemas.violation import Violation, ViolationsFile
 
 __all__ = [
@@ -100,6 +101,7 @@ __all__ = [
     "Scene",
     "SceneDigest",
     "SceneId",
+    "SelectedEntity",
     "SemanticAuditOutput",
     "SemanticViolation",
     "Setup",
@@ -112,6 +114,8 @@ __all__ = [
     "TemporalSystem",
     "ThreadState",
     "ThreadsFile",
+    "TurnOutcome",
+    "TurnRecord",
     "Valence",
     "Via",
     "Violation",
