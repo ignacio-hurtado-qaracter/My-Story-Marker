@@ -124,6 +124,30 @@ Resumidas; el razonamiento completo está en la [ronda 1](./round-1-rescope.md).
 
 ---
 
+## Respuestas del usuario (2026-09-23)
+
+| # | Respuesta |
+|---|---|
+| 4 | **Numeración.** Las specs de esta rama empiezan en 003 y siguen sumando; si otra rama crea más specs antes, se toma el siguiente número libre. No hace falta reservar nada con las otras sesiones. |
+| 20 | **Entre 4 y 7 escenas por capítulo**, no entre 2 y 4. |
+| 21 | Recomendación: validadores al aceptar cada escena y al cerrar el capítulo. |
+| 22 | Recomendación: se reanuda en el primer capítulo incompleto, conservando sus escenas aceptadas. |
+| 23 | Recomendación: uso de hechos por escena; capítulos derivados. |
+| 24 | Recomendación (a): un árbol de stores por novela y una base SQLite autoritativa con `novel_id`. |
+| 25 | Recomendación: base propia (p. ej. `data/harness.sqlite`), fuera de `.index/`, con migraciones separadas. |
+| 27 | Recomendación: versiones en SQLite con texto y hash por capítulo. |
+
+**Consecuencia de la 20, para la spec del bloque de generación.** Con 1.000-1.500 palabras
+por capítulo, de 4 a 7 escenas dan escenas de unas 150 a 375 palabras, y una novela pasa a
+tener de 40 a 70 turnos de la Figura 4. Hay que resolver dos cosas allí: el `literal_tail`
+de 500 palabras es más largo que una escena, y el coste y la latencia por novela crecen con
+el número de turnos.
+
+**Cambio de enfoque propuesto por el usuario.** En lugar de un único reencuadre, una spec
+general de brechas y hoja de ruta por bloques (003) y una spec por bloque después. Las
+preguntas de detalle que quedan abiertas (11-17) pasan al Proceso 0 de la spec de su
+bloque. La spec 003 solo necesita cerrar las transversales: 1, 2, 3, 10, 26 y 28.
+
 ## Lo que ya está decidido y entrará en el resumen
 
 - `docs/process/` como área de registro (5).
