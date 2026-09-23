@@ -20,5 +20,6 @@
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true
   },
-  "include": ["src", "test"]
+  "include": ["src", "test"],
+  "exclude": ["src/shared/api/contract.test.ts", "test/lint.test.ts", "test/check-bundle.test.ts"]
 }

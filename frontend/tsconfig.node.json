@@ -20,5 +20,13 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "playwright.config.ts", "eslint.config.js", "e2e", "scripts"]
+  "include": [
+    "vite.config.ts",
+    "playwright.config.ts",
+    "e2e",
+    "scripts",
+    "src/shared/api/contract.test.ts",
+    "test/lint.test.ts",
+    "test/check-bundle.test.ts"
+  ]
 }

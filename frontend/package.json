@@ -10,7 +10,14 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc -b"
+    "typecheck": "tsc -b",
+    "lint": "eslint . --max-warnings 0",
+    "test": "vitest run",
+    "e2e": "playwright test",
+    "gen:api": "node scripts/openapi.mjs",
+    "check:api": "node scripts/check-api.mjs",
+    "check:bundle": "node scripts/check-bundle.mjs",
+    "gate": "node scripts/gate.mjs"
   },
   "dependencies": {
     "@react-three/drei": "10.7.8",
