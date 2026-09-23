@@ -270,7 +270,11 @@ introduce a fact; it can only choose among facts that exist.
 
 **One hard cap: 100k tokens per invocation, for every role.** Roles run sequentially, each
 in a fresh window, and no window is inherited, so the cap is per call and never
-accumulates across the turn. There are no per-role targets below it. `assemble_context`
+accumulates across the turn. There are no per-role targets below it. The cap counts the
+context the system itself sends — the role's system prompt, its documents and its
+instruction. What the model runtime adds to every call on its own (its tool definitions,
+environment details, instructions imposed by the organisation) is outside the system's
+control and outside the cap: it is accepted as a fixed cost, not budgeted. `assemble_context`
 loads selected entities in ranking order and stops at the cap; a call that would exceed it
 is stopped and traced, never silently truncated (see the budget guardrail in
 [`verification.md`](./verification.md#guardrails--a-structural--t-behavioural)).

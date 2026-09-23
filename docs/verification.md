@@ -310,7 +310,9 @@ is enforced in `backend/`, not in the prompt. Concretely:
 - Lexicon filter: drafts are checked against `canon/lexicon.yaml` forbidden variants
   before being written to `manuscript/`.
 - Budget guardrails: every agent invocation has a hard cap of 100k context tokens, the
-  same for all roles; `assemble_context` loads selected entities in ranking order and
+  same for all roles, counted over the context the system sends and not over what the
+  model runtime adds on its own (see
+  [Memory and context budget](./architecture.md#memory-and-context-budget)); `assemble_context` loads selected entities in ranking order and
   stops at the cap, and a call that would exceed it — or its scene-length budget — is
   stopped and traced, never silently truncated.
 
@@ -466,7 +468,7 @@ of this document; the sections above justify it.
 | The workflow's permission invariants hold in all states | Model checking | A |
 | Selection returns ids only, and every loaded record is the as-of version | Unit tests on `select_entities` and `assemble_context` with a fixture whose future facts must not appear | T |
 | The selected-entity list of each turn is recorded and the auditor reads the same list | Integration test comparing writer and auditor inputs on one turn | T |
-| No invocation exceeds 100k context tokens | Static cap in the assembler; per-call token count in the Langfuse trace | A, D |
+| No invocation sends more than 100k tokens of system context (runtime overhead excluded) | Static cap in the assembler; per-call token count in the Langfuse trace | A, D |
 | Digests can be dropped and regenerated from `manuscript/` with no loss to assembly | Regenerate-and-compare test | T |
 | A model-invoked role holds no tool that writes outside its Figure 3 row | Tool sets derived from the permission table by code; enumeration test per role; SAST rule against hand-written tool lists | A, T |
 | Every writing turn ends `merged` or `escalated` within a bounded number of revisions | Turn state-machine tests with a scripted fake model that never passes audit | T |
