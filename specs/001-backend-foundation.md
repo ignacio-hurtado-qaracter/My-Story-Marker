@@ -1,7 +1,7 @@
 ---
 id: 001
 title: Backend v1 — stores, permissions, index, operations, agent roles and the writing turn
-status: draft            # draft · approved · implemented · superseded
+status: approved            # draft · approved · implemented · superseded
 supersedes: null
 docs:
   - docs/architecture.md#governing-principle
