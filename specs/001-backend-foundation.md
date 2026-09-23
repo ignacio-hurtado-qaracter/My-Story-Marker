@@ -706,8 +706,10 @@ Two things were found while implementing and are **deferred by name** (Process 3
   `ledger/setups.yaml`, the POV's `cast/{id}/voice.md` and `ledger/threads.yaml`, which the
   column does not list. v1 reads them in the mechanical checks, which are backend code and
   not a model's context; `INPUT_TABLE` (FR-AGENT-09) bounds what the model-backed auditor
-  receives, and FR-AGENT-06 hands it none of the three. Whether the column should list them,
-  or say that it bounds model context only, is a `docs/` decision (Process 1).
+  receives, and FR-AGENT-06 hands it none of the three. **Resolved** (Process 1, `f7cb0be`
+  on `exam/rescope`): the column is not widened; `architecture.md` now says that `In` bounds
+  model context only and that mechanical checks read through the store layer. The code
+  already does this, so nothing in this spec or the plan changes.
 - **The refusal category may not reach the envelope.** Claude Code 2.1.273's JSON result has
   no `stop_details`; the category travels only in stream messages `--output-format json` does
   not print, so AC 21's "escalates with the category" may carry an empty category live. The
