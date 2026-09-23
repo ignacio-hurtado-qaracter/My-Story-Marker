@@ -4,8 +4,8 @@ The only process that reads and writes the harness stores. Everything in
 [`docs/architecture.md`](../docs/architecture.md) that describes a permission, an operation
 or a turn is enforced here, not in the client and not in a prompt.
 
-Built under [`specs/001-backend-foundation.md`](../specs/001-backend-foundation.md), to
-[its implementation plan](../specs/001-backend-foundation-plan.md).
+Built under [`specs/001-backend-foundation/001-backend-foundation.md`](../specs/001-backend-foundation/001-backend-foundation.md), to
+[its implementation plan](../specs/001-backend-foundation/001-backend-foundation-plan.md).
 
 ---
 

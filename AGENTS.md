@@ -8,7 +8,7 @@
 | `docs/domain-knowledge.md` | Entity graph, knowledge model, temporal axes | You need to know how entities relate |
 | `docs/architecture.md` | Loop, operations, stores, turn protocol | You need to know how the system runs |
 | `docs/verification.md` | Verification methods, Trust Spec letters, coverage matrix | You need to decide how a change is proven correct |
-| `specs/` | One spec per change: scope, acceptance criteria, verification plan. One implementation plan per approved spec | You are about to change code |
+| `specs/` | One folder per change, holding its spec (scope, acceptance criteria, verification plan) and, once approved, its implementation plan | You are about to change code |
 | `AGENTS.md` | This file — what you may do, right now | Every session |
 
 ---
@@ -175,9 +175,14 @@ and the implementation. **No non-trivial code change without a spec.**
 
 ```
 specs/
-  NNN-short-slug.md        NNN is zero-padded and sequential, never reused
-  NNN-short-slug-plan.md   the implementation plan, written only once the spec is approved
+  NNN-short-slug/            one folder per spec; NNN is zero-padded and sequential, never reused
+    NNN-short-slug.md        the spec
+    NNN-short-slug-plan.md   the implementation plan, written only once the spec is approved
 ```
+
+The files keep the `NNN-short-slug` prefix inside the folder, so a filename is unique across
+the repository and a grep for the spec id finds both. Links from a spec to `docs/` are
+therefore `../../docs/…`.
 
 The spec says *what* and *why*; the implementation plan says *how* and *in what order*. The
 plan is a Process 3 artefact even though it lives next to the spec — it is written, approved
@@ -226,7 +231,7 @@ Anything that must be settled before status can move to approved.
 1. Check `specs/` for an existing spec on the same subject. Extend or supersede it rather
    than duplicating. A superseding spec sets `supersedes:` and the old one moves to
    `superseded`.
-2. Take the next free `NNN`.
+2. Take the next free `NNN` and create the folder `specs/NNN-short-slug/`.
 3. Fill every section. "Scope" must name what is *out*. "Acceptance criteria" must each
    carry a letter; a criterion with no letter is a **U** and must be justified in
    "Open questions" or moved to the accepted-risk register in `verification.md`.
@@ -307,7 +312,7 @@ The spec is the contract; the plan is the route through the code that honours it
 so that the disagreement about *how* happens before the diff exists, not in review.
 
 **The rule that governs it.** *No implementation plan without an approved spec.* If
-`specs/NNN-short-slug.md` is `draft`, `superseded`, or absent, there is nothing to plan
+`specs/NNN-short-slug/NNN-short-slug.md` is `draft`, `superseded`, or absent, there is nothing to plan
 against: go to Process 2 and get a spec approved first. An agent that starts planning from a
 `draft` spec has already broken this process, because the plan will encode decisions the
 user has not yet made.
@@ -421,8 +426,8 @@ to `done` in the commit that closes the spec. Plans are never deleted.
 | Layer | Who may change it | Requires | Commit prefix |
 |---|---|---|---|
 | `docs/` | Human, or agent with a human-reviewed commit | Process 0 confirmed; spec first if it touches invariants, permissions or store layout | `docs:` |
-| `specs/NNN-short-slug.md` | Anyone drafts; only a human approves or closes | Process 0 confirmed; consistency with cited docs | `spec(NNN):` |
-| `specs/NNN-short-slug-plan.md` | Agent drafts; only a human approves | An **approved** spec; Process 0 confirmed | `plan(NNN):` |
+| `specs/NNN-short-slug/NNN-short-slug.md` | Anyone drafts; only a human approves or closes | Process 0 confirmed; consistency with cited docs | `spec(NNN):` |
+| `specs/NNN-short-slug/NNN-short-slug-plan.md` | Agent drafts; only a human approves | An **approved** spec; Process 0 confirmed | `plan(NNN):` |
 | `backend/`, `frontend/` | Agent or human, on a `spec/NNN-*` branch | An approved spec **and** an approved plan; passing gate; human merge | `backend:` `frontend:` `contract:` |
 
 Process 0 is the one step no layer is exempt from. An agent that is unsure whether it
