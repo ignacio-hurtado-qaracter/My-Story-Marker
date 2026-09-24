@@ -31,13 +31,13 @@ stateDiagram-v2
   Checkpoint --> Next : chapter row + checkpoint, one transaction
   Next --> Scene : NextChapter
   Next --> PrePublish : every chapter checkpointed
-  PrePublish --> Next : fail, repair round (version blocked, chapters reopened, once)
+  PrePublish --> Next : fail, repair round (version blocked, chapters reopened, at most MAX_REPAIR_ROUNDS)
   PrePublish --> Publish : pre_publish pass
   Publish --> Published : version status = published
   Published --> Next : ChangeFact (version v+1, unaffected chapters copied)
   Scene --> StoppedError : retries exhausted
   Close --> StoppedError : retries exhausted
-  PrePublish --> StoppedError : repair round used
+  PrePublish --> StoppedError : repair rounds used up
   Published --> [*]
   StoppedError --> [*]
 ```
@@ -109,11 +109,14 @@ git-ignored.
 
 **Configuration** ([`GiftNovelHarness.cfg`](./GiftNovelHarness.cfg)): `N = 5` chapters,
 `SCENES = 3` (plan 004, V5), `MAX_SCENE_RETRIES = 2`, `MAX_CHAPTER_RETRIES = 2`,
-`MAX_REPAIR_ROUNDS = 1`, `MaxCrashes = 1`, `MaxChanges = 1`. Nothing had to be reduced.
+`MAX_REPAIR_ROUNDS = 2` (1 until tuning iteration 1, 2026-09-24; it follows
+`pipeline.MAX_REPAIR_ROUNDS`), `MaxCrashes = 1`, `MaxChanges = 1`. Nothing had to be reduced.
 
-**Last result** ([`tlc-output.txt`](./tlc-output.txt)): *Model checking completed. No error
-has been found.* 1,247,479 states generated, 696,062 distinct, search depth 109, about one
-minute on 4 workers.
+**Last result** ([`tlc-output.txt`](./tlc-output.txt), `MAX_REPAIR_ROUNDS = 2`): *Model
+checking completed. No error has been found.* 10,031,846 states generated, 5,492,531
+distinct, search depth 127, 8 min 17 s on 4 workers. With `MAX_REPAIR_ROUNDS = 1` (the
+configuration before tuning iteration 1) it was 1,247,479 generated, 696,062 distinct,
+depth 109, about one minute; no new counterexample appeared with the second round.
 
 ## Mapping: TLA+ action → code
 
@@ -132,7 +135,7 @@ function below exists under that name; the pipeline is `backend/app/novel/pipeli
 | `Checkpoint` | `pipeline.checkpoint` → `repo.save_chapter_and_checkpoint` | **one transaction**: upsert `chapter_version(version, chapter)` and `checkpoint.status = complete` (**CE1**); refused for a published version (**CE3**) |
 | `PrePublish` (pass) / `Publish` | `pipeline.publish_version` → `before_publish` → `run_point(PRE_PUBLISH)`; `repo.set_version_status(…, "published")` | `schema_brief`, `brief_coverage`, `lean_chronology`, `judge_novel`, `visual_check`; results persisted; the version becomes `published` and its rows are never written again |
 | `PrePublish` (fail, repair) | `pipeline.publish_version` → `repo.block_version(…, repair_rounds = repair_rounds + 1)` + `repo.set_checkpoint(…, "pending")` | one transaction: `status = blocked`, repair round + 1 (**CE4**), the chapters named by `chapters_named` reopened; `_chapter_loop` runs again |
-| `PrePublish` (fail, exhausted) | `pipeline.publish_version` → `pipeline._stop` | `repair_rounds >= MAX_REPAIR_ROUNDS = 1`: the version stays `blocked`, the novel `stopped_error` with `stop_reason` in the version note |
+| `PrePublish` (fail, exhausted) | `pipeline.publish_version` → `pipeline._stop` | `repair_rounds >= MAX_REPAIR_ROUNDS = 2`: the version stays `blocked`, the novel `stopped_error` with `stop_reason` in the version note |
 | `ChangeFact` | `pipeline.change_fact` → `repo.update_fact_value` → `repo.create_version_from(parent, copy_chapters_except = affected)` → `_chapter_loop` | new version v+1 (draft, parent = latest published) with the unaffected chapters and their checkpoints copied in one transaction; only the affected chapters are rewritten; version v untouched |
 | `Crash` | process killed (container restart, exception, `kill`) | memory lost; SQLite keeps committed transactions |
 | `Resume` | `pipeline.generate` / `resume` → `load_plan`, `_open_version`, `first_incomplete_chapter` | no version → plan; latest published → "already published"; draft or blocked → continue at the first chapter without a complete checkpoint, with chapter and repair budgets read from the database |
