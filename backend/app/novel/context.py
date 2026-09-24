@@ -18,6 +18,7 @@ from app.commons.observability import Observer
 from app.novel.models import NovelPlan, PlanScene
 from app.novel.plan_check import parse_iso
 from app.tools import GET_CHAPTER_SUMMARY, QUERY_STORY_BIBLE, ToolNotFoundError
+from app.validators.programmatic.coverage import content_words, memory_parts
 
 TAIL_WORDS = 250
 DEFAULT_WORDS_MIN = 1000
@@ -132,8 +133,25 @@ def chapter_plan_document(plan: NovelPlan, chapter: int, facts: Sequence[Fact]) 
     lines = [
         f"Capítulo {chap.number} de {len(plan.chapters)}: {chap.title} (arco: {chap.arc_role})",
         f"Sinopsis: {chap.synopsis}",
-        "",
+        f"Marca temporal: {chap.time_marker or '(sin marca)'}"
+        + (" — FLASHBACK: ocurre antes del capítulo anterior" if chap.flashback else ""),
     ]
+    # Tuning 1: the neighbours' synopses, so a chapter neither repeats the previous one
+    # nor anticipates the next one, and anchors the time jump from the previous chapter.
+    numbers = {c.number for c in plan.chapters}
+    if chapter - 1 in numbers:
+        prev = plan.chapter(chapter - 1)
+        lines.append(
+            f"Capítulo anterior ({prev.number}, ya contado; no lo repitas): {prev.synopsis} "
+            f"[marca temporal: {prev.time_marker or '—'}]"
+        )
+    if chapter + 1 in numbers:
+        nxt = plan.chapter(chapter + 1)
+        lines.append(
+            f"Capítulo siguiente ({nxt.number}, NO lo cuentes aquí): {nxt.synopsis} "
+            f"[marca temporal: {nxt.time_marker or '—'}]"
+        )
+    lines.append("")
     for scene in plan.scenes_of(chapter):
         used = "; ".join(f"{k} = {by_key.get(k, '?')}" for k in scene.facts_used)
         lines += [
@@ -153,6 +171,41 @@ def chapter_plan_document(plan: NovelPlan, chapter: int, facts: Sequence[Fact]) 
                     + (f" [{ages}]" if ages else "")
                 )
     return Document(path=f"plan/chapter-{chapter}.txt", text="\n".join(lines))
+
+
+FACTS_CHECKLIST_PATH = "plan/facts-checklist.txt"
+
+
+def facts_checklist_document(
+    plan: NovelPlan,
+    chapter: int,
+    facts: Sequence[Fact],
+    brief: Mapping[str, JsonValue] | None = None,
+    *,
+    scene: int | None = None,
+) -> Document:
+    """Tuning 1: every fact assigned to the chapter (or to one scene), one per line, with
+    its distinctive details, so writer and editor render each one recognisably. A document,
+    not instruction text: fact values come from the brief and are data (R2)."""
+    by_key = {f.key: f for f in facts}
+    scenes = [s for s in plan.scenes_of(chapter) if scene is None or s.scene == scene]
+    keys = list(dict.fromkeys(k for s in scenes for k in s.facts_used))
+    lines: list[str] = []
+    for key in keys:
+        fact = by_key.get(key)
+        if fact is None:
+            continue
+        if fact.kind == "memory":
+            title, description = memory_parts(fact, brief)
+            details = sorted(content_words(f"{title} {description}"))
+            lines.append(
+                f"- Recuerdo «{title}»: {description} — detalles reconocibles: "
+                + ", ".join(details[:12])
+            )
+        else:
+            lines.append(f"- {fact.value} ({fact.kind})")
+    text = "\n".join(lines) or "(ningún hecho asignado)"
+    return Document(path=FACTS_CHECKLIST_PATH, text=text)
 
 
 def summaries_document(summaries: Sequence[tuple[int, str]]) -> Document:

@@ -6,6 +6,9 @@ planner for its one replan. An empty list means the plan is usable.
 
 from __future__ import annotations
 
+import itertools
+import re
+import unicodedata
 from collections.abc import Collection, Iterable
 from datetime import date
 
@@ -14,6 +17,72 @@ from app.novel.models import NovelPlan
 SCENES_PER_CHAPTER = 3
 CHAPTER_BUDGET_MIN = 1100
 CHAPTER_BUDGET_MAX = 1350
+#: Two chapters whose synopses share this share of the smaller one's content words (and at
+#: least `OVERLAP_MIN_SHARED` of them) tell the same core: the plan is rejected (tuning 1).
+OVERLAP_MAX = 0.6
+OVERLAP_MIN_SHARED = 4
+_WORD = re.compile(r"[^\W\d_]+", re.UNICODE)
+_STOP = frozenset(
+    [
+        "ante",
+        "antes",
+        "aqui",
+        "aunque",
+        "bajo",
+        "cada",
+        "casi",
+        "como",
+        "contra",
+        "cual",
+        "cuando",
+        "desde",
+        "donde",
+        "ella",
+        "ellas",
+        "ellos",
+        "entonces",
+        "entre",
+        "esta",
+        "este",
+        "esto",
+        "estos",
+        "estas",
+        "hace",
+        "hacia",
+        "hasta",
+        "mientras",
+        "mismo",
+        "mucho",
+        "nada",
+        "otra",
+        "otro",
+        "para",
+        "pero",
+        "poco",
+        "porque",
+        "sobre",
+        "solo",
+        "tambien",
+        "tanto",
+        "todo",
+        "todos",
+        "toda",
+        "todas",
+        "tras",
+        "luego",
+        "despues",
+        "ahora",
+        "dentro",
+        "fuera",
+        "tiene",
+        "tienen",
+        "puede",
+        "cosas",
+        "veces",
+        "tiempo",
+        "parte",
+    ]
+)
 
 
 def parse_iso(value: str | None) -> date | None:
@@ -83,6 +152,9 @@ def check_plan(
         if character.birth_date and parse_iso(character.birth_date) is None:
             problems.append(f"character {character.name}: birth_date is not YYYY-MM-DD")
 
+    problems += timeline_problems(plan)
+    problems += overlap_problems(plan, exact_names)
+
     names = {c.name for c in plan.characters}
     for name in exact_names:
         if name and name not in names:
@@ -90,10 +162,75 @@ def check_plan(
     return problems
 
 
+def _fold(text: str) -> str:
+    decomposed = unicodedata.normalize("NFD", text.casefold())
+    return "".join(ch for ch in decomposed if unicodedata.category(ch) != "Mn")
+
+
+def _content(text: str, exclude: Collection[str]) -> set[str]:
+    return {
+        w for w in _WORD.findall(_fold(text)) if len(w) >= 5 and w not in _STOP and w not in exclude
+    }
+
+
+def chapter_anchor(plan: NovelPlan, number: int) -> date | None:
+    """The date of a chapter's present action: its latest scene date (an earlier scene
+    may be a memory)."""
+    dates = [d for s in plan.scenes_of(number) if (d := parse_iso(s.story_date)) is not None]
+    return max(dates) if dates else None
+
+
+def timeline_problems(plan: NovelPlan) -> list[str]:
+    """Tuning 1: every chapter has an explicit `time_marker`, and the chapters that are
+    not flagged `flashback` move forward (or stay) in story time."""
+    problems: list[str] = []
+    previous: tuple[int, date] | None = None
+    for chapter in sorted(plan.chapters, key=lambda c: c.number):
+        if len(chapter.time_marker.strip()) < 3:
+            problems.append(
+                f"chapter {chapter.number}: time_marker is missing; give the explicit story "
+                "time of its present action relative to the previous chapter"
+            )
+        anchor = chapter_anchor(plan, chapter.number)
+        if chapter.flashback or anchor is None:
+            continue
+        if previous is not None and anchor < previous[1]:
+            problems.append(
+                f"chapter {chapter.number} ({anchor}) happens before chapter {previous[0]} "
+                f"({previous[1]}) but is not flagged flashback: keep chapters in story order "
+                "or set flashback=true and say so in its time_marker"
+            )
+        previous = (chapter.number, anchor)
+    return problems
+
+
+def overlap_problems(plan: NovelPlan, exact_names: Iterable[str] = ()) -> list[str]:
+    """Tuning 1: two chapters must not tell the same core (token overlap of synopses,
+    names and places left out)."""
+    named = [*exact_names, *(c.name for c in plan.characters), *(p.name for p in plan.places)]
+    names = {w for n in named for w in _content(n, ())}
+    words = {c.number: _content(f"{c.title} {c.synopsis}", names) for c in plan.chapters}
+    problems: list[str] = []
+    for a, b in itertools.combinations(sorted(words), 2):
+        shared = words[a] & words[b]
+        smaller = min(len(words[a]), len(words[b]))
+        if smaller and len(shared) >= OVERLAP_MIN_SHARED and len(shared) / smaller >= OVERLAP_MAX:
+            problems.append(
+                f"chapters {a} and {b} tell the same core (shared: {', '.join(sorted(shared))}); "
+                "give each chapter its own event and never narrate one scene in two chapters"
+            )
+    return problems
+
+
 __all__ = [
     "CHAPTER_BUDGET_MAX",
     "CHAPTER_BUDGET_MIN",
+    "OVERLAP_MAX",
+    "OVERLAP_MIN_SHARED",
     "SCENES_PER_CHAPTER",
+    "chapter_anchor",
     "check_plan",
+    "overlap_problems",
     "parse_iso",
+    "timeline_problems",
 ]
