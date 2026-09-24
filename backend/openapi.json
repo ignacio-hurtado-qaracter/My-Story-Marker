@@ -18,7 +18,11 @@
           "writer",
           "style_editor",
           "auditor",
-          "canoniser"
+          "canoniser",
+          "interviewer",
+          "planner",
+          "editor",
+          "judge"
         ],
         "title": "AgentRole",
         "type": "string"

@@ -24,3 +24,6 @@ dist/
 
 # Playwright MCP snapshots
 .playwright-mcp/
+
+# The authoritative database (spec 005, HARNESS_DB). A source, but local: never committed.
+data/

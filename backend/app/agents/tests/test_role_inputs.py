@@ -24,6 +24,7 @@ from app.agents.tests.test_turn_happy import make_turn_env, scripted
 from app.commons.errors import PermissionDenied
 from app.commons.llm import Document, FakeModelClient, Reply
 from app.commons.permissions import AgentRole, may_receive
+from app.commons.permissions.roles import GIFT_NOVEL_ROLES
 from app.commons.schemas import PolishOutput
 from app.commons.stores import Store
 
@@ -78,7 +79,8 @@ NOT_A_STORE_PATH = [
 
 # spec 001 / FR-AGENT-09
 def test_the_cases_cover_every_role() -> None:
-    assert set(CASES) == set(AgentRole)
+    # spec 005: the gift-novel roles have an empty `In` row; no store path reaches them.
+    assert set(CASES) == set(AgentRole) - GIFT_NOVEL_ROLES
 
 
 # spec 001 / FR-AGENT-09

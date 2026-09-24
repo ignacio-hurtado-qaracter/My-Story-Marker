@@ -45,6 +45,12 @@ WRITE_TABLE: Final[dict[AgentRole, tuple[str, ...]]] = {
         "cast/**",
         "ledger/proposed.yaml",
     ),
+    # Spec 005. The gift-novel roles write the authoritative database only (plan 004, V4);
+    # they have no file-store write, so no row of Figure 3 is widened (spec 004, D7).
+    AgentRole.INTERVIEWER: (),
+    AgentRole.PLANNER: (),
+    AgentRole.EDITOR: (),
+    AgentRole.JUDGE: (),
 }
 """FR-PERM-02, transcribed from Figure 3's table and nothing else.
 

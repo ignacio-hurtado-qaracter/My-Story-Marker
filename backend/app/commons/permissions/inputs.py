@@ -77,6 +77,11 @@ INPUT_TABLE: Final[dict[AgentRole, tuple[str, ...]]] = {
         f"manuscript/{SCENE_FILE}.md",
         "canon/**",
     ),
+    # Spec 005. The gift-novel roles read the authoritative database, not the file stores.
+    AgentRole.INTERVIEWER: (),
+    AgentRole.PLANNER: (),
+    AgentRole.EDITOR: (),
+    AgentRole.JUDGE: (),
 }
 """FR-AGENT-09, transcribed from Figure 3's `In` column.
 

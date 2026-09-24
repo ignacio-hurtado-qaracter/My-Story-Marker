@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.commons.permissions.roles import AgentRole
+from app.commons.permissions.roles import GIFT_NOVEL_ROLES, AgentRole
 from app.commons.permissions.table import WRITE_TABLE, may_write, normalise
 
 # One representative path per store family, plus the two paths inside `manuscript/` and
@@ -152,7 +152,10 @@ def test_the_auditor_reports_and_does_not_repair() -> None:
 # spec 001 / AC 2 — FR-PERM-05: no configuration widens the table.
 def test_every_role_has_a_row_and_no_role_has_an_empty_one() -> None:
     assert set(WRITE_TABLE) == set(AgentRole)
-    assert all(patterns for patterns in WRITE_TABLE.values())
+    # spec 005: the gift-novel roles write the authoritative database only, never a file.
+    assert all(
+        bool(patterns) is (role not in GIFT_NOVEL_ROLES) for role, patterns in WRITE_TABLE.items()
+    )
 
 
 # spec 001 / AC 2 — FR-STORE-05: a path that could leave the root is refused before matching.

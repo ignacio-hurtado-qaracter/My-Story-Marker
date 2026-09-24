@@ -51,6 +51,9 @@ DEFAULT_MODEL: Final[str] = "claude-haiku-4-5"
 DEFAULT_EMBED_MODEL: Final[str] = "sentence-transformers/all-MiniLM-L6-v2"
 FALLBACK_EMBED_MODEL: Final[str] = "BAAI/bge-small-en-v1.5"
 
+REPO_ROOT: Final[Path] = Path(__file__).resolve().parents[3]
+"""The monorepo root (`backend/app/commons/config.py` → three levels up from `app/`)."""
+
 ROLE_NAMES: Final[tuple[str, ...]] = (
     "architect",
     "world_builder",
@@ -58,9 +61,14 @@ ROLE_NAMES: Final[tuple[str, ...]] = (
     "style_editor",
     "auditor",
     "canoniser",
+    "interviewer",
+    "planner",
+    "editor",
+    "judge",
 )
-"""The six roles as plain strings. commons.config sits below commons.permissions in the
-import contract, so it cannot import AgentRole; the enum is checked against this tuple in
+"""The roles as plain strings (Figure 3's six, then spec 005's four). commons.config sits
+below commons.permissions in the import contract, so it cannot import AgentRole; the enum is
+checked against this tuple in
 permissions/roles.py so the two cannot drift."""
 
 
@@ -94,6 +102,10 @@ class Settings(BaseSettings):
     style_editor_model: str = Field(default=DEFAULT_MODEL, validation_alias="MODEL_STYLE_EDITOR")
     auditor_model: str = Field(default=DEFAULT_MODEL, validation_alias="MODEL_AUDITOR")
     canoniser_model: str = Field(default=DEFAULT_MODEL, validation_alias="MODEL_CANONISER")
+    interviewer_model: str = Field(default=DEFAULT_MODEL, validation_alias="MODEL_INTERVIEWER")
+    planner_model: str = Field(default=DEFAULT_MODEL, validation_alias="MODEL_PLANNER")
+    editor_model: str = Field(default=DEFAULT_MODEL, validation_alias="MODEL_EDITOR")
+    judge_model: str = Field(default=DEFAULT_MODEL, validation_alias="MODEL_JUDGE")
 
     architect_effort: EffortLevel | None = Field(default=None, validation_alias="EFFORT_ARCHITECT")
     world_builder_effort: EffortLevel | None = Field(
@@ -107,6 +119,26 @@ class Settings(BaseSettings):
     canoniser_effort: EffortLevel | None = Field(
         default=None, validation_alias="EFFORT_CANONISER"
     )
+    interviewer_effort: EffortLevel | None = Field(
+        default=None, validation_alias="EFFORT_INTERVIEWER"
+    )
+    planner_effort: EffortLevel | None = Field(default=None, validation_alias="EFFORT_PLANNER")
+    editor_effort: EffortLevel | None = Field(default=None, validation_alias="EFFORT_EDITOR")
+    judge_effort: EffortLevel | None = Field(default=None, validation_alias="EFFORT_JUDGE")
+
+    # Spec 005 / spec 004 D1. The authoritative database; relative paths resolve against
+    # the repository root, so the backend and the scripts find the same file.
+    harness_db: Path = Field(default=Path("data/harness.sqlite"), validation_alias="HARNESS_DB")
+
+    # Spec 010. Langfuse is on when both keys are set and LANGFUSE_ENABLED is not "0".
+    langfuse_public_key: str | None = Field(default=None, validation_alias="LANGFUSE_PUBLIC_KEY")
+    langfuse_secret_key: str | None = Field(
+        default=None, validation_alias="LANGFUSE_SECRET_KEY", repr=False
+    )
+    langfuse_base_url: str = Field(
+        default="https://cloud.langfuse.com", validation_alias="LANGFUSE_BASE_URL"
+    )
+    langfuse_enabled: bool = Field(default=True, validation_alias="LANGFUSE_ENABLED")
 
     claude_cli: Path | None = Field(default=None, validation_alias="CLAUDE_CLI")
     claude_timeout_seconds: float = Field(
@@ -123,6 +155,10 @@ class Settings(BaseSettings):
         "style_editor_effort",
         "auditor_effort",
         "canoniser_effort",
+        "interviewer_effort",
+        "planner_effort",
+        "editor_effort",
+        "judge_effort",
         "claude_cli",
         mode="before",
     )
@@ -134,6 +170,20 @@ class Settings(BaseSettings):
         if isinstance(value, str) and not value.strip():
             return None
         return value
+
+    @property
+    def harness_db_path(self) -> Path:
+        """Spec 005. `HARNESS_DB`, with a relative path anchored at the repository root."""
+        if self.harness_db.is_absolute():
+            return self.harness_db
+        return REPO_ROOT / self.harness_db
+
+    @property
+    def langfuse_active(self) -> bool:
+        """Spec 010. Both keys present and not switched off."""
+        return bool(self.langfuse_public_key and self.langfuse_secret_key) and (
+            self.langfuse_enabled
+        )
 
     @property
     def index_path(self) -> Path:
@@ -163,6 +213,10 @@ class Settings(BaseSettings):
                 "style_editor": self.style_editor_model,
                 "auditor": self.auditor_model,
                 "canoniser": self.canoniser_model,
+                "interviewer": self.interviewer_model,
+                "planner": self.planner_model,
+                "editor": self.editor_model,
+                "judge": self.judge_model,
             },
         )
 
@@ -178,6 +232,10 @@ class Settings(BaseSettings):
                 "style_editor": self.style_editor_effort,
                 "auditor": self.auditor_effort,
                 "canoniser": self.canoniser_effort,
+                "interviewer": self.interviewer_effort,
+                "planner": self.planner_effort,
+                "editor": self.editor_effort,
+                "judge": self.judge_effort,
             },
         )
 
