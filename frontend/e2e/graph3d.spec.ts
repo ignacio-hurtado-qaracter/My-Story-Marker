@@ -17,10 +17,11 @@ test('the three.js chunk is requested on /graph3d and not on /scenes', async ({ 
   const scripts = recordScripts(page)
 
   await page.goto('/scenes')
-  await expect(page.getByRole('heading', { level: 1, name: 'Escenas' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Índice' })).toBeVisible()
   expect(scripts.filter((url) => SCENE_CHUNK.test(url))).toEqual([])
 
-  await page.getByRole('link', { name: 'Grafo 3D' }).click()
+  // Revised by spec 003 (revision 2): /graph3d is reached from the footer.
+  await page.getByRole('contentinfo').getByRole('link', { name: 'Vista 3D' }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Grafo 3D' })).toBeVisible()
   await expect(page.locator('canvas')).toBeVisible()
   expect(scripts.filter((url) => SCENE_CHUNK.test(url))).toHaveLength(1)

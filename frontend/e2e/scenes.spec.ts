@@ -7,9 +7,10 @@ import { expect, test } from '@playwright/test'
 // spec 002 / AC 10
 test('table of contents, a scene with prose, next, and a scene without a draft', async ({ page }) => {
   await page.goto('/scenes')
-  await expect(page.getByRole('heading', { level: 1, name: 'Escenas' })).toBeVisible()
-  await expect(page.getByRole('heading', { level: 2, name: 'ch01' })).toBeVisible()
-  await expect(page.getByRole('heading', { level: 2, name: 'ch02' })).toBeVisible()
+  // Revised by spec 003 (revision 2): the index is titled "Índice" and chapters show their titles.
+  await expect(page.getByRole('heading', { level: 1, name: 'Índice' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 2, name: 'The Sealed Half' })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 2, name: 'The Calving Window' })).toBeVisible()
 
   await page.getByRole('link', { name: 'Escena 002' }).click()
   await expect(page).toHaveURL(/\/scenes\/002$/)

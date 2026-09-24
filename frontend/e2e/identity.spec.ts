@@ -7,8 +7,14 @@ import { expect, test, type Page } from '@playwright/test'
 
 /** Each route, and the h1 that shows it has rendered. */
 const PAGES = new Map([
-  ['/scenes', 'Escenas'],
+  ['/', ''],
+  ['/scenes', 'Índice'],
+  ['/chapters/ch01', 'The Sealed Half'],
   ['/scenes/002', 'Escena 002'],
+  ['/characters', 'Personajes'],
+  ['/characters/vance', 'Teodora Vance'],
+  ['/locations', 'Lugares'],
+  ['/locations/pump_vault', 'Pump vault'],
   ['/graph3d', 'Grafo 3D'],
   ['/no-existe', 'Página no encontrada'],
 ])
@@ -16,7 +22,10 @@ const ROUTES = [...PAGES.keys()]
 
 async function open(page: Page, path: string): Promise<void> {
   await page.goto(path)
-  await expect(page.getByRole('heading', { level: 1, name: PAGES.get(path) ?? '' })).toBeVisible()
+  const name = PAGES.get(path) ?? ''
+  // The cover's h1 is the personalised title: only its presence is checked.
+  const heading = name === '' ? page.getByRole('heading', { level: 1 }) : page.getByRole('heading', { level: 1, name })
+  await expect(heading).toBeVisible()
 }
 
 // spec 003 / AC 3
@@ -56,7 +65,7 @@ test('keyboard focus is visible, in the accent colour, and never under the stick
   // The title renders before the chapters; tab only once the chips exist.
   await expect(page.getByRole('link', { name: 'Escena 001' })).toBeVisible()
 
-  const expected = ['My Story Marker', 'Escenas', 'Grafo 3D', 'Escena 001']
+  const expected = ['My Story Marker', 'Portada', 'Índice', 'Personajes', 'Lugares']
   for (const name of expected) {
     await page.keyboard.press('Tab')
     const focused = page.locator(':focus')
@@ -154,3 +163,24 @@ for (const viewport of [
     expect(await overflows(page)).toBe(true)
   })
 }
+
+// spec 003 / AC 8: the cover's planet obeys the same pause.
+test('the cover planet moves while playing and stops when paused', async ({ page }) => {
+  await open(page, '/')
+  const canvas = page.locator('canvas')
+  await expect(canvas).toBeVisible()
+  const toggle = page.getByRole('button', { name: 'Pausar animación' })
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false')
+
+  await page.waitForTimeout(800)
+  const a = await canvas.screenshot()
+  await page.waitForTimeout(500)
+  expect(a.equals(await canvas.screenshot())).toBe(false)
+
+  await toggle.click()
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true')
+  await page.waitForTimeout(300)
+  const c = await canvas.screenshot()
+  await page.waitForTimeout(500)
+  expect(c.equals(await canvas.screenshot())).toBe(true)
+})
