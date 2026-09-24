@@ -1,7 +1,7 @@
 ---
 id: 001
 title: Backend v1 — stores, permissions, index, operations, agent roles and the writing turn
-status: draft               # draft · approved · implemented · superseded
+status: approved            # draft · approved · implemented · superseded
 supersedes: null
 docs:
   - docs/architecture.md#governing-principle
@@ -634,7 +634,9 @@ Answered by the user on 2026-09-23, after plan steps 1-8 were implemented.
 
 ## Open questions
 
-**Why this spec is back in `draft`** (Process 2, rule 10; 2026-09-24, after the live runs).
+**Why this spec went back to `draft`, and its re-approval** (Process 2, rule 10;
+2026-09-24, after the live runs). Re-approved by the user the same day, in session ("3- sí"
+to storing the explanation), after reading the change and its cost below.
 DR-07 gains `explanation`, a new field of a store record, so the change is to the design and
 not a clarification. The second live turn on scene 006 escalated after three revisions: the
 auditor flagged a real invariant-3 breach, but the writer received only the invariant's
