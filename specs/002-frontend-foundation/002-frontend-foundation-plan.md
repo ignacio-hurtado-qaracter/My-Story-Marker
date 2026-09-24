@@ -235,3 +235,43 @@ The agent stops, sets this plan back to `draft` and reopens Process 0 if any of 
   tree does not start, or answers differently). Wait for its commit rather than touching
   `backend/`; report the affected criteria as not yet demonstrated.
 - **Anything not in "Files to touch" is needed.** The plan is wrong; revise it first.
+
+---
+
+## Clarifications recorded during implementation (2026-09-24)
+
+Added at the user's request after steps 1-11 were done. None changes the spec's scope or
+criteria; each is also in the body of the commit named.
+
+| # | What differs from the text above | Why | Commit |
+|---|---|---|---|
+| C1 | TypeScript is 5.9.3, not the newest 7.0.2; ESLint is 9.39.5, not 10.11.0 (P1). | typescript-eslint needs TS < 6.1 and openapi-typescript needs TS 5.x; eslint-plugin-jsx-a11y supports ESLint up to 9. ESLint 9 is out of upstream support; it is a dev-only tool and `npm audit` reports nothing. Revisit when jsx-a11y supports ESLint 10. | `0ebd2a1` |
+| C2 | `eslint.config.js` is not in the Node type-check project. | Two ESLint plugins ship no types; the plan never listed the file there. | `793d528` |
+| C3 | `lint-fixtures/` is a miniature real `src/` tree (`.ts` files, its own `tsconfig.app.json` and `README.md`), not virtual paths (P6). | The boundary and cycle rules resolve imports on disk; virtual paths cannot resolve. | `793d528` |
+| C4 | `src/shared/api/errors.test.ts` exists (not in the file list). | Unit tests of the three-case parser (FR-API-04); the AC 6 e2e test covers only the real 404. | `5f8b11f` |
+| C5 | `check:api` regenerates in memory, not into a temp file (FR-API-03). | Same comparison, fewer files; ignores CRLF/LF. | `5f8b11f` |
+| C6 | The client looks up `globalThis.fetch` per call and uses an absolute `<origin>/api` base. | openapi-fetch captured `fetch` at import, before MSW patches it; Node's fetch under Vitest does not resolve relative URLs. Same behaviour in the browser. | `d664812` |
+| C7 | The graph3d test seam is `scene` (a lazy component), not `load` (a loader). | Creating a lazy component from a loader during render is rejected by react-hooks' static-components rule. | `510cd8c` |
+| C8 | A 404 on `GET /structure/chapters` is shown as "no chapters yet", not as an error panel. | A book without `chapters.yaml` is not a failure, and a retry could never fix it. Flagged to the user for confirmation. | `98aee2a` |
+| C9 | No `e2e/global-setup.ts`; the fixture copy lives in `e2e/backend.ts`. | Playwright starts its `webServer`s before global setup, so the backend command itself must prepare its story root. | `289a1ba` |
+| C10 | Nav links and table-of-contents links carry an inline 24 px target. | AC 11 found WCAG 2.2 target-size violations; there is no stylesheet in the plan's file list. | `289a1ba` |
+
+## AC 15 review note (2026-09-24)
+
+Delegated to the agent by the user; the agent also wrote much of the code, so a human may
+want to re-read it.
+
+- **Feature folders are flat and self-contained:** `app/`, `health/`, `scenes/`, `graph3d/`
+  have no subfolders; each feature exposes only its `index.ts` (`HealthBadge`,
+  `ScenesRoutes`, `Graph3dRoute`), and the boundary rules (a)-(g) enforce the rest.
+- **`app/` only composes:** router, providers, layout, not-found; no API call.
+- **`shared/ui/` placement:** `Heading` is used by `app/` (not-found), `scenes/` and
+  `graph3d/`; `ErrorPanel` by `app/` (error boundary), `scenes/` and `graph3d/`. The
+  single-user components stay in their feature: `StatusBadge` (health), `Prose` and
+  `Skeleton` (scenes), `LazyCanvas` and `EmptyScene` (graph3d). No `shared/three/` and no
+  `shared/lib/`.
+- **Four states per screen:** `/scenes` and `/scenes/:id` specify and test loading, empty,
+  error and loaded; the health badge has loading, error and loaded (empty does not apply);
+  `/graph3d` has loading, error (chunk or WebGL) and loaded (empty does not apply); the
+  not-found page is static.
+- **Language:** UI strings in Spanish; identifiers, comments and tests in English.
