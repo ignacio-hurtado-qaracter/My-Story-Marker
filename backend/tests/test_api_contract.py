@@ -163,7 +163,24 @@ forgotten, and this list is what lets the reverse-direction check below tell "no
 yet" apart from "written and never mounted".
 """
 
-EXPECTED_ROUTES = META_ROUTES | IF_03_READS | IF_04_WRITES | IF_05_OPERATIONS | IF_06_AGENTS
+K5_READER = frozenset(
+    {
+        ("GET", "/novels"),
+        ("GET", "/novels/{}"),
+        ("GET", "/novels/{}/versions"),
+        ("GET", "/novels/{}/versions/{}/chapters"),
+        ("GET", "/novels/{}/versions/{}/chapters/{}"),
+        ("GET", "/novels/{}/versions/{}/pdf"),
+        ("GET", "/novels/{}/bible"),
+        ("POST", "/novels/{}/changes"),
+        ("GET", "/novels/{}/changes/{}"),
+    }
+)
+"""Spec 014 (contract K5): the gift-novel reader over the story bible."""
+
+EXPECTED_ROUTES = (
+    META_ROUTES | IF_03_READS | IF_04_WRITES | IF_05_OPERATIONS | IF_06_AGENTS | K5_READER
+)
 
 
 def normalise_template(path: str) -> str:
