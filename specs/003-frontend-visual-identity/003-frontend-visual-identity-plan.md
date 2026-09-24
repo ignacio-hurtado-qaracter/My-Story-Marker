@@ -1,7 +1,10 @@
 ---
 spec: 003                 # the approved spec this plan implements
-status: approved          # draft · approved · done
+status: done              # draft · approved · done
 ---
+
+> **Done** (2026-09-24): every step committed and every criterion verified; closed with
+> spec 003 by the agent on the user's explicit instruction.
 
 Implementation plan for [`003-frontend-visual-identity.md`](./003-frontend-visual-identity.md),
 **revision 2** (2026-09-24). Revision 1's plan was carried out (commits `ce1362c`..`3ffc6e1`:

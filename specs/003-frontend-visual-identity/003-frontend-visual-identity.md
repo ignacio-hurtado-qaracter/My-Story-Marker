@@ -1,7 +1,7 @@
 ---
 id: 003
 title: Frontend reader — main's look on this product's pages - cover, chapter index and reader, story-bible sheets
-status: approved         # draft · approved · implemented · superseded
+status: implemented      # draft · approved · implemented · superseded
 supersedes: null
 docs:
   - docs/architecture.md#repository-and-application-stack
@@ -281,6 +281,12 @@ D-0 … D-7 of revision 1 (delegated approval; accessible palette; self-hosted f
 | R2-7 | **Default:** the book header of revision 1 moves to the cover (the premise is the cover's lead); `Prose` moves to `shared/ui/`. |
 
 ## Open questions
+
+**Closed as `implemented`** (2026-09-24), by the agent on the user's explicit instruction
+("marca como implemented y done las specs 002 y 003"), before merge rather than after it.
+Every criterion's verification is in place and passing: `npm run gate` 10 of 10 on `d9dbbf7`
+(unit 171 passed in 20 files; e2e 26 passed against the real backend). AC 12 and AC 13 are
+the review notes in plan 003.
 
 None. Candidate specs: a backend title/dedication field; architecture view; summaries; turns
 and violations; live refresh.
