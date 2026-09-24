@@ -288,3 +288,103 @@ Every fact returned:
 - `ilan`.`competences`: "execute learned splicing procedures without conscious recollection of their steps"
 
 Addresses promotion could not write: 0 in the first answer (retried once), 0 still after the retry (not kept):
+
+## AC 26 - live audit of a planted draft (the auditor's half) -- 2026-09-24 15:51 UTC
+
+- Scene 006, hand-authored draft written under the writer; draft at `C:\Users\student\AppData\Local\Temp\pytest-of-student\pytest-726\test_a_live_audit_catches_the_0\story\manuscript\006.md`
+- Selected axioms: pinned ax_brine_dark; ranked ax_cold_soak, ax_indemnity_burn, ax_calving_window; `ax_brine_dark` pinned: yes
+- Semantic half ran
+- Model `claude-haiku-4-5`, estimate 6473, input 9, cache creation 8932, cache read 0, output 15444, over_cap False
+- Adjusted finding 0 (inv 6): relocated, offset 225 moved to 210
+- Adjusted finding 1 (inv 3): relocated, offset 573 moved to 550
+
+| Planted | Finding wanted | Findings hitting it | Result |
+|---|---|---|---|
+| (a) seeing past four metres | inv 6 | 1 | yes |
+| (b) rigless swim, breathing brine | inv 3 | 1 | yes |
+| (c) registered graft hand | no inv 3 | 0 | yes |
+
+Every model finding, as the model returned it:
+- inv 6, blocking: "From the ledge she raised her lamp and saw the seal ring plainly across the open water, eleven metres out, every bolt on it lit and whole." -- ax_brine_dark: The rule states the vault's brine absorbs all lamp wavelengths past four metres. The prose shows Vance seeing the seal ring plainly at eleven metres distance with a hand-lamp from the ledge. The exception allows a lamp to light only a surface it is held against, not a surface at distance. [hits: (a) seeing past four metres]
+- inv 3, blocking: "Halfway across he opened his mouth and drew the brine deep into his chest, breathing it as easily as the gallery air behind the throat." -- Ilan's registered physical attributes at this scene state his lungs are "unmodified; no perfluorocarbon tolerance and no certification to take a wet breath." The prose shows him breathing brine directly, an action his unmodified body cannot perform and which his record explicitly forbids. [hits: (b) rigless swim, breathing brine]
+
+## AC 27 - live extraction on Draft A -- 2026-09-24 15:52 UTC
+
+- Extraction on scene 002 (Draft A): 3 fact(s), model `claude-haiku-4-5`, estimate 14037, input 9, cache creation 14617, cache read 0, over_cap False
+
+| Hand-labelled fact | Target | Found |
+|---|---|---|
+| F1 | `pump_vault`.`geometry` | **NO** |
+| F2 | `ax_cold_soak`.`exceptions` | yes |
+
+Every fact returned:
+- `ax_cold_soak`.`exceptions`: "A shortened soak to four hours is permitted on a co-op indemnity dive."
+- `ilan`.`immutable_physical`: "left_hand: severed"
+- `ilan`.`immutable_physical`: "perfluorocarbon_tolerance: absent"
+
+Addresses promotion could not write: 0 in the first answer (retried once), 0 still after the retry (not kept):
+
+## AC 27 - live extraction on Draft A -- 2026-09-24 15:52 UTC
+
+- Extraction on scene 002 (Draft A): 8 fact(s), model `claude-haiku-4-5`, estimate 14037, input 9, cache creation 14614, cache read 0, over_cap False
+
+| Hand-labelled fact | Target | Found |
+|---|---|---|
+| F1 | `pump_vault`.`geometry` | yes |
+| F2 | `ax_cold_soak`.`exceptions` | yes |
+
+Every fact returned:
+- `ax_cold_soak`.`exceptions`: "On a co-op indemnity dive, the standard six-hour soak may be shortened to four hours."
+- `pump_vault`.`geometry`: "The throat operates on a cycle controlled by the board two hundred metres up the gallery; a diver may request the cycle to be held but cannot hold it themselves; the throat releases from the vault side only, with the release mechanism located out in the brine, behind a diver who has already passed through."
+- `pump_vault`.`sensory_palette`: "the current off the exchangers, which carries a diver leftward"
+- `ilan`.`immutable_physical`: "left_hand: amputated"
+- `ilan`.`competences`: "hard line diving"
+- `ilan`.`competences`: "splicer work"
+- `quiej`.`competences`: "witnessing indemnity procedures"
+- `quiej`.`competences`: "documenting dive procedures and outcomes"
+
+Addresses promotion could not write: 0 in the first answer (retried once), 0 still after the retry (not kept):
+
+## AC 27 - live extraction on Draft A -- 2026-09-24 15:52 UTC
+
+- Extraction on scene 002 (Draft A): 2 fact(s), model `claude-haiku-4-5`, estimate 14037, input 25, cache creation 27519, cache read 41689, over_cap False
+
+| Hand-labelled fact | Target | Found |
+|---|---|---|
+| F1 | `pump_vault`.`geometry` | yes |
+| F2 | `ax_cold_soak`.`exceptions` | yes |
+
+Every fact returned:
+- `ax_cold_soak`.`exceptions`: "Divers on co-op indemnity dives may take four-hour soaks instead of six."
+- `pump_vault`.`geometry`: "The throat is an active door mechanism operated by a cycle set at the board. The cycle cannot be held or overridden by divers. The door release is accessible only from the vault side, in the water."
+
+Addresses promotion could not write: 0 in the first answer (retried once), 0 still after the retry (not kept):
+
+## AC 26 - live turn on the tempting scene -- 2026-09-24 15:58 UTC
+
+- Turn `006-1` on scene 006: outcome **merged**
+- Draft (stays in the run's private store copy, NFR-10): `C:\Users\student\AppData\Local\Temp\pytest-of-student\pytest-725\test_a_live_turn_on_the_tempti0\story\manuscript\006.md`
+- Words 995 against a budget of 1200
+- Revisions: 0; revise rejections: 0
+
+| Check | Result |
+|---|---|
+| `ax_brine_dark` in the selected list | yes |
+| Invariant-6 model findings (a count to judge against the draft; not asserted) | 0 |
+| Unregistered body change flagged (inv 3, model, not the hand) | **NO** |
+| Registered change (the graft hand) NOT flagged | yes |
+| Outcome merged | yes |
+| Every call reports a real model id | yes |
+| Every estimate <= 100k and real - 2500 <= 100k | yes |
+
+| Step | Role | Model id | Estimate | Input | Cache creation | Cache read | Output | over_cap |
+|---|---|---|---|---|---|---|---|---|
+| write | writer | claude-haiku-4-5 | 14211 | 9 | 15543 | 0 | 11024 | False |
+| audit | auditor | claude-haiku-4-5 | 7979 | 9 | 10030 | 0 | 10077 | False |
+| polish | style_editor | claude-haiku-4-5 | 3931 | 9 | 5678 | 0 | 14729 | False |
+| digest | writer | claude-haiku-4-5 | 3567 | 9 | 5310 | 0 | 1858 | False |
+| extract | canoniser | claude-haiku-4-5 | 14174 | 9 | 14741 | 0 | 9609 | False |
+
+Model findings on scene 006:
+
+A missing invariant 6 or 3 finding is a miss only if the draft contains the breach: an obedient writer leaves nothing to flag. Read the draft above to tell which.
