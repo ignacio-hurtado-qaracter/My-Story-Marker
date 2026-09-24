@@ -27,6 +27,7 @@ from app.commons.llm import Document, ModelClient
 from app.commons.observability import CallScope, Observer, load_prompt, traced_complete
 from app.commons.permissions import AgentRole
 from app.interview.brief import normalise
+from app.policy.normalise import normalise as policy_normalise
 
 POLICY: Final[str] = "free_text_injection"
 FREE_TEXT_PATH: Final[str] = "brief/free_text"
@@ -52,8 +53,33 @@ INJECTION_MARKERS: Final[tuple[tuple[str, str], ...]] = (
             r"(?:reglas|filtros|guardarrailes|politicas)"
         ),
     ),
+    # Security review (docs/security-report.md, SEC-03): forged prompt delimiters, requests
+    # for another novel's or client's data, secrets and direct store writes.
+    (
+        "delimiter_forgery",
+        r"=+\s*(?:begin|end)\s+document|=+\s*instruction\s*=+|<\s*/?\s*documents?\s*>",
+    ),
+    (
+        "cross_novel",
+        (
+            r"\bnov-[0-9a-f]{12}\b|\botr[ao]s?\s+(?:novelas?|clientes?|usuari[ao]s?)\b"
+            r"|\b(?:another|other)\s+(?:novels?|clients?|customers?|users?)\b"
+        ),
+    ),
+    ("reveal_secrets", r"\b(?:api\s*key|clave\s+(?:de\s+)?api|contrasenas?|passwords?)\b"),
+    (
+        "store_write",
+        r"\b(?:escribe|write|guarda|borra|delete)\s+(?:\w+\s+){0,2}(?:base\s+de\s+datos|database|canon)\b",
+    ),
+    ("jailbreak", r"\b(?:jailbreak|dan\s+mode|developer\s+mode|modo\s+desarrollador)\b"),
 )
 """(name, regex over the normalised text: lowercase, accents stripped)."""
+
+_INVISIBLE: Final[re.Pattern[str]] = re.compile("[\u00ad\u180e\u200b-\u200f\u2060-\u2064\ufeff]")
+"""Zero-width and soft-hyphen characters, which split a word for a regex but not for a model."""
+
+_INTRA_WORD: Final[re.Pattern[str]] = re.compile(r"(?<=[a-z])[-_.*·'`]+(?=[a-z])")
+"""Separators inside a word (`ig-no-ra`, `in.struc.cio.nes`), removed in one variant."""
 
 _COMPILED: Final[tuple[tuple[str, re.Pattern[str]], ...]] = tuple(
     (name, re.compile(pattern)) for name, pattern in INJECTION_MARKERS
@@ -65,10 +91,25 @@ class InjectionScan(BaseModel):
     markers: list[str] = Field(default_factory=list)
 
 
+def _variants(text: str) -> tuple[str, ...]:
+    """The text as the markers see it, plus its de-obfuscated forms (SEC-03).
+
+    1. folded: lowercase, accents stripped, invisible characters removed;
+    2. separators inside words removed (`ig-no-ra` -> `ignora`);
+    3. the policy engine's matcher form (`app.policy.normalise`): leetspeak decoded
+       (`1gn0r4` -> `ignora`) and spaced-out letters joined (`i g n o r a` -> `ignora`).
+    """
+    folded = normalise(_INVISIBLE.sub("", text))
+    return (folded, _INTRA_WORD.sub("", folded), policy_normalise(_INVISIBLE.sub("", text)))
+
+
 def prescan_injection(text: str) -> InjectionScan:
-    """Deterministic, model-free: which injection markers the untrusted text contains."""
-    folded = normalise(text)
-    hits = [name for name, pattern in _COMPILED if pattern.search(folded)]
+    """Deterministic, model-free: which injection markers the untrusted text contains.
+
+    A marker counts when it matches any de-obfuscated variant of the text (`_variants`).
+    """
+    variants = _variants(text)
+    hits = [name for name, pattern in _COMPILED if any(pattern.search(v) for v in variants)]
     return InjectionScan(suspected=bool(hits), markers=hits)
 
 
