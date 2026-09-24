@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -96,3 +97,20 @@ def test_pdf_export(db: Path, tmp_path: Path) -> None:
     # novedades 2 + index 3 chapters + sheet link + sheet entries' chapter links + back link
     assert links >= 10
     assert b"/Outlines" in data
+
+
+def test_concurrent_requests_all_succeed(db: Path) -> None:
+    # spec 014 / AC 1 (clarified): the per-request repository is opened in one threadpool
+    # thread and used in another, so its connection must not be bound to its opening thread.
+    app = FastAPI()
+    app.include_router(router)
+    app.dependency_overrides[get_bible_path] = lambda: db
+    # One shared portal (event loop), so concurrent requests spread over its worker threads.
+    with TestClient(app, raise_server_exceptions=False) as client:
+
+        def fetch(_: int) -> int:
+            return client.get(f"/novels/{NOVEL_ID}").status_code
+
+        with ThreadPoolExecutor(max_workers=20) as pool:
+            codes = list(pool.map(fetch, range(20)))
+    assert codes == [200] * 20

@@ -99,18 +99,20 @@ def migrate_authoritative(connection: sqlite3.Connection) -> list[str]:
     return applied_migrations(connection)
 
 
-def open_authoritative(path: Path | str) -> sqlite3.Connection:
+def open_authoritative(path: Path | str, *, check_same_thread: bool = True) -> sqlite3.Connection:
     """Open (creating if needed) and migrate the authoritative database at `path`.
 
     `":memory:"` is accepted for tests. The connection has `row_factory = sqlite3.Row`,
     autocommit mode (`isolation_level=None`), WAL and foreign keys on.
+    `check_same_thread=False` lets one owner hand the connection to another thread (the
+    reader's per-request repository, spec 014); it is never shared concurrently.
     """
     if str(path) == ":memory:":
         connection = sqlite3.connect(":memory:", isolation_level=None, check_same_thread=False)
         connection.row_factory = sqlite3.Row
         connection.execute("pragma foreign_keys = ON")
     else:
-        connection = connect(Path(path), with_vector=False)
+        connection = connect(Path(path), with_vector=False, check_same_thread=check_same_thread)
     try:
         migrate_authoritative(connection)
     except BaseException:

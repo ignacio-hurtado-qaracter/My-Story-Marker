@@ -25,7 +25,8 @@ router = APIRouter(prefix="/interview", tags=["interview"])
 
 def get_bible() -> Iterator[BibleRepository]:
     """One repository per request on `HARNESS_DB`; tests override it with `:memory:`."""
-    repo = open_bible()
+    # Opened in one threadpool thread, used by the sync endpoint in another (spec 014 fix).
+    repo = open_bible(check_same_thread=False)
     try:
         yield repo
     finally:

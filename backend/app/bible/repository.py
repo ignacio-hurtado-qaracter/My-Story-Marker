@@ -105,10 +105,13 @@ class BibleRepository:
         self._db = connection
 
     @classmethod
-    def open(cls, path: Path | str | None = None) -> Self:
-        """Open `path`, or `HARNESS_DB` (default `data/harness.sqlite` at the repo root)."""
+    def open(cls, path: Path | str | None = None, *, check_same_thread: bool = True) -> Self:
+        """Open `path`, or `HARNESS_DB` (default `data/harness.sqlite` at the repo root).
+
+        `check_same_thread=False` for a repository opened in one thread and used in
+        another, one at a time (the reader's per-request dependency)."""
         target = path if path is not None else get_settings().harness_db_path
-        return cls(open_authoritative(target))
+        return cls(open_authoritative(target, check_same_thread=check_same_thread))
 
     @property
     def connection(self) -> sqlite3.Connection:

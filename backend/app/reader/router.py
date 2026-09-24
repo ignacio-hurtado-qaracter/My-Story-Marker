@@ -49,7 +49,10 @@ BiblePathDep = Annotated[Path, Depends(get_bible_path)]
 
 
 def get_repository(path: BiblePathDep) -> Iterator[BibleRepository]:
-    with BibleRepository.open(path) as repo:
+    # A sync generator dependency runs in one threadpool thread and the sync endpoint in
+    # another, so the connection may not be bound to its opening thread. It is still used
+    # by one request at a time and closed when the request ends.
+    with BibleRepository.open(path, check_same_thread=False) as repo:
         yield repo
 
 

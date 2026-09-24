@@ -73,7 +73,9 @@ def load_vector_extension(connection: sqlite3.Connection) -> bool:
             enable(False)
 
 
-def connect(index_path: Path, *, with_vector: bool = True) -> sqlite3.Connection:
+def connect(
+    index_path: Path, *, with_vector: bool = True, check_same_thread: bool = True
+) -> sqlite3.Connection:
     """Open the index, applying the pragmas FR-IDX-06 asks for.
 
     WAL because a reader and the rebuild overlap; `foreign_keys` because the schema is small
@@ -86,10 +88,16 @@ def connect(index_path: Path, *, with_vector: bool = True) -> sqlite3.Connection
     deferred read that later upgrades to a write can fail with SQLITE_BUSY halfway through,
     where no busy timeout helps. Every write here goes through `transaction`, which takes the
     write lock up front.
+
+    `check_same_thread=False` is for a connection opened in one thread and used, never
+    concurrently, in another (a FastAPI dependency and its sync endpoint, spec 014).
     """
     index_path.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(
-        index_path, timeout=BUSY_TIMEOUT_MS / 1000, isolation_level=None
+        index_path,
+        timeout=BUSY_TIMEOUT_MS / 1000,
+        isolation_level=None,
+        check_same_thread=check_same_thread,
     )
     try:
         connection.row_factory = sqlite3.Row

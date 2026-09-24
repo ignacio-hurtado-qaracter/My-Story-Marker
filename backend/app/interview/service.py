@@ -33,10 +33,12 @@ VALIDATOR_POINT: Final[str] = "hook"
 """`ValidationPoint.HOOK`: the brief is validated when it is handed over, before planning."""
 
 
-def open_bible() -> BibleRepository:
+def open_bible(*, check_same_thread: bool = True) -> BibleRepository:
     """The story bible at `HARNESS_DB` (what `BibleRepository.open()` does, spelled so the
     boundary rule's `.open(` pattern does not mistake a database for a store file)."""
-    return BibleRepository(open_authoritative(get_settings().harness_db_path))
+    return BibleRepository(
+        open_authoritative(get_settings().harness_db_path, check_same_thread=check_same_thread)
+    )
 
 
 def new_novel_id() -> str:
