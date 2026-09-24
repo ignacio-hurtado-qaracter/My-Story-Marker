@@ -27,3 +27,6 @@ dist/
 
 # The authoritative database (spec 005, HARNESS_DB). A source, but local: never committed.
 data/
+
+# Claude Code hook logs (spec 009): the policy guard appends its decisions here.
+.claude/hooks/*.log
