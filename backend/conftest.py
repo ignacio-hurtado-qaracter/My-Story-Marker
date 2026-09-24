@@ -171,6 +171,8 @@ def minimal_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[P
     monkeypatch.setenv("STORY_INDEX", str(tmp_path / "index" / "index.sqlite"))
     monkeypatch.setenv("EMBED_CACHE_DIR", str(tmp_path / "models"))
     monkeypatch.setenv("EMBED_OFFLINE", "1")
+    # Spec 006: routes backed by the story bible (HARNESS_DB) never touch a real database.
+    monkeypatch.setenv("HARNESS_DB", str(tmp_path / "index" / "harness.sqlite"))
     get_settings.cache_clear()
     try:
         yield root
@@ -187,6 +189,8 @@ def _point_settings_at(root: Path, index_dir: Path, monkeypatch: pytest.MonkeyPa
     monkeypatch.setenv("STORY_INDEX", str(index_dir / "index.sqlite"))
     monkeypatch.setenv("EMBED_CACHE_DIR", str(index_dir / "models"))
     monkeypatch.setenv("EMBED_OFFLINE", "1")
+    # Spec 006: routes backed by the story bible (HARNESS_DB) never touch a real database.
+    monkeypatch.setenv("HARNESS_DB", str(index_dir / "harness.sqlite"))
     get_settings.cache_clear()
 
 

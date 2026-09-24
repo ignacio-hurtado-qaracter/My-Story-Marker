@@ -43,6 +43,7 @@ from app.commons.schemas.setup import SetupsFile
 from app.commons.schemas.thread import ThreadsFile
 from app.commons.schemas.time import TemporalSystem
 from app.commons.schemas.violation import ViolationsFile
+from app.interview.brief import Brief
 from app.ledger.models import TimelineFile
 from app.scenes.models import ArcsFile, ChaptersFile
 
@@ -83,6 +84,18 @@ DOCUMENT_MODELS: dict[str, type[BaseModel]] = {
 """Every file type under the stores, per the storage layout. A type missing here has no
 exported schema, which DR-01 forbids; the test in `tests/test_schema_export.py` is what
 makes the omission visible."""
+
+
+RECORD_MODELS: dict[str, type[BaseModel]] = {
+    # Records of the authoritative database (spec 004 D1) that carry a JSON Schema.
+    "brief": Brief,  # spec 006, C02
+}
+"""Typed database records, not store files: exported beside the store schemas, but kept out
+of `DOCUMENT_MODELS` so the storage-layout checks stay about the stores."""
+
+
+def exported_models() -> dict[str, type[BaseModel]]:
+    return {**DOCUMENT_MODELS, **RECORD_MODELS}
 
 
 DOCUMENT_FORMATS: dict[str, str] = {
@@ -138,7 +151,7 @@ def write_all() -> list[Path]:
     directory = schemas_dir()
     directory.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
-    for name, model in DOCUMENT_MODELS.items():
+    for name, model in exported_models().items():
         path = target_path(name)
         path.write_text(render(model), encoding="utf-8")
         written.append(path)
@@ -148,7 +161,7 @@ def write_all() -> list[Path]:
 def stale() -> list[str]:
     """Names whose committed schema is missing or no longer matches the model."""
     drifted: list[str] = []
-    for name, model in DOCUMENT_MODELS.items():
+    for name, model in exported_models().items():
         path = target_path(name)
         if not path.is_file() or path.read_text(encoding="utf-8") != render(model):
             drifted.append(name)
@@ -171,7 +184,7 @@ def main(argv: list[str] | None = None) -> int:
             for name in drifted:
                 print(f"  - {target_path(name).name}")
             return 1
-        print(f"{len(DOCUMENT_MODELS)} JSON Schemas up to date")
+        print(f"{len(exported_models())} JSON Schemas up to date")
         return 0
 
     written = write_all()
