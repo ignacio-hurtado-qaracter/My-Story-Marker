@@ -25,6 +25,7 @@ from app.novel.models import (
     SceneDraft,
 )
 from app.novel.pipeline import generate
+from app.novel.placeholders import PLACEHOLDER
 from app.novel.plan_check import check_plan
 from app.validators import (
     ValidationContext,
@@ -220,3 +221,10 @@ def test_plan_check_names_missing_facts() -> None:
     )
     assert any("pet.toby.name" in p for p in problems)
     assert any("chapters must be numbered" in p for p in problems)
+
+
+# spec 007 / AC 1 — anonymised names are rejected at scene_accept and chapter_close
+def test_placeholder_guard() -> None:
+    assert PLACEHOLDER.search("Entonces [NOMBRE_ANONIMIZADO] sonrió.")
+    assert PLACEHOLDER.search("[PERSONA] y Toby") is not None
+    assert PLACEHOLDER.search("Marta [sonrió] en 2024 [1]") is None

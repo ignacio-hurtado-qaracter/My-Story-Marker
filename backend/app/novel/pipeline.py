@@ -128,6 +128,7 @@ def _ctx(
     payload: dict[str, object] = {
         "brief": run.brief,
         "plan": plan_for_validators(run.plan) if run.plan is not None else {},
+        "client": run.roles.client,
     }
     payload.update(extra)
     return ValidationContext(

@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Final
 
 PROVIDERS: Final[tuple[str, ...]] = (
+    "app.novel.placeholders",  # B3: no anonymised names
     "app.validators.programmatic",  # B4
     "app.policy",  # B5
     "app.judge",  # B7
