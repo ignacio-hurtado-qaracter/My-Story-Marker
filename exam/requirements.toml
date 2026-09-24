@@ -226,7 +226,11 @@ checks = [{ kind = "grep", regex = '(?i)CREATE TABLE\s+(IF NOT EXISTS\s+)?\w*ver
 id = "H01"
 block = "3. Harness"
 text = "Tres roles como mínimo (planner, writer, editor/critic) invocados por un orquestador"
-checks = [{ kind = "grep", regex = '(?i)def (plan|write|revise|critique|edit|audit)\w*\(', files = ["backend/app/agents/**/*.py"], min = 3 }]
+checks = [
+  { kind = "grep", regex = '(?i)def plan\w*\(', files = ["backend/app/agents/**/*.py"] },
+  { kind = "grep", regex = '(?i)def write\w*\(', files = ["backend/app/agents/**/*.py"] },
+  { kind = "grep", regex = '(?i)def (critique|audit|edit|polish|judge)\w*\(', files = ["backend/app/agents/**/*.py"] },
+]
 
 [[item]]
 id = "H02"
@@ -282,14 +286,17 @@ checks = [{ kind = "grep", regex = '(?i)def \w*(digest|summar|rollup)\w*\(', fil
 id = "M04"
 block = "4. Memoria"
 text = "Checkpoint por capítulo y reanudación desde el último completado"
-checks = [{ kind = "grep", regex = '(?i)(checkpoint|def resume)', files = ["backend/app/**/*.py"] }]
+checks = [
+  { kind = "grep", regex = '(?i)(checkpoint|def resume)', files = ["backend/app/**/*.py"] },
+  { kind = "grep", regex = '(?i)(chapter\w{0,20}(checkpoint|resume)|(checkpoint|resume)\w{0,20}chapter|last_completed_chapter)', files = ["backend/app/**/*.py"] },
+]
 
 # ----------------------------------------------------- 5a. Validadores programáticos
 [[item]]
 id = "V01"
 block = "5a. Programáticos"
 text = "Longitud de cada capítulo dentro del rango (1.000–1.500 palabras)"
-checks = [{ kind = "grep", regex = '(?i)(word_range|min_words|max_words)', files = ["backend/app/**/*.py"] }]
+checks = [{ kind = "grep", regex = '(?i)\b(chapter_word_range|chapter_min_words|chapter_max_words|word_range|min_words|max_words)\b', files = ["backend/app/**/*.py"] }]
 
 [[item]]
 id = "V02"
@@ -451,7 +458,7 @@ checks = [{ kind = "grep", regex = '(?i)CREATE TABLE\s+(IF NOT EXISTS\s+)?\w*(fo
 id = "G02"
 block = "7. Guardrails"
 text = "Normalización antes de comparar: mayúsculas, acentos, plurales y variantes simples"
-checks = [{ kind = "grep", regex = 'unicodedata', files = ["backend/app/**/*.py"] }]
+checks = [{ kind = "grep", regex = 'unicodedata', files = ["backend/app/**/*guardrail*.py", "backend/app/**/*policy*.py", "backend/app/**/*forbidden*.py", "backend/app/guardrails/**/*.py", "backend/app/policy/**/*.py"] }]  # only normalisation used by the forbidden-words guardrail counts
 
 [[item]]
 id = "G03"
