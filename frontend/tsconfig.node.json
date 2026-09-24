@@ -27,6 +27,7 @@
     "scripts",
     "src/shared/api/contract.test.ts",
     "test/lint.test.ts",
-    "test/check-bundle.test.ts"
+    "test/check-bundle.test.ts",
+    "test/palette.test.ts"
   ]
 }

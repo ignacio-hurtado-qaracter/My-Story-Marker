@@ -21,5 +21,5 @@
     "noImplicitOverride": true
   },
   "include": ["src", "test"],
-  "exclude": ["src/shared/api/contract.test.ts", "test/lint.test.ts", "test/check-bundle.test.ts"]
+  "exclude": ["src/shared/api/contract.test.ts", "test/lint.test.ts", "test/check-bundle.test.ts", "test/palette.test.ts"]
 }
