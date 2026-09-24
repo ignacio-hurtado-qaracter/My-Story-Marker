@@ -1,0 +1,559 @@
+# Requisitos del examen final de Harness Engineering, como datos comprobables.
+#
+# Cada [[item]] es un requisito del enunciado. `checks` es una lista de comprobaciones;
+# el item pasa si pasan todas, queda parcial si pasan algunas y falta si no pasa ninguna.
+# `manual = true` marca lo que ningún script puede decidir (la calidad del CLAUDE.md, el
+# email de entrega): aparece en el informe para que nadie lo olvide.
+# `optional = true` marca los opcionales que suman nota; no cuentan para --strict.
+# `any = true` hace que el item pase si pasa cualquiera de sus comprobaciones.
+#
+# Tipos de comprobación:
+#   exists    alguna de `paths` existe
+#   glob      al menos `min` ficheros casan con alguno de `patterns` (por defecto 1)
+#   grep      `regex` aparece en ficheros que casan con `files` (al menos `min` veces)
+#   no_match  `regex` NO aparece en ningún fichero versionado (git ls-files)
+#
+# Las comprobaciones son heurísticas: un ✅ dice que el artefacto existe, no que sea
+# bueno. Las rutas marcadas "provisional" dependen de la ronda 1 del Proceso 0 de
+# reencuadre (exam/process-0/round-1-rescope.md). Cuando se decidan, se corrigen aquí.
+#
+# Genera el informe:                 python exam/check.py
+# Falla si falta algo obligatorio:   python exam/check.py --strict
+
+# ---------------------------------------------------------------- Entregables del repo
+[[item]]
+id = "E01"
+block = "Entregables"
+text = "README.md en la raíz del repo"
+checks = [{ kind = "exists", paths = ["README.md"] }]
+
+[[item]]
+id = "E02"
+block = "Entregables"
+text = "Brief de ejemplo reproducible, citado desde el README (provisional: ejemplos/brief-ejemplo.json)"
+checks = [
+  { kind = "glob", patterns = ["ejemplos/brief-ejemplo.*"] },
+  { kind = "grep", regex = "brief-ejemplo", files = ["README.md"] },
+]
+
+[[item]]
+id = "E03"
+block = "Entregables"
+text = ".env.example versionado"
+checks = [{ kind = "exists", paths = [".env.example", "backend/.env.example"] }]
+
+[[item]]
+id = "E04"
+block = "Entregables"
+text = "Sin API keys ni tokens en ningún fichero versionado"
+checks = [{ kind = "no_match", regex = '(sk-lf-[0-9a-f]{8}|pk-lf-[0-9a-f]{8}|sk-ant-[A-Za-z0-9_-]{16}|ghp_[A-Za-z0-9]{20}|AKIA[0-9A-Z]{16})' }]
+
+[[item]]
+id = "E05"
+block = "Entregables"
+text = "Novela de ejemplo completa de 10 capítulos en PDF"
+checks = [{ kind = "exists", paths = ["ejemplos/novela-ejemplo.pdf"] }]
+
+[[item]]
+id = "E06"
+block = "Entregables"
+text = "CLAUDE.md en la raíz, cuidado y legible (se puntúa)"
+manual = true
+checks = [{ kind = "exists", paths = ["CLAUDE.md"] }]
+
+[[item]]
+id = "E07"
+block = "Entregables"
+text = "Repositorio MyFactory: commit final enlazado"
+manual = true
+checks = []
+
+[[item]]
+id = "E08"
+block = "Entregables"
+text = "Email de entrega con los dos enlaces a commit y la frase de decisión de diseño (máx. 3 líneas)"
+manual = true
+checks = []
+
+# ------------------------------------------------------------------------ Presentación
+[[item]]
+id = "P01"
+block = "Presentación"
+text = "presentacion/README.md con el contenido y el idioma elegido"
+checks = [
+  { kind = "exists", paths = ["presentacion/README.md"] },
+  { kind = "grep", regex = '(?i)idioma', files = ["presentacion/README.md"] },
+]
+
+[[item]]
+id = "P02"
+block = "Presentación"
+text = "Deck principal en PDF"
+checks = [{ kind = "glob", patterns = ["presentacion/*.pdf"] }]
+
+[[item]]
+id = "P03"
+block = "Presentación"
+text = "Deck en formato editable (pptx, key, odp)"
+checks = [{ kind = "glob", patterns = ["presentacion/*.pptx", "presentacion/*.key", "presentacion/*.odp"] }]
+
+[[item]]
+id = "P04"
+block = "Presentación"
+text = "Anexos como ficheros individuales con nombre descriptivo (anexo-*.pdf)"
+checks = [{ kind = "glob", patterns = ["presentacion/anexo-*.pdf"] }]
+
+[[item]]
+id = "P05"
+block = "Presentación"
+text = "Vídeo de demo en presentacion/ o enlazado desde el README"
+any = true
+checks = [
+  { kind = "glob", patterns = ["presentacion/*.mp4", "presentacion/*.mov", "presentacion/*.webm"] },
+  { kind = "grep", regex = '(?i)https?://\S*(loom\.com|youtu\.?be|vimeo\.com|drive\.google)', files = ["README.md", "presentacion/README.md"] },
+]
+
+# ----------------------------------------------------------------- Claude Code en el repo
+[[item]]
+id = "K01"
+block = "Claude Code"
+text = "Comandos personalizados versionados en .claude/commands/"
+checks = [{ kind = "glob", patterns = [".claude/commands/*.md"] }]
+
+[[item]]
+id = "K02"
+block = "Claude Code"
+text = "Ficheros de memoria versionados en .claude/ (provisional: .claude/memory/)"
+checks = [{ kind = "glob", patterns = [".claude/memory/*.md"] }]
+
+[[item]]
+id = "K03"
+block = "Claude Code"
+text = "Configuración MCP con un servidor de inspección de navegador"
+checks = [{ kind = "grep", regex = '(?i)(playwright|chrome)', files = [".mcp.json", ".claude/mcp.json"] }]
+
+[[item]]
+id = "K04"
+block = "Claude Code"
+text = "Skills del desarrollo en el repo y referenciadas desde /docs"
+checks = [
+  { kind = "glob", patterns = [".claude/skills/*/SKILL.md"] },
+  { kind = "grep", regex = '\.claude/skills', files = ["docs/**/*.md"] },
+]
+
+[[item]]
+id = "K05"
+block = "Claude Code"
+text = "Subagentes y comandos propios documentados en /docs con propósito y resultado"
+checks = [{ kind = "grep", regex = '(?i)(subagent|\.claude/commands|\.claude/agents)', files = ["docs/**/*.md"] }]
+
+[[item]]
+id = "K06"
+block = "Claude Code"
+text = "Uso real del browser MCP documentado: qué inspeccionó, qué detectó, qué cambió"
+checks = [{ kind = "grep", regex = '(?i)(playwright mcp|browser mcp|chrome mcp)', files = ["docs/**/*.md"] }]
+
+# ------------------------------------------------------------------ 1. Configuración
+[[item]]
+id = "C01"
+block = "1. Configuración"
+text = "Agente entrevistador: nombre, edad, rasgos, recuerdos, género, tono, extensión y temas vetados"
+checks = [{ kind = "grep", regex = '(?i)interview', files = ["backend/app/**/*.py"] }]
+
+[[item]]
+id = "C02"
+block = "1. Configuración"
+text = "Brief estructurado y validado con schema"
+checks = [{ kind = "glob", patterns = ["backend/schemas/brief*.json"] }]
+
+[[item]]
+id = "C03"
+block = "1. Configuración"
+text = "Detecta datos que faltan y al menos un tipo de contradicción (edad frente a género o tono)"
+checks = [{ kind = "grep", regex = '(?i)contradict', files = ["backend/app/brief/**/*.py", "backend/app/interview/**/*.py"] }]  # provisional: feature folder
+
+[[item]]
+id = "C04"
+block = "1. Configuración"
+text = "Texto libre pegado por el usuario tratado como no confiable, con hechos extraídos"
+checks = [{ kind = "grep", regex = '(?i)untrusted', files = ["backend/app/**/*.py"] }]
+
+# ---------------------------------------------------------------- 2. Lectura interactiva
+[[item]]
+id = "R01"
+block = "2. Lectura"
+text = "Lector web (frontend) o PDF interactivo"
+checks = [{ kind = "glob", patterns = ["frontend/src/**/*.tsx", "backend/app/**/pdf*.py", "backend/app/**/export*.py"] }]
+
+[[item]]
+id = "R02"
+block = "2. Lectura"
+text = "Índice de capítulos navegable"
+checks = [{ kind = "grep", regex = '(?i)(table.?of.?contents|\btoc\b|índice)', files = ["frontend/src/**/*.tsx", "backend/app/**/*.py"] }]
+
+[[item]]
+id = "R03"
+block = "2. Lectura"
+text = "Ficha de personajes y lugares desde la story bible, con enlaces al capítulo donde aparecen"
+checks = [{ kind = "grep", regex = '(?i)(character.?sheet|ficha|glossary|dramatis)', files = ["frontend/src/**/*.tsx", "backend/app/**/*.py"] }]
+
+[[item]]
+id = "R04"
+block = "2. Lectura"
+text = "Portada con dedicatoria personalizada"
+checks = [{ kind = "grep", regex = '(?i)dedicat', files = ["frontend/src/**/*.tsx", "backend/app/**/*.py"] }]
+
+[[item]]
+id = "R05"
+block = "2. Lectura"
+text = "Cambio pedido por el lector: identifica capítulos que usan el hecho y regenera solo esos"
+checks = [{ kind = "grep", regex = '(?i)change.?request', files = ["backend/app/**/*.py"] }]
+
+[[item]]
+id = "R06"
+block = "2. Lectura"
+text = "Se marcan los capítulos cambiados (web) o hay página de novedades (PDF)"
+checks = [{ kind = "grep", regex = '(?i)(changed_chapters|novedades|what.?s.?new)', files = ["frontend/src/**/*.tsx", "backend/app/**/*.py"] }]
+
+[[item]]
+id = "R07"
+block = "2. Lectura"
+text = "Se conserva la versión anterior de la novela"
+checks = [{ kind = "grep", regex = '(?i)CREATE TABLE\s+(IF NOT EXISTS\s+)?\w*version', files = ["backend/app/**/*.sql"] }]
+
+# ------------------------------------------------------------------------ 3. Harness
+[[item]]
+id = "H01"
+block = "3. Harness"
+text = "Tres roles como mínimo (planner, writer, editor/critic) invocados por un orquestador"
+checks = [
+  { kind = "grep", regex = '(?i)def plan(_(novel|chapters?|scenes|structure|story))?\(', files = ["backend/app/agents/**/*.py"] },
+  { kind = "grep", regex = '(?i)def write\w*\(', files = ["backend/app/agents/**/*.py"] },
+  { kind = "grep", regex = '(?i)def (critique|audit|edit|polish|judge)\w*\(', files = ["backend/app/agents/**/*.py"] },
+]
+
+[[item]]
+id = "H02"
+block = "3. Harness"
+text = "Una skill reutilizable propia del harness"
+manual = true
+checks = [{ kind = "glob", patterns = [".claude/skills/*/SKILL.md"] }]
+
+[[item]]
+id = "H03"
+block = "3. Harness"
+text = "Hook de validación de capítulo"
+checks = [{ kind = "grep", regex = '(?i)chapter', files = [".claude/settings.json", ".claude/hooks/*"] }]
+
+[[item]]
+id = "H04"
+block = "3. Harness"
+text = "Hook de policy"
+checks = [{ kind = "grep", regex = '(?i)policy', files = [".claude/settings.json", ".claude/hooks/*"] }]
+
+[[item]]
+id = "H05"
+block = "3. Harness"
+text = "Tools con schema validado"
+checks = [{ kind = "grep", regex = '(?i)(def toolset_for|tool_schema|input_schema)', files = ["backend/app/**/*.py"] }]
+
+[[item]]
+id = "H06"
+block = "3. Harness"
+text = "Retries con límite, usados por el orquestador"
+checks = [{ kind = "grep", regex = 'TURN_MAX_REVISIONS|MAX_RETRIES|max_attempts', files = ["backend/app/agents/**/*.py"] }]
+
+# ------------------------------------------------------------------------ 4. Memoria
+[[item]]
+id = "M01"
+block = "4. Memoria"
+text = "Story bible en SQLite: cada hecho registra en qué capítulos se usa"
+checks = [{ kind = "grep", regex = '(?i)CREATE TABLE\s+(IF NOT EXISTS\s+)?\w*fact', files = ["backend/app/**/*.sql"] }]
+
+[[item]]
+id = "M02"
+block = "4. Memoria"
+text = "Tabla de cronología en SQLite (eventos, momento, personajes, lugar)"
+checks = [{ kind = "grep", regex = '(?i)CREATE TABLE\s+(IF NOT EXISTS\s+)?\w*(chrono|event|timeline)', files = ["backend/app/**/*.sql"] }]
+
+[[item]]
+id = "M03"
+block = "4. Memoria"
+text = "Resúmenes por capítulo que alimentan el contexto de los siguientes"
+checks = [{ kind = "grep", regex = '(?i)def \w*(digest|summar|rollup)\w*\(', files = ["backend/app/agents/**/*.py"] }]
+
+[[item]]
+id = "M04"
+block = "4. Memoria"
+text = "Checkpoint por capítulo y reanudación desde el último completado"
+checks = [
+  { kind = "grep", regex = '(?i)(checkpoint|def resume)', files = ["backend/app/**/*.py"] },
+  { kind = "grep", regex = '(?i)(chapter\w{0,20}(checkpoint|resume)|(checkpoint|resume)\w{0,20}chapter|last_completed_chapter)', files = ["backend/app/**/*.py"] },
+]
+
+# ----------------------------------------------------- 5a. Validadores programáticos
+[[item]]
+id = "V01"
+block = "5a. Programáticos"
+text = "Longitud de cada capítulo dentro del rango (1.000–1.500 palabras)"
+checks = [{ kind = "grep", regex = '(?i)\b(chapter_word_range|chapter_min_words|chapter_max_words|word_range|min_words|max_words)\b', files = ["backend/app/**/*.py"] }]
+
+[[item]]
+id = "V02"
+block = "5a. Programáticos"
+text = "Nombre del destinatario y personajes escritos exactamente como en la story bible"
+checks = [{ kind = "grep", regex = '(?i)(exact_name|name_spelling)', files = ["backend/app/**/*.py"] }]
+
+[[item]]
+id = "V03"
+block = "5a. Programáticos"
+text = "Cada elemento personalizado obligatorio del brief aparece en algún capítulo (contra SQLite)"
+checks = [{ kind = "grep", regex = '(?i)(brief_coverage|required_element)', files = ["backend/app/**/*.py"] }]
+
+[[item]]
+id = "V04"
+block = "5a. Programáticos"
+text = "Schema del brief y de la salida de cada rol validados"
+checks = [
+  { kind = "grep", regex = 'class \w+Output\(', files = ["backend/app/commons/schemas/*.py"] },
+  { kind = "glob", patterns = ["backend/schemas/brief*.json"] },
+]
+
+[[item]]
+id = "V05"
+block = "5a. Programáticos"
+text = "Validación visual con browser MCP: índice, ficha y portada renderizan; fallos vuelven al rol"
+checks = [{ kind = "grep", regex = '(?i)(playwright mcp|browser mcp|chrome mcp)', files = ["docs/process/**/*.md"] }]
+
+[[item]]
+id = "V06"
+block = "5a. Programáticos"
+text = "Cada validador tiene nombre, punto de ejecución y envía su resultado a Langfuse como score"
+checks = [{ kind = "grep", regex = '(?i)(create_score|score_current|\.score\()', files = ["backend/app/**/*.py"] }]
+
+# --------------------------------------------------------- 5b. Validadores semánticos
+[[item]]
+id = "S01"
+block = "5b. Semánticos"
+text = "LLM-as-judge con rúbrica (continuidad, tono, calidad narrativa, personalización natural), nota y justificación por criterio"
+checks = [{ kind = "grep", regex = '(?i)rubric', files = ["backend/app/**/*.py", "backend/app/**/*.md"] }]
+
+[[item]]
+id = "S02"
+block = "5b. Semánticos"
+text = "Revisión humana de una novela completa con la misma rúbrica, comparada con el juez"
+manual = true
+checks = [{ kind = "grep", regex = '(?i)(human review|revisión humana)', files = ["docs/process/**/*.md", "evals/**/*.md"] }]
+
+# ------------------------------------------------------------------ 5c. Lean 4
+[[item]]
+id = "L01"
+block = "5c. Lean 4"
+text = "Generador del fichero Lean con los hechos temporales, a partir de SQLite"
+checks = [{ kind = "grep", regex = '(?i)\.lean\b', files = ["backend/app/**/*.py", "formal/**/*.py"] }]
+
+[[item]]
+id = "L02"
+block = "5c. Lean 4"
+text = "Proyecto Lean con al menos dos invariantes"
+checks = [
+  { kind = "glob", patterns = ["formal/lean/**/lakefile.*"] },
+  { kind = "grep", regex = '(?m)^(theorem|def)\s', files = ["formal/lean/**/*.lean"], min = 2 },
+]
+
+[[item]]
+id = "L03"
+block = "5c. Lean 4"
+text = "lake build automático; si falla, la versión no se publica y el fallo vuelve al editor"
+checks = [{ kind = "grep", regex = 'lake', files = ["backend/app/**/*.py"] }]
+
+[[item]]
+id = "L04"
+block = "5c. Lean 4"
+text = "Caso real detectado solo por Lean, o justificación de por qué no hubo ninguno"
+manual = true
+checks = [{ kind = "grep", regex = '(?i)\blean\b', files = ["docs/process/**/*.md", "formal/lean/README.md"] }]
+
+# ------------------------------------------------------------------- 5d. TLA+
+[[item]]
+id = "T01"
+block = "5d. TLA+"
+text = "Especificación TLA+/PlusCal: configuración, planificación, escritura, validación, publicación, retries, checkpoint y regeneración"
+checks = [{ kind = "glob", patterns = ["formal/tla/*.tla"] }]
+
+[[item]]
+id = "T02"
+block = "5d. TLA+"
+text = "Al menos tres invariantes de seguridad y una propiedad de liveness"
+checks = [
+  { kind = "grep", regex = '(?m)^INVARIANTS?\b', files = ["formal/tla/*.cfg"] },
+  { kind = "grep", regex = '(?m)^PROPERT(Y|IES)\b', files = ["formal/tla/*.cfg"] },
+]
+
+[[item]]
+id = "T03"
+block = "5d. TLA+"
+text = "Configuración TLC en el repo sobre un modelo pequeño (5 capítulos, 2 reintentos)"
+checks = [{ kind = "glob", patterns = ["formal/tla/*.cfg"] }]
+
+[[item]]
+id = "T04"
+block = "5d. TLA+"
+text = "README que mapea cada acción de la especificación a un estado o transición del código"
+checks = [{ kind = "exists", paths = ["formal/tla/README.md"] }]
+
+[[item]]
+id = "T05"
+block = "5d. TLA+"
+text = "Contraejemplos de TLC documentados junto con el cambio que provocaron"
+manual = true
+checks = [{ kind = "grep", regex = '(?i)(counterexample|contraejemplo)', files = ["docs/process/**/*.md", "formal/tla/README.md"] }]
+
+# ----------------------------------------------------------- Evaluación del sistema
+[[item]]
+id = "EV1"
+block = "Evaluación"
+text = "Cinco briefs de prueba: uno adversarial (injection) y uno con incoherencia temporal"
+checks = [{ kind = "glob", patterns = ["evals/briefs/*.json"], min = 5 }]
+
+[[item]]
+id = "EV2"
+block = "Evaluación"
+text = "Tabla por brief de qué validadores pasaron y cuáles fallaron"
+checks = [{ kind = "glob", patterns = ["evals/results*.md", "docs/process/evals*.md"] }]
+
+[[item]]
+id = "EV3"
+block = "Evaluación"
+text = "Una iteración de tuning documentada, antes y después, con la versión de prompt"
+checks = [{ kind = "grep", regex = '(?i)(tuning)', files = ["docs/**/*.md", "evals/**/*.md"] }]
+
+# ------------------------------------------------------------------ 6. Observabilidad
+[[item]]
+id = "O01"
+block = "6. Observabilidad"
+text = "Una traza por generación, una sesión por novela (entrevista y regeneraciones incluidas)"
+checks = [{ kind = "grep", regex = '(?i)session_id', files = ["backend/app/**/*.py"] }]
+
+[[item]]
+id = "O02"
+block = "6. Observabilidad"
+text = "Span con nombre por rol y por tool; tokens, coste y latencia por llamada, capítulo y novela"
+checks = [{ kind = "grep", regex = '(?i)langfuse', files = ["backend/app/**/*.py"] }]
+
+[[item]]
+id = "O03"
+block = "6. Observabilidad"
+text = "Prompts versionados en Langfuse"
+checks = [{ kind = "grep", regex = '(?i)get_prompt', files = ["backend/app/**/*.py"] }]
+
+# --------------------------------------------------------------------- 7. Guardrails
+[[item]]
+id = "G01"
+block = "7. Guardrails"
+text = "Listas de palabras prohibidas en SQLite, globales y por novela"
+checks = [{ kind = "grep", regex = '(?i)CREATE TABLE\s+(IF NOT EXISTS\s+)?\w*(forbidden|banned|blocklist)', files = ["backend/app/**/*.sql"] }]
+
+[[item]]
+id = "G02"
+block = "7. Guardrails"
+text = "Normalización antes de comparar: mayúsculas, acentos, plurales y variantes simples"
+checks = [{ kind = "grep", regex = 'unicodedata', files = ["backend/app/**/*guardrail*.py", "backend/app/**/*policy*.py", "backend/app/**/*forbidden*.py", "backend/app/guardrails/**/*.py", "backend/app/policy/**/*.py"] }]  # only normalisation used by the forbidden-words guardrail counts
+
+[[item]]
+id = "G03"
+block = "7. Guardrails"
+text = "Una coincidencia devuelve el capítulo al writer con límite; agotado, se detiene e informa"
+manual = true
+checks = []
+
+[[item]]
+id = "G04"
+block = "7. Guardrails"
+text = "Audit log de las decisiones del policy engine (cada coincidencia también en Langfuse)"
+checks = [{ kind = "grep", regex = '(?i)CREATE TABLE\s+(IF NOT EXISTS\s+)?\w*audit', files = ["backend/app/**/*.sql"] }]
+
+[[item]]
+id = "G05"
+block = "7. Guardrails"
+text = "Tests con un caso por nivel y un caso de variante (acento o plural)"
+checks = [{ kind = "glob", patterns = ["backend/app/**/tests/test_*forbidden*.py", "backend/app/**/tests/test_*guardrail*.py"] }]
+
+[[item]]
+id = "G06"
+block = "7. Guardrails"
+text = "Máximo de 100.000 tokens de contexto por llamada"
+checks = [{ kind = "grep", regex = 'CONTEXT_TOKEN_CAP\s*(:[^=\n]+)?=\s*100_000', files = ["backend/app/commons/config.py"] }]
+
+# ------------------------------------------------------------ Documentación de proceso
+# Decidido en la ronda 1 del Proceso 0 (pregunta 5): la documentación de proceso vive en
+# docs/process/, un área de registro que cita a docs/ y nunca define diseño.
+[[item]]
+id = "D01"
+block = "Docs de proceso"
+text = "Spec inicial: qué se decidió construir y por qué, antes del código"
+checks = [{ kind = "glob", patterns = ["docs/process/spec-inicial*.md", "specs/001-*/001-*.md"] }]
+
+[[item]]
+id = "D02"
+block = "Docs de proceso"
+text = "Trade-offs: cada decisión relevante con opciones, criterios y elección"
+checks = [{ kind = "glob", patterns = ["docs/process/trade-offs*.md", "docs/process/adr/*.md"] }]
+
+[[item]]
+id = "D03"
+block = "Docs de proceso"
+text = "Explainers: uno por concepto del curso aplicado en el proyecto"
+checks = [{ kind = "glob", patterns = ["docs/process/explainers/*.md"], min = 3 }]
+
+[[item]]
+id = "D04"
+block = "Docs de proceso"
+text = "Diagramas: arquitectura del harness, máquina de estados TLA+, esquema SQLite, tabla de validadores"
+checks = [
+  { kind = "grep", regex = 'flowchart', files = ["docs/**/*.md"] },
+  { kind = "grep", regex = 'stateDiagram', files = ["docs/process/**/*.md", "formal/tla/README.md"] },
+  { kind = "grep", regex = 'erDiagram', files = ["docs/process/**/*.md", "docs/architecture.md"] },
+  { kind = "grep", regex = '(?i)validator', files = ["docs/process/**/*.md", "docs/verification.md"] },
+]
+
+[[item]]
+id = "D05"
+block = "Docs de proceso"
+text = "Registro de iteraciones: qué cambió tras cada eval, contraejemplo TLC o fallo Lean, y por qué"
+checks = [{ kind = "glob", patterns = ["docs/process/iteraciones*.md", "docs/process/iterations*.md"] }]
+
+[[item]]
+id = "D06"
+block = "Docs de proceso"
+text = "Red-team log: casos adversariales, qué validador los detectó y cómo se resolvió"
+checks = [{ kind = "glob", patterns = ["docs/process/red-team*.md"] }]
+
+# ------------------------------------------------------------------------ Opcionales
+[[item]]
+id = "X01"
+block = "Opcionales"
+optional = true
+text = "Servidor MCP de solo lectura (FastMCP) para consultar y descargar novelas"
+checks = [{ kind = "grep", regex = '(?i)fastmcp', files = ["backend/app/**/*.py", "backend/pyproject.toml"] }]
+
+[[item]]
+id = "X02"
+block = "Opcionales"
+optional = true
+text = "Linters de prosa (repeticiones, frases largas, clichés de IA, consistencia de narrador)"
+checks = [{ kind = "grep", regex = '(?i)(cliche|readability|repetition)', files = ["backend/app/**/*.py"] }]
+
+[[item]]
+id = "X03"
+block = "Opcionales"
+optional = true
+text = "Login con SQLite (hash bcrypt, JWT) y aislamiento de novelas por usuario"
+checks = [{ kind = "grep", regex = '(?i)(bcrypt|argon2)', files = ["backend/pyproject.toml"] }]
+
+[[item]]
+id = "X04"
+block = "Opcionales"
+optional = true
+text = "Informe de seguridad en docs/security-report.md"
+checks = [{ kind = "exists", paths = ["docs/security-report.md"] }]
