@@ -74,8 +74,7 @@ def brief_summary(ctx: ValidationContext) -> str:
         "places",
         "memories",
         "mandatory_elements",
-        "free_text",
-    )
+    )  # never `free_text`: raw untrusted text; its extracted facts are in the bible (R2)
     return json.dumps({k: data[k] for k in keep if k in data}, ensure_ascii=False)
 
 

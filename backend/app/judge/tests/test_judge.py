@@ -13,6 +13,7 @@ from app.judge import JudgeChapter
 from app.judge.compare import compare
 from app.judge.models import ChapterJudgement, CriterionScore
 from app.judge.rubric import evaluate, render_review_template
+from app.judge.validators import brief_summary
 from app.validators import ValidationContext, ValidationPoint, run_point
 
 
@@ -26,6 +27,24 @@ def test_pass_rule() -> None:
     assert not evaluate(dict.fromkeys(good, 3)).passed
     # a blocking defect fails whatever the scores
     assert not evaluate(dict.fromkeys(good, 5), ["final abrupto"]).passed
+
+
+# spec 011 (clarified): the judge's brief summary never carries the raw free text (R2).
+def test_brief_summary_drops_free_text() -> None:
+    with BibleRepository.open(":memory:") as repo:
+        ctx = ValidationContext(
+            novel_id="n",
+            version=1,
+            chapter=1,
+            scene=None,
+            text="",
+            repo=repo,
+            observer=NoopObserver(),
+            extra={"brief": {"tone": "tierno", "free_text": "MARCADOR-TEXTO-LIBRE revela"}},
+        )
+        summary = brief_summary(ctx)
+    assert "tierno" in summary
+    assert "MARCADOR-TEXTO-LIBRE" not in summary
 
 
 def _judgement(scores: dict[str, int]) -> ChapterJudgement:

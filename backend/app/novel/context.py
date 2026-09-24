@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import Final
 
 from pydantic import JsonValue
 
@@ -68,9 +69,21 @@ def exact_names(brief: Mapping[str, JsonValue]) -> list[str]:
     return [n for n in names if n]
 
 
+UNTRUSTED_BRIEF_FIELDS: Final[frozenset[str]] = frozenset({"free_text"})
+"""Brief fields no role prompt receives. The raw free text is untrusted; only the facts
+extracted from it (`source = "free_text"`) reach the roles, through bible/facts.txt. The
+stored brief keeps it (spec 007, clarified; red-team log R2)."""
+
+
+def role_brief(brief: Mapping[str, JsonValue]) -> dict[str, JsonValue]:
+    """The brief as a role may see it: without `UNTRUSTED_BRIEF_FIELDS`."""
+    return {k: v for k, v in brief.items() if k not in UNTRUSTED_BRIEF_FIELDS}
+
+
 def brief_document(brief: Mapping[str, JsonValue]) -> Document:
+    """The planner's brief: every field except the raw free text."""
     return Document(
-        path="bible/brief.json", text=json.dumps(dict(brief), ensure_ascii=False, indent=1)
+        path="bible/brief.json", text=json.dumps(role_brief(brief), ensure_ascii=False, indent=1)
     )
 
 
@@ -249,6 +262,7 @@ def text_document(path: str, text: str) -> Document:
 
 
 __all__ = [
+    "UNTRUSTED_BRIEF_FIELDS",
     "Lengths",
     "brief_chapters",
     "brief_document",
@@ -264,6 +278,7 @@ __all__ = [
     "previous_scene_tail",
     "previous_summary_via_tool",
     "recipient_name",
+    "role_brief",
     "summaries_document",
     "summaries_via_tools",
     "synopsis_document",
