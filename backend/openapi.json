@@ -8351,6 +8351,8 @@
             "schema": {
               "anyOf": [
                 {
+                  "maximum": 2147483647,
+                  "minimum": 1,
                   "type": "integer"
                 },
                 {
@@ -8561,6 +8563,8 @@
             "name": "version",
             "required": true,
             "schema": {
+              "maximum": 2147483647,
+              "minimum": 1,
               "title": "Version",
               "type": "integer"
             }
@@ -8613,6 +8617,8 @@
             "name": "version",
             "required": true,
             "schema": {
+              "maximum": 2147483647,
+              "minimum": 1,
               "title": "Version",
               "type": "integer"
             }
@@ -8622,6 +8628,8 @@
             "name": "n",
             "required": true,
             "schema": {
+              "maximum": 2147483647,
+              "minimum": 1,
               "title": "N",
               "type": "integer"
             }
@@ -8674,6 +8682,8 @@
             "name": "version",
             "required": true,
             "schema": {
+              "maximum": 2147483647,
+              "minimum": 1,
               "title": "Version",
               "type": "integer"
             }
