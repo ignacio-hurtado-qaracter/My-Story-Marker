@@ -81,7 +81,40 @@ own commit.
 
 ## Review notes
 
-*(Revision 2 notes are added at step 13; revision 1's notes follow.)*
+### Revision 2 — file-list deltas (recorded at step 13)
+
+Added while implementing, each with its reason in its commit: `shared/ui/Prose.css` (the
+prose styles moved with `Prose`); in `bible/`: `routes.tsx` (JSX cannot live in `index.ts`),
+`AppearanceList.tsx` instead of `Appearances.tsx` (it would collide with `appearances.ts` on
+Windows' case-insensitive file system), `Avatar.tsx`, `States.tsx`, `testing.tsx` (shared test
+data) and `LocationsPage.test.tsx`; in `cover/`: `DedicationForm.tsx`.
+
+### Revision 2 — AC 12 visual review (2026-09-24, agent, delegated)
+
+Screenshots of all ten pages at 1280 and 390 px compared with `main`'s `web/`:
+
+- **Carried over from `main`:** the hero (orange-50 → white gradient, big `h1`, lead, primary
+  and ghost pill buttons) with the orange planet on the right; a book-cover card in `main`'s
+  orange radial gradient; `main`'s detail head (avatar/cover, eyebrow, `h1`, pill) and `.kv`
+  sheet on character and location pages; cards with `main`'s shadow and radius; eyebrows,
+  pills, chips; the glass header with the Qaracter logo and pill navigation.
+- **This product's pages, not `main`'s:** cover with premise and personalised dedication;
+  numbered chapter cards; a chapter reader with a side index; character and location sheets
+  with "Aparece en".
+- **Deliberate differences:** the accessible accent `#AE4E14` for text and filled buttons;
+  white text only on the dark end of the gradients; no create form or library; the planet
+  pausable and decorative.
+- **Fixed during review:** the four-item navigation overflowed at 320 and 390 px (it now
+  wraps onto its own row); screenshot timing for the sheets.
+
+### Revision 2 — AC 13 placement review (2026-09-24, agent, delegated)
+
+`cover/` and `bible/` are flat feature folders with their own `api.ts` and CSS; `scenes/`
+gained the reader; `Prose` lives in `shared/ui/` with two users (`scenes/`, `bible/`); the
+cover reaches the planet only through `graph3d/index.ts` (`PlanetHero`); no feature imports
+another's files (the boundary lint rules pass).
+
+*(Revision 1's notes follow.)*
 
 ### Revision 1 — AC 12 visual review and AC 13 placement (2026-09-24)
 
