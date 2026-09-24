@@ -6,6 +6,10 @@ the threadpool never shares a connection. The only route that leads to a write i
 calls `app.novel.pipeline.change_fact`, the operation that owns the new version (K4).
 
 The routes are plain `def`: they block on SQLite, and FastAPI runs them in its threadpool.
+
+Spec 018 (SEC-01): every route sees the story bible through `repo.scoped_to(<caller>)`, and
+every `/novels/{novel_id}/...` route resolves the novel through `owned_novel_id` first, so a
+novel of another owner answers exactly like a missing one (404).
 """
 
 from __future__ import annotations
@@ -20,6 +24,7 @@ from fastapi import Path as PathParam
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
+from app.auth import CurrentUserDep
 from app.bible import BibleNotFoundError, BibleRepository
 from app.commons.config import get_settings
 from app.commons.deps import get_model_client
@@ -62,6 +67,15 @@ def get_repository(path: BiblePathDep) -> Iterator[BibleRepository]:
 
 
 RepoDep = Annotated[BibleRepository, Depends(get_repository)]
+"""The unscoped repository: `/auth` uses it to find users; no reader route does."""
+
+
+def get_owned_repository(repo: RepoDep, user: CurrentUserDep) -> BibleRepository:
+    """Spec 018: the repository as the caller sees it -- only the caller's novels."""
+    return repo.scoped_to(user.id)
+
+
+OwnedRepoDep = Annotated[BibleRepository, Depends(get_owned_repository)]
 
 
 def _client_or_none() -> ModelClient | None:
@@ -92,14 +106,26 @@ def _not_found(error: BibleNotFoundError) -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error))
 
 
+def owned_novel_id(novel_id: str, repo: OwnedRepoDep) -> str:
+    """The path's novel id, once the caller is known to own it; 404 otherwise."""
+    try:
+        repo.get_novel(novel_id)
+    except BibleNotFoundError as error:
+        raise _not_found(error) from error
+    return novel_id
+
+
+NovelId = Annotated[str, Depends(owned_novel_id)]
+
+
 @router.get("")
-def list_novels(repo: RepoDep) -> list[NovelSummary]:
+def list_novels(repo: OwnedRepoDep) -> list[NovelSummary]:
     """Every novel, with its current (latest published) version."""
     return service.list_novels(repo)
 
 
 @router.get("/{novel_id}")
-def get_novel(novel_id: str, repo: RepoDep) -> NovelDetail:
+def get_novel(novel_id: NovelId, repo: OwnedRepoDep) -> NovelDetail:
     """Title, recipient, personalised dedication (R04) and the versions."""
     try:
         return service.novel_detail(repo, novel_id)
@@ -108,7 +134,7 @@ def get_novel(novel_id: str, repo: RepoDep) -> NovelDetail:
 
 
 @router.get("/{novel_id}/versions")
-def list_versions(novel_id: str, repo: RepoDep) -> list[VersionInfo]:
+def list_versions(novel_id: NovelId, repo: OwnedRepoDep) -> list[VersionInfo]:
     """Every version with its parent and changed chapters; none is ever deleted (R07)."""
     try:
         return service.list_versions(repo, novel_id)
@@ -117,7 +143,7 @@ def list_versions(novel_id: str, repo: RepoDep) -> list[VersionInfo]:
 
 
 @router.get("/{novel_id}/versions/{version}/chapters")
-def chapter_index(novel_id: str, version: Version, repo: RepoDep) -> ChapterIndex:
+def chapter_index(novel_id: NovelId, version: Version, repo: OwnedRepoDep) -> ChapterIndex:
     """The navigable index (R01), each chapter marked when changed vs the parent (R06)."""
     try:
         return service.chapter_index(repo, novel_id, version)
@@ -126,7 +152,9 @@ def chapter_index(novel_id: str, version: Version, repo: RepoDep) -> ChapterInde
 
 
 @router.get("/{novel_id}/versions/{version}/chapters/{n}")
-def read_chapter(novel_id: str, version: Version, n: ChapterNumber, repo: RepoDep) -> ChapterDetail:
+def read_chapter(
+    novel_id: NovelId, version: Version, n: ChapterNumber, repo: OwnedRepoDep
+) -> ChapterDetail:
     """One chapter's text, whether it changed, and the facts it uses."""
     try:
         return service.chapter_detail(repo, novel_id, version, n)
@@ -136,8 +164,8 @@ def read_chapter(novel_id: str, version: Version, n: ChapterNumber, repo: RepoDe
 
 @router.get("/{novel_id}/bible")
 def story_bible(
-    novel_id: str,
-    repo: RepoDep,
+    novel_id: NovelId,
+    repo: OwnedRepoDep,
     version: Annotated[
         int | None, Query(ge=1, le=_MAX, description="Default: the current version.")
     ] = None,
@@ -151,13 +179,9 @@ def story_bible(
 
 @router.post("/{novel_id}/changes", status_code=status.HTTP_202_ACCEPTED)
 def request_change(
-    novel_id: str, change: ChangeRequest, repo: RepoDep, path: BiblePathDep, jobs: JobsDep
+    novel_id: NovelId, change: ChangeRequest, repo: OwnedRepoDep, path: BiblePathDep, jobs: JobsDep
 ) -> ChangeAccepted:
     """R05: resolve the fact to change and run `change_fact` in the background."""
-    try:
-        repo.get_novel(novel_id)
-    except BibleNotFoundError as error:
-        raise _not_found(error) from error
     if change.fact_key and editable_fact(repo, novel_id, change.fact_key) is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -181,7 +205,7 @@ def request_change(
 
 
 @router.get("/{novel_id}/changes/{job_id}")
-def change_status(novel_id: str, job_id: str, jobs: JobsDep) -> ChangeJob:
+def change_status(novel_id: NovelId, job_id: str, jobs: JobsDep) -> ChangeJob:
     """Poll a change: queued → resolving → running → done | failed."""
     job = jobs.get(job_id)
     if job is None or job.novel_id != novel_id:
@@ -194,7 +218,7 @@ def change_status(novel_id: str, job_id: str, jobs: JobsDep) -> ChangeJob:
     response_class=FileResponse,
     responses={200: {"content": {"application/pdf": {}}}},
 )
-def download_pdf(novel_id: str, version: Version, repo: RepoDep) -> FileResponse:
+def download_pdf(novel_id: NovelId, version: Version, repo: OwnedRepoDep) -> FileResponse:
     """The interactive PDF of this version (cover, novedades, index, sheets)."""
     try:
         repo.get_version(novel_id, version)
@@ -213,4 +237,12 @@ def download_pdf(novel_id: str, version: Version, repo: RepoDep) -> FileResponse
     )
 
 
-__all__ = ["get_bible_path", "get_change_jobs", "get_repository", "router"]
+__all__ = [
+    "OwnedRepoDep",
+    "RepoDep",
+    "get_bible_path",
+    "get_change_jobs",
+    "get_owned_repository",
+    "get_repository",
+    "router",
+]

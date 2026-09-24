@@ -214,8 +214,11 @@ def ingest_brief(
     novel_id: str | None = None,
     observer: Observer | None = None,
     client: ModelClient | None = None,
+    owner_id: str | None = None,
 ) -> str:
     """Validate, create the novel, store the brief and turn it into facts. Returns the id.
+
+    Spec 018: a new novel belongs to `owner_id` (else the repository's default owner).
 
     Raises `InvalidBriefError` for an invalid brief (after recording a failed `brief_schema`
     result when the novel already exists). `client` runs the free-text extractor; without
@@ -266,6 +269,7 @@ def ingest_brief(
                     novel_id=identifier,
                     dedication=parsed.dedication,
                     recipient_name=parsed.recipient.name,
+                    owner_id=owner_id,
                 )
             stored = parsed.model_dump(mode="json")
             repo.save_brief(identifier, stored, valid=True, schema_version=SCHEMA_VERSION)
