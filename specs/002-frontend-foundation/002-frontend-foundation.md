@@ -368,6 +368,10 @@ Nothing else is open. Deferred, each with its owner:
 - **Deferred to the turn spec:** the SSE transport and whether its event names or ordering
   need a line in `verification.md` (R3-2).
 - **Deferred to the first writing spec:** operator identity on writes (R2-5).
+- **Superseded in part by spec 003** (2026-09-24): FR-3D-01's "empty scene" becomes spec
+  003's decorative planet (FR-3D-03); `/scenes` also calls `GET /canon/project` for spec
+  003's book header (FR-BOOK); plan 002 C10's inline targets move to CSS. Every acceptance
+  criterion of this spec is unchanged and keeps passing (spec 003, AC 10).
 - **Noted for the owner of `docs/`, not a gap of this spec:** `architecture.md` rule 7 points
   to "Process 3 rule 5 in `AGENTS.md`"; the rule that says the frontend never touches the
   stores is Process 3 rule 7. A `chore:` fix of the reference.
