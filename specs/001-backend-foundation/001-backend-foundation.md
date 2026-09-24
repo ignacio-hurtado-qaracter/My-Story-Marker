@@ -122,7 +122,9 @@ This spec implements steps **1**, **2**, **4** and the human-gate half of **6** 
 [order of adoption](../../docs/verification.md#order-of-adoption): type checking, SAST with
 the permission rules, import contracts and JSON Schema on read (**A**); fixture repository
 and tests for the operations, index rebuild and migrations (**T**); tool-set guardrails and
-forbidden-write tests (**A**, **T**); the human gate on contradicting promotions (**I**).
+forbidden-write tests (**A**, **T**); the human gate on escalated violations (**I**, IF-04).
+Canon promotion is add-only and deliberately not gated
+([Human-in-the-loop review](../../docs/verification.md#human-in-the-loop-review--i)).
 Step 3 (Langfuse tracing), step 5 (branch-per-turn and the story pipeline), the eval
 datasets of step 6, and steps 7–10 are later specs.
 
@@ -152,19 +154,20 @@ datasets of step 6, and steps 7–10 are later specs.
    `BAAI/bge-small-en-v1.5` (also 384) if the configured one cannot be loaded; the active
    model name is recorded in the index.
 7. **Deterministic operations**: `dossier`, `select_entities`, `assemble_context` (100k
-   hard cap), `promote` with collision escalation, `reconcile`, and the record- and
+   hard cap), add-only `promote` (never overwrites, never escalates), `reconcile`, and the record- and
    string-level checks of `audit`.
 8. **Model client** (`commons/llm/`): one wrapper that runs each role call through the Claude
    Code CLI (`claude -p`) under the user's Claude Code login, with structured output, refusal
    handling, a pre-call input-token estimate and a fake for tests. No Anthropic API key is used.
 9. **Agent roles** (`agents/`): writer `write` and `revise`, style editor `polish`,
-   canoniser `extract_facts` and `promote` ruling, auditor semantic checks (invariants 3,
+   canoniser `extract_facts` and add-only `promote`, auditor semantic checks (invariants 3,
    6 and the prose halves of 1 and 8), writer scene digest, and chapter/arc digest rollup.
    Architect `plan` and world builder `build` are **not** invoked by a model in v1: their
    stores are written by the human operator acting under those roles (Decision 5).
 10. **Turn orchestrator** (`agents/turn.py`): Figure 4 end to end, bounded revision loop,
-    extraction on the accepted draft, promotion before the next scene, escalation to a
-    human ruling on collisions and on unresolved blocking violations.
+    extraction on the accepted draft, add-only promotion before the next scene, escalation
+    to a human on unresolved blocking violations. No promotion escalates or waits for a
+    person ([`promote`](../../docs/architecture.md#promotefact--canon)).
 11. **HTTP API** exposing all of the above, with the OpenAPI schema committed.
 12. **Fixture repository** under `backend/tests/fixtures/repo/` with a small canon, cast,
     scenes, manuscript and ledger, containing at least one instance of every violation type
@@ -240,7 +243,7 @@ Source: [definitions.md](../../docs/definitions.md), [domain-knowledge Figure 2]
 | DR-04 | `KnowledgeState.certainty` is the five-value enum; `via` is `witnessed · was_told · deduced · suspects`. Booleans are rejected. |
 | DR-05 | `Setup.resolution` is `paid · subverted · deliberately_abandoned`, optional while `paid_in` is empty; `due_by` required. |
 | DR-06 | `PlotThread.state` is the five-value enum; `max_latency: int` required. |
-| DR-07 | `ProposedFact`: `extracted_from`, `target_entity`, `target_field`, `payload`, `source_scene`, `conflict: bool`, `existing_value` (set on collision), `status` (`pending · promoted · rejected`), `ruling` (optional: `by`, `reason`, `at`). `Violation`: `scene`, `invariant` (1–10), `evidence` (quote + offset), `severity` (`blocking · reviewable · note`), `resolution` (optional: `fix_prose · fix_canon · accept_with_reason`), `source` (`mechanical · model`), `explanation` (optional: why the quoted passage breaks the invariant, in the auditor's words; set on model findings; when a re-audit reproduces an unresolved finding its explanation is replaced by the fresh one, and cleared if the fresh one has none, while a resolved finding is kept as it is; the mechanical checks leave it empty in v1). |
+| DR-07 | `ProposedFact`: `extracted_from`, `target_entity`, `target_field`, `payload`, `source_scene`, `conflict: bool`, `existing_value` (optional), `status` (`pending · promoted · rejected`), `ruling` (optional: `by`, `reason`, `at`). `conflict` and `existing_value` stay in the schema and the API unchanged but no v1 turn or promotion sets them: they are read only on facts recorded as collisions before promotion became add-only ([ProposedFact](../../docs/architecture.md#proposedfact)), and set only by a human `rule(accept)` (FR-OPS-07). `rejected` with no `ruling` means `promote` did not apply the fact because the record already specifies it (FR-OPS-06); a human rejection always carries a `ruling`. `Violation`: `scene`, `invariant` (1–10), `evidence` (quote + offset), `severity` (`blocking · reviewable · note`), `resolution` (optional: `fix_prose · fix_canon · accept_with_reason`), `source` (`mechanical · model`), `explanation` (optional: why the quoted passage breaks the invariant, in the auditor's words; set on model findings; when a re-audit reproduces an unresolved finding its explanation is replaced by the fresh one, and cleared if the fresh one has none, while a resolved finding is kept as it is; the mechanical checks leave it empty in v1). |
 | DR-08 | Identifiers are stable; the backend never renames. `Relationship` is directed with `valence` as a dated list. `ChangeEvent` (`character`, `attribute`, `from`, `to`, `scene`, `cause`) lives in `cast/{id}/changes.yaml` as [definitions.md](../../docs/definitions.md#changeevent) and the storage layout now state. |
 | DR-09 | `CanonicalTerm.forbidden_variants` present (may be empty). `TemporalSystem.epoch_zero` and `transit_matrix` required. |
 | DR-10 | Every JSON Schema is versioned in its filename and via `schema_version`; unknown versions fail validation. |
@@ -284,8 +287,8 @@ Source: [Operations](../../docs/architecture.md#operations), [Figure 2](../../do
 | FR-OPS-03 | `assemble_context(scene)` loads in order: fixed block (`canon/project.md`, `canon/style.md`); `dossier(pov, at=story_time)`; `literal_tail` of the previous scene in `discourse_order`; then each selected id in ranking order in its as-of form (dossier for characters; full record for axioms, technology, locations with parent chain, factions; chapter-level digest for prose; lexicon bound to loaded entities through `used_by`; open setups with `due_by >= scene`). It stops before the entry that would make the writer call's estimate (FR-CTX-02) exceed **100 000 tokens** — the mandatory part (role system prompt, instruction, fixed block, POV dossier, literal tail) is counted first, so the selected entities fill only what remains, and FR-CTX-03 is the same rule seen from the call — and records `truncated_at`; it never truncates inside an entry. **As-of forms.** A chapter digest is loaded only if every scene it covers has `story_time <= T`; a digest whose `povs` does not include the POV is labelled in the prompt as events the POV did not witness, so `povs` does the filtering job [SceneDigest](../../docs/architecture.md#scenedigest) gives it. A setup is "open" when `paid_in` and `resolution` are empty and its `planted_in` scene has `story_time <= T`; a violation with a `resolution` set and a thread `resolved` or `abandoned` never enter the context (they "leave the working tier as they close"). Setups are presented under a *may collect* label, never as an instruction to pay a specific one. Raw `manuscript/NNN.md` prose never enters the context except as the previous scene's `literal_tail`. |
 | FR-OPS-04 | If the fixed block exceeds 800 tokens the response carries `warnings: ["fixed_block_over_budget"]`. |
 | FR-OPS-05 | The selected-id list is persisted in the turn record (FR-TURN-07) so the auditor of the same turn reads the same list. |
-| FR-OPS-06 | `promote(fact_id)` under the canoniser role: when `conflict` is false, writes `payload` to `target_entity.target_field` and marks the fact `promoted`. When the target already holds a different value, sets `conflict = true`, records `existing_value`, leaves `status = pending`, and returns `Escalation`. It never overwrites. For a character's `immutable_physical`, what the target holds is the body **as of the fact's `source_scene`** — the stored map with every `ChangeEvent` at or before that scene applied (invariant 3; FR-OPS-01's rule) — so a fact restating a registered change is settled with no write, and one asserting the replaced value collides with the as-of value as `existing_value`. What is written is still the stored map; a change stays in `changes.yaml`. |
-| FR-OPS-07 | `rule(fact_id, ruling, reason)` under the canoniser role with `actor: human`: `accept` promotes despite the collision; `reject` marks the fact `rejected`. Every ruling is recorded on the fact. This is the human gate of [Human-in-the-loop review](../../docs/verification.md#human-in-the-loop-review--i). |
+| FR-OPS-06 | `promote(fact_id)` under the canoniser role is **add-only** and never detects a collision or escalates ([`promote`](../../docs/architecture.md#promotefact--canon)). By the target field's shape: an empty (absent, empty or whitespace-only) scalar is set to `payload`; a scalar that already holds text gets `payload` appended as one more clause, `existing.rstrip() + "; " + payload.strip()`, unless the existing text already contains it (its word tokens, NFKC and casefolded, form a contiguous run of the existing text's tokens), in which case nothing is written; a list gets `payload` appended unless already present; a mapping (`immutable_physical`) gets a key it does not have, while a key it already has (in the stored map, or named as `attribute` by any of the character's registered `ChangeEvent`s; keys compared casefolded, with runs of space, `_` and `-` equal) is never changed; an **atomic** scalar (an identifier such as `Location.parent`, or a name) that is already set is never changed. The payload is validated against the field first, so an invalid value stays `InvalidRecord`, and a payload with no word token asserts nothing and is `InvalidRecord`. A payload equal (normalised) to what the record holds, or contained in it, is settled `promoted` with no write, which also makes a promotion interrupted after its canon write settle on resume without a second append. A payload that would change what the record already states is **not applied**: status `rejected`, no `ruling`, the target byte-identical, only `ledger/proposed.yaml` written. `promote` always answers `Promoted`; a client reads `fact.status` (`promoted` = in canon, `rejected` = not applied). `Escalation` stays in the contract, unused. `promote` never sets or clears `conflict` or `existing_value`: a legacy fact recorded with `conflict: true` is promoted add-only like any pending fact and keeps both fields. What is written to a body is still the stored map; a change stays in `changes.yaml`. Nothing in `canon/` or `cast/` is ever overwritten by promotion; the residual risk of an unreviewed new fact is registered as **U** ([accepted-risk register](../../docs/verification.md#accepted-risks-u-register)). |
+| FR-OPS-07 | `rule(fact_id, ruling, reason)` under the canoniser role with `actor: human` is a **manual human tool, not part of a turn**: `accept` writes the payload even over what the record holds, recording what it replaced in `existing_value`; `reject` marks the fact `rejected`. Every ruling is recorded on the fact, and an agent actor is refused. It is kept for facts recorded as collisions before promotion became add-only; no v1 turn reaches it ([Human-in-the-loop review](../../docs/verification.md#human-in-the-loop-review--i)). A human `rule(accept)` is the only path that changes a value a record already holds. |
 | FR-OPS-08 | `reconcile(entity_id)` returns every scene whose record references the entity (`pov`, `participants`, `location` or ancestors, `tags`), every turn record whose selected list contains it, and every `KnowledgeState.acquired_in` scene whose `fact_ref` is the entity. |
 
 ### FR-LLM — Model client
@@ -331,11 +334,11 @@ available to the role.**
 
 | Id | Role · call | Requirement |
 |---|---|---|
-| FR-AGENT-01 | Writer · `write(assembled_context) -> WriterOutput` | Prompt = role system prompt + the `AssembledContext` of FR-OPS-03 as documents. Instruction states dramatic function (goal, conflict, outcome, value_change, budget) and leaves execution free. Output body is written to `manuscript/NNN.md`; `proposed_facts` are appended to `ledger/proposed.yaml` with `status: pending`. The instruction also lists, in compact form, the records a proposed fact may address and their fields, as FR-AGENT-05 derives them. The scene record's `entry_state` and `exit_state` are not part of the fixed function: the writer reaches them only in ways the other records allow and falls short of them rather than break a record, since the invariants are checked and the states are not. |
+| FR-AGENT-01 | Writer · `write(assembled_context) -> WriterOutput` | Prompt = role system prompt + the `AssembledContext` of FR-OPS-03 as documents. Instruction states dramatic function (goal, conflict, outcome, value_change, budget) and leaves execution free. Output body is written to `manuscript/NNN.md`; `proposed_facts` are appended to `ledger/proposed.yaml` with `status: pending` and promoted by the same add-only `promote` as the canoniser's (FR-OPS-06). The instruction also lists, in compact form, the records a proposed fact may address and their fields, as FR-AGENT-05 derives them. The scene record's `entry_state` and `exit_state` are not part of the fixed function: the writer reaches them only in ways the other records allow and falls short of them rather than break a record, since the invariants are checked and the states are not. |
 | FR-AGENT-02 | Writer · `revise(draft, violations) -> ReviseOutput` | Inputs: the current draft, the **blocking** violations only, each with its `explanation` where it has one, the same assembled context. Instruction: change only the flagged spans. The orchestrator diff-checks the output: if more than `REVISE_MAX_CHANGED_RATIO` (default 0.35) of the draft's sentences changed, the revision is rejected and retried once with a stronger instruction; a second failure escalates. |
 | FR-AGENT-03 | Writer · `digest(draft) -> DigestOutput` | Produces the scene-level `SceneDigest` (~100 words) written to `manuscript/digests/NNN.md`; `literal_tail` is derived by code, not by the model. |
 | FR-AGENT-04 | Style editor · `polish(draft, style) -> PolishOutput` | Inputs: `manuscript/NNN.md`, `canon/style.md`, `canon/lexicon.yaml`, POV `cast/{id}/voice.md`. Writes `manuscript/NNN.md`. Runs after a clean audit and before extraction; a polished draft is re-checked by the mechanical lexicon and voice checks (FR-AUD-05, -07) before acceptance. |
-| FR-AGENT-05 | Canoniser · `extract_facts(draft) -> ExtractOutput` | Inputs: the accepted draft, the assembled context's canon documents. Returns assertions about the world not already in canon, each with `target_entity`, `target_field`, `payload`, evidence span. Malformed output is rejected (FR-LLM-04). Results are merged with the writer's own `proposed_facts` (deduplicated by `target_entity + target_field + normalised payload`). The instruction lists the existing records a fact may address and the fields `promote` can fill on each, derived by code from `promote`'s own tests (FR-OPS-06), and names the listed records whose documents the role is not given. A returned fact addressed to anything else is not queued: the call is retried once with the bad addresses named, the valid facts of both answers are merged, and what the retry still gets wrong is dropped and kept on the call's result. |
+| FR-AGENT-05 | Canoniser · `extract_facts(draft) -> ExtractOutput` | Inputs: the accepted draft, the assembled context's canon documents. Returns only assertions about the world that the records do not already specify, each with `target_entity`, `target_field`, `payload`, evidence span. It leaves out restatements of a record, in any words, **and** contradictions of a record: judging prose against canon is the auditor's job, done before the draft is accepted ([`extract_facts`](../../docs/architecture.md#extract_factsdraft--proposedfact), [`audit`](../../docs/architecture.md#auditscene--violation)), so no contradiction is reported for a later ruling. For a field that already holds text, a fact carries only the new detail, which `promote` appends, never a rewrite of the whole value (the code-owned shape rule of the address list says so; the writer's compact list carries the same rule). Malformed output is rejected (FR-LLM-04). Results are merged with the writer's own `proposed_facts` (deduplicated by `target_entity + target_field + normalised payload`). The instruction lists the existing records a fact may address and the fields `promote` can fill on each, derived by code from `promote`'s own tests (FR-OPS-06), and names the listed records whose documents the role is not given. A returned fact addressed to anything else is not queued: the call is retried once with the bad addresses named, the valid facts of both answers are merged, and what the retry still gets wrong is dropped and kept on the call's result. |
 | FR-AGENT-06 | Auditor · `audit_semantic(scene) -> SemanticAuditOutput` | Inputs: `manuscript/NNN.md`, `scenes/NNN.yaml`, the turn's selected-entity list and the axioms it names, `cast/{id}/knowledge.yaml` and `cast/{id}/changes.yaml` for participants, `cast/{id}/dossier.md#immutable_physical`. Checks invariants **3** (stable bodies: a physical attribute in the prose that differs from `immutable_physical` with no `ChangeEvent` at or before this scene), **6** (axiomatic respect against the selected axioms only), and the prose halves of **1** (a character voices a fact whose state at story time is not `believes`/`knows`/`believes_falsely`) and **8** (the prose delivers the declared `value_change`). Each violation carries a quote, an offset and the model's explanation (DR-07). `source: model`. Each participant's body is also given **as of this scene**, computed by code by FR-OPS-01's rule, beside the stored map, so the model does not apply the change register itself. |
 | FR-AGENT-07 | Auditor · combined | `audit(scene)` = mechanical checks (FR-AUD) ∪ `audit_semantic`. Mechanical results are computed first and included in the semantic prompt as data so the model does not re-report them. |
 | FR-AGENT-08 | Writer · `rollup(chapter_id \| arc_id) -> DigestOutput` | Rolls scene digests into a chapter digest (~250 words) or chapter digests into an arc digest (~400 words), written under `manuscript/digests/` by the writer role, whose Figure 3 row already owns that path (Decision R2-6). Invoked by `POST /agents/digests/rollup`, outside any scene turn. |
@@ -362,9 +365,7 @@ stateDiagram-v2
   Polishing --> Extracting : mechanical re-check clean
   Polishing --> Escalated : re-check fails
   Extracting --> Promoting : facts merged
-  Promoting --> Merged : no collisions
-  Promoting --> AwaitingRuling : collision(s)
-  AwaitingRuling --> Merged : all ruled
+  Promoting --> Merged : facts settled, add-only
   Merged --> [*]
   Escalated --> [*]
   note right of Escalated
@@ -376,19 +377,21 @@ stateDiagram-v2
 
 *Reading it.* Every path ends in `Merged` or `Escalated`, and the revise–audit cycle is
 bounded by a constant, which is the turn-termination invariant the model-checking section
-asks for. `AwaitingRuling` is the human gate: the draft is already accepted and written;
-only the collided facts wait.
+asks for. Promotion never waits for a person: every fact is added, found already stated, or
+not applied (FR-OPS-06), so a turn that reaches `Promoting` ends `Merged`. The
+`awaiting_ruling` outcome and the rulings route stay in the API contract, unused by v1
+turns (FR-TURN-08).
 
 | Id | Requirement |
 |---|---|
 | FR-TURN-01 | `POST /agents/turns` with `{scene_id}` runs one turn as Figure 4 orders it: assemble → write → audit → (revise → audit)* → polish → extract → promote. Each step is a fresh model call with its own context; no transcript is carried between roles. |
 | FR-TURN-02 | The revise–audit loop runs at most `TURN_MAX_REVISIONS = 3` times (module constant). Reaching the bound with blocking violations still open ends the turn `escalated`; the last draft and the violations stay on disk. |
 | FR-TURN-03 | Extraction runs on the **accepted** draft (after polish), never on a draft that failed audit. The writer's own `proposed_facts` from every iteration are kept in `ledger/proposed.yaml` regardless (a rejected draft can still have invented a good name). |
-| FR-TURN-04 | Promotion happens inside the turn, before it returns, so the next scene's assembly sees the new facts. Collided facts are left `pending` with `conflict: true`; the turn ends `awaiting_ruling` and reports them. After every promotion, and after every `accept` ruling, the turn runs `reconcile(target_entity)` and records the affected already-written scenes on the turn record, so a retroactive change is named the moment it is made rather than found at the read-through. |
-| FR-TURN-05 | A turn is **not** started for a scene that has facts `pending` with `conflict: true` from an earlier turn of the same scene, nor while another turn is running on the same store root (a lock file under `.index/`). |
+| FR-TURN-04 | Promotion happens inside the turn, before it returns, so the next scene's assembly sees the new facts. Every fact, the writer's included, goes through the add-only `promote` of FR-OPS-06; a fact not applied is recorded on the turn record as `rejected` with the fixed reason code `already_specified field=<target_field>` (no mapping key or payload text, NFR-10), and the turn ends `merged` whatever its facts' settlements. A pending fact with `conflict: true` is an ordinary pending fact. After every promotion that settles a fact `promoted`, and after every `accept` ruling, the turn runs `reconcile(target_entity)` and records the affected already-written scenes on the turn record, so a retroactive change is named the moment it is made rather than found at the read-through. |
+| FR-TURN-05 | A turn is **not** started while another turn is running on the same store root (a lock file under `.index/`); the second request gets `409 TurnLocked`. Pending facts from an earlier turn, collided or not, never block a turn. |
 | FR-TURN-06 | Every **store** write during a turn is performed under the role Figure 4 assigns to that step; the orchestrator holds no role and cannot write to the tree except through a role's tool set. Its own records go to `.index/`, which is not a store and is not governed by Figure 3 (Decision R2-1). |
 | FR-TURN-07 | A turn record is written to `.index/turns/NNN-<n>.yaml`: scene, started/ended, outcome, per step: role, model id, prompt version, input, output and cache-read tokens, elapsed; the selected-entity list with scores; violation ids per iteration; fact ids promoted, pending, rejected, with the scenes `reconcile` returned for each; the draft's `words` against the scene `budget` and each digest's `words` against its level target; whether the scene closes its chapter (a hint for `rollup`, which stays a manual call in v1). The record is written after every step, not only at the end, so a crash leaves the steps completed so far on disk (FR-TURN-09). |
-| FR-TURN-08 | `POST /agents/turns/{id}/rulings` accepts a list of `{fact_id, ruling, reason}` under `X-Agent-Role: canoniser` and `actor: human`, applies FR-OPS-07 to each, and moves the turn from `awaiting_ruling` to `merged` when none remain. |
+| FR-TURN-08 | `POST /agents/turns/{id}/rulings` accepts a list of `{fact_id, ruling, reason}` under `X-Agent-Role: canoniser` and `actor: human`, applies FR-OPS-07 to each, and moves the turn from `awaiting_ruling` to `merged` when none remain. **Kept but unused by v1 turns**: no v1 turn ends `awaiting_ruling`, so the route acts only on a turn record left in that state before promotion became add-only. The route, `RulingRequest` and the `awaiting_ruling` outcome stay in the API contract unchanged. |
 | FR-TURN-09 | Steps are idempotent on retry: a turn interrupted by a process crash can be resumed from its record (`POST /agents/turns/{id}/resume`) without re-running completed steps. |
 | FR-TURN-10 | `POST /agents/turns?dry_run=true` runs assembly only and returns the `AssembledContext` with token count and selected ids, without calling the writer. |
 
@@ -416,8 +419,8 @@ Source: [Domain invariants](../../docs/definitions.md#domain-invariants), [Viola
 | IF-02 | Write routes require `X-Agent-Role`; a human operator adds `X-Actor: human`, absent means `agent`, and the orchestrator always sends `agent` (Decision R2-7). Missing role → `400`; forbidden → `403` `{"error": "permission_denied", "role", "path"}`. |
 | IF-03 | Reads: `GET /canon/project`, `/canon/style`, `/canon/{kind}`, `/canon/{kind}/{id}`, `/canon/lexicon`, `/canon/time`; `GET /cast`, `/cast/{id}`, `/cast/{id}/dossier?at=`, `/cast/{id}/knowledge`, `/cast/{id}/voice`, `/cast/relationships`; `GET /structure/arcs`, `/structure/chapters`; `GET /scenes`, `/scenes/{id}`; `GET /manuscript/{id}`, `/manuscript/digests/{id}`; `GET /cast/{id}/changes`; `GET /ledger/{setups\|threads\|timeline\|proposed\|violations}`; `GET /agents/turns`, `/agents/turns/{id}`, `/agents/provenance?path=&since=`. |
 | IF-04 | Writes: `PUT /canon/{kind}/{id}`, `/canon/lexicon`, `/canon/time` (world_builder, canoniser); `PUT /cast/{id}/{dossier\|voice\|knowledge\|changes}`, `/cast/relationships` (canoniser); `PUT /structure/{arcs\|chapters}`, `PUT /scenes/{id}` (architect); `PUT /manuscript/{id}` (writer, style_editor); `PUT /manuscript/digests/{id}` (writer); `POST /ledger/proposed` (writer, canoniser — Figure 3 gives both `ledger/proposed.yaml`); `PUT /ledger/violations` (auditor). A human resolves an escalated violation through that last route, acting as the auditor with `X-Actor: human`, by setting `resolution` (`fix_prose · fix_canon · accept_with_reason`); the prose or canon edit itself goes through the owning role's route. This is the dotted "escalate ruling" edge of [Figure 1](../../docs/architecture.md#figure-1--the-working-loop). |
-| IF-05 | Operations: `POST /scenes/{id}/select`, `/scenes/{id}/assemble`, `/scenes/{id}/audit?semantic=false` (mechanical only, no model), `/scenes/{id}/audit` (full, auditor role); `POST /ledger/proposed/{id}/promote` (canoniser) → `Promoted \| Escalation`; `POST /ledger/proposed/{id}/rule` (canoniser, human); `POST /canon/reconcile`; `POST /index/rebuild`; `GET /index/status`. |
-| IF-06 | Turns: `POST /agents/turns` `{scene_id}` (+ `?dry_run`), `GET /agents/turns/{id}`, `POST /agents/turns/{id}/rulings`, `POST /agents/turns/{id}/resume`, `POST /agents/digests/rollup` `{chapter_id \| arc_id}`. Turn execution is synchronous with streamed progress as Server-Sent Events (one event per step) so a client can follow a multi-minute turn. |
+| IF-05 | Operations: `POST /scenes/{id}/select`, `/scenes/{id}/assemble`, `/scenes/{id}/audit?semantic=false` (mechanical only, no model), `/scenes/{id}/audit` (full, auditor role); `POST /ledger/proposed/{id}/promote` (canoniser) → `Promoted \| Escalation` in the contract, `Promoted` always in v1 (read `fact.status`: `promoted` in canon, `rejected` not applied; FR-OPS-06); `POST /ledger/proposed/{id}/rule` (canoniser, human; kept, reached by no v1 turn, FR-OPS-07); `POST /canon/reconcile`; `POST /index/rebuild`; `GET /index/status`. |
+| IF-06 | Turns: `POST /agents/turns` `{scene_id}` (+ `?dry_run`), `GET /agents/turns/{id}`, `POST /agents/turns/{id}/rulings` (kept, unused by v1 turns, FR-TURN-08), `POST /agents/turns/{id}/resume`, `POST /agents/digests/rollup` `{chapter_id \| arc_id}`. Turn execution is synchronous with streamed progress as Server-Sent Events (one event per step) so a client can follow a multi-minute turn. |
 | IF-07 | Error bodies share one shape. `InvalidRecord` → `422`, `NotFound` → `404`, `PermissionDenied` → `403`, `IndexBusy` → `503`, `TurnLocked` → `409`, `ContextBudgetExceeded` → `422`, `MalformedModelOutput` / `ModelRefused` / `OutputTruncated` → `502` with the category, `ModelCallFailed` → `502` with its reason (FR-LLM-08: the CLI is missing, the call timed out, the envelope is unreadable, or the API returned an error status), `InvalidRole` → `400` (IF-02). |
 | IF-08 | `backend/openapi.json` is exported by script and committed; CI fails on drift. |
 
@@ -506,20 +509,20 @@ other, a build failure.
 | AC 10 | `dossier(character, at=T)` never includes knowledge or valence dated after `T` (property test). | **T** |
 | AC 11 | `select_entities` returns ids only; the entities named in `pins` come first; the POV is absent. | **T** |
 | AC 12 | `assemble_context` never includes a fact acquired after the scene; stops before 100k; never truncates inside an entry; the selected list persisted in the turn record equals the list the auditor step receives. | **T** |
-| AC 13 | `promote` on a non-conflicting fact updates the record; on a collision it returns `Escalation`, leaves `canon/` and `cast/` byte-identical, and writes only `conflict` (with the colliding `existing_value`) on the fact in `ledger/proposed.yaml`. No code path under `ledger/` or `agents/` resolves a collision without a `rule` call carrying `actor: human`. | **T**, **A** (grep rule) |
+| AC 13 | `promote` is add-only (FR-OPS-06): it sets an empty field; appends a new detail to a filled text field so the old text is a prefix of the new, and writes nothing when the text already contains it; adds a missing key to `immutable_physical`; and does **not** apply a fact that would change an already-specified key (stored or named by a `ChangeEvent`), identifier or name: status `rejected` with no `ruling`, `conflict` and `existing_value` unset, the target byte-identical, only `ledger/proposed.yaml` changed. It always returns `Promoted`, never escalates, and never overwrites (property over every promotable field). No code under `ledger/` or `agents/` writes `canon/` outside `promote` or `rule`, and `rule` refuses an agent actor. | **T**, **A** (grep rule) |
 | AC 14 | `reconcile` returns a superset of hand-labelled dependents for a character, a nested location and a tagged axiom. | **T** |
 | AC 15 | Mechanical `audit` on the fixture finds every planted violation for invariants 1r, 2, 4, 5, 7, 8r, 9, 10 with expected severity and nothing on the clean control scene. | **T** |
 | AC 16 | `audit` writes only `ledger/violations.yaml`, only under the auditor role; any other role → `403` and a byte-identical tree. | **T** |
 | AC 17 | The writer's tool set contains no tool whose target matches `canon/**`; the auditor's contains only `ledger/violations.yaml`; the canoniser's contains nothing under `manuscript/`. Verified by a test that enumerates each role's tools and by a `semgrep` rule that forbids hand-written tool lists. | **T**, **A** |
 | AC 18 | With `FakeModelClient`, a full turn on the fixture ends `merged`: draft, digest, proposed facts and turn record are on disk under the right roles; provenance names a role for every file changed. | **T** |
 | AC 19 | With a scripted fake that always returns a blocking violation, the turn ends `escalated` after exactly 3 revisions, with the last draft and all violations on disk. With a fake that changes 60 % of sentences on revise, the revision is rejected and the turn escalates after the second attempt. | **T** |
-| AC 20 | With a fake extraction that collides with canon, the turn ends `awaiting_ruling`; `rulings` with `accept` promotes and moves it to `merged`; `reject` marks the fact and also moves it to `merged`; a second turn on the scene is refused (`409`) while a ruling is pending. | **T** |
+| AC 20 | With a fake extraction whose facts include one that would change an already-specified key, the turn ends `merged` with that fact recorded as `rejected` (not applied, reason code set, `conflict` false, no reconcile for it) and the record byte-identical; a fact adding a detail to a filled scalar gets the detail appended; a second turn started while one runs is refused (`409`) by the lock. | **T** |
 | AC 21 | With a fake returning schema-invalid output, the step retries once then fails `MalformedModelOutput`; nothing is written to `manuscript/`. With a fake returning `stop_reason: refusal`, the turn escalates with the category. | **T** |
 | AC 22 | With an estimated input above 100k (FR-LLM-07, FR-CTX-02), no model call is made and the turn escalates `ContextBudgetExceeded`. | **T** |
 | AC 23 | No store content appears in the `system` field of any recorded fake call; every document block is delimited and labelled as data. | **T** |
 | AC 24 | Resuming a turn killed after the write step re-runs audit onward without a second write call (fake call log). | **T** |
 | AC 25 | The role header is trusted without authentication. | **U** — registered |
-| AC 26 | Live run (`--live`, real model through `claude -p` under the user's Claude Code login, real embedder) of one turn on the fixture's tempting scene: the semantic auditor flags the planted axiom violation and the planted unregistered body change, and does not flag the registered one in `changes.yaml`; the turn ends `merged` or `awaiting_ruling`; the turn record shows real model ids, cache-read tokens, and per step an estimate under 100k and a real count under 100k once `CLI_OVERHEAD_TOKENS` is subtracted. Output attached to the PR. | **D** |
+| AC 26 | Live run (`--live`, real model through `claude -p` under the user's Claude Code login, real embedder) of one turn on the fixture's tempting scene: the semantic auditor flags the planted axiom violation and the planted unregistered body change, and does not flag the registered one in `changes.yaml`; the turn ends `merged`; the turn record shows real model ids, cache-read tokens, and per step an estimate under 100k and a real count under 100k once `CLI_OVERHEAD_TOKENS` is subtracted. Output attached to the PR. | **D** |
 | AC 27 | Live run: `extract_facts` on the fixture's accepted draft returns at least the two hand-labelled invented facts. | **D** |
 | AC 28 | Fixture repository documented with expected mechanical audit output and the tempting scene's expected semantic finding; reviewed by a human. | **I** |
 | AC 29 | `backend/openapi.json` equals the exported schema; `schemathesis` against it on the fixture yields no `5xx`. | **T** |
@@ -547,12 +550,12 @@ other, a build failure.
 | 10 | T | `cast/tests/test_dossier.py` | Unit + property |
 | 11 | T | `scenes/tests/test_select.py` | Unit |
 | 12 | T | `scenes/tests/test_assemble.py`, `backend/tests/test_turn_selection_shared.py` | Property + integration |
-| 13 | T, A | `ledger/tests/test_promote.py`; `semgrep` rule: no write to `canon/` under `ledger/`/`agents/` outside `promote`/`rule` | Unit + SAST |
+| 13 | T, A | `ledger/tests/test_promote.py` (set, append, contained, add-key, not-applied with changed files exactly `ledger/proposed.yaml`, crash-resume, word boundary, legacy `conflict: true` fact, `rule` refuses an agent) and a `hypothesis` property over every promotable field of every fixture record (old value a prefix or sub-map of the new; changed files within the target and `ledger/proposed.yaml`); `semgrep` rule: no write to `canon/` under `ledger/`/`agents/` outside `promote`/`rule` | Unit + property + SAST |
 | 14 | T | `canon/tests/test_reconcile.py` | Golden + property |
 | 15 | T | `ledger/tests/test_audit_<n>.py` | Golden on fixture |
 | 16 | T | `ledger/tests/test_audit_writes.py` | Tree hash before/after |
 | 17 | T, A | `commons/permissions/tests/test_toolsets.py`; `semgrep` rule on `agents/` | Unit + SAST |
-| 18–24 | T | `agents/tests/test_turn_*.py` with `FakeModelClient` scripts under `agents/tests/scripts/` | Integration on fixture copy |
+| 18–24 | T | `agents/tests/test_turn_*.py` with `FakeModelClient` scripts under `agents/tests/scripts/`; AC 20's lock clause by `test_turn_escalation.py::test_a_second_turn_while_one_runs_is_refused` | Integration on fixture copy |
 | 25 | U | `docs/verification.md` U register, row "role trusted, not authenticated" (commit `95e0cd5`) | Reason: local single operator; mitigation: provenance |
 | 31 | U | `docs/verification.md` U register, row ".index/ records not rebuildable" (commit `95e0cd5`) | Mitigation: git history, structured logs, Langfuse later |
 | 32 | T | `commons/stores/tests/test_provenance.py`, `agents/tests/test_turn_provenance.py` | Log inspection after fake turn |
@@ -568,7 +571,8 @@ other, a build failure.
 `commons/` imports no feature (A); only `commons/stores/` reaches the tree (A); index
 drop-and-rebuild (T); migrations (T); `SQLITE_BUSY` (T); no module outside its role writes
 a forbidden store (A, T); operations on known and unknown cases (T); the writer cannot
-write canon (A, T); contradicting promotions are ruled by a human (I); selection returns
+write canon (A, T); promotion never overwrites canon (T, A); a wrong new fact kept out of
+canon is **U** by design (registered); selection returns
 ids only and loads as-of (T); the selected list is recorded and shared with the auditor
 (T); the 100k cap, static half (A) and per-call count (now also **T** via AC 22, D via
 AC 26); API agreement, backend side (T). Rows **not** advanced and why: agent
@@ -633,6 +637,40 @@ Answered by the user on 2026-09-23, after plan steps 1-8 were implemented.
 ---
 
 ## Open questions
+
+**Add-only promotion, and why this spec went to `draft` and back** (Process 2, rule 10;
+2026-09-24). The user ordered: "The canoniser must not check collisions with canon; the
+auditor already does that. The canoniser only adds what is not specified and does not
+collide with canon. Remove the canoniser's 'functionality' of looking for collisions."
+What changed, following [`promote`](../../docs/architecture.md#promotefact--canon),
+[`extract_facts`](../../docs/architecture.md#extract_factsdraft--proposedfact) and
+[Human-in-the-loop review](../../docs/verification.md#human-in-the-loop-review--i):
+FR-AGENT-05 extracts only what the records do not specify and leaves out contradictions,
+which are the auditor's; FR-OPS-06 `promote` is add-only (set, append a clause, add a missing
+key; never change a key, identifier or name the record already has) and never escalates;
+FR-OPS-07 `rule` becomes a manual human tool outside the turn; FR-TURN-04/-05/-08, the turn
+diagram, DR-07, IF-05, IF-06, AC 13, AC 20 and their verification rows follow, and AC 26's
+outcome narrows to `merged` because no v1 turn can reach `awaiting_ruling`. The collision
+fields, `rule`, the rulings route, `RulingRequest`, `Escalation` and `awaiting_ruling` stay
+in the API contract unchanged, unused by v1 turns. The residual risk is one **U** entry in the
+[accepted-risk register](../../docs/verification.md#accepted-risks-u-register). The status
+went to `draft` and back to `approved` by the agent on the user's explicit delegation
+(2026-09-24); Process 0 and the human approval were waived by the user. No human has reviewed
+this revision. The implementation plan follows the same path.
+
+- *Deferred, stale emitted text:* these strings still describe the collision gate but are
+  emitted into `backend/openapi.json` (and so into `frontend/`'s generated types) or live in
+  fixture data files, so they are left unchanged for the session that owns `frontend/` to
+  regenerate: the `ProposedFact` class docstring and its `conflict`, `existing_value`,
+  `ruling` and `status` descriptions; `ProposedFile.proposed`; the `FactStatus`, `RulingKind`,
+  `Ruling`, `Actor` and `TurnOutcome` docstrings; the `Promoted`, `Escalation`, `RuleRequest`,
+  `RulingApplied`, `FactRecord` and `RulingRequest` docstrings and fields; the docstrings and
+  summaries of the promote, rule, start-turn and turn-rulings routes; and, in the fixture
+  tree, `CLAUDE.md` and the header of `ledger/proposed.yaml`.
+- *Recorded, out of scope:* `POST /ledger/proposed` accepts facts with any `status` or
+  `ruling`, so "rejected with no ruling means not applied by `promote`" holds only for entries
+  `promote` wrote; an HTTP `promote` does not take the turn lock, so two concurrent appends to
+  one scalar can lose one while both facts read `promoted` (lists already behave so).
 
 **Why this spec went back to `draft`, and its re-approval** (Process 2, rule 10;
 2026-09-24, after the live runs). Re-approved by the user the same day, in session ("3- sí"
@@ -707,8 +745,8 @@ required:
 - **FR-IDX-08 says when the update runs.** "A store write re-embeds" could be read as running
   the embedder inside every write request. It runs at the start of each selection instead,
   which is also what makes FR-TURN-04's "the next scene's assembly sees the new facts" hold.
-- **AC 13's "changes nothing"** meant canon and cast: the collision itself is recorded on the
-  fact in `ledger/proposed.yaml`, which is how a human later finds it.
+- **AC 13's "changes nothing"** meant canon and cast. *Superseded 2026-09-24:* AC 13 is now
+  add-only, and a fact not applied changes only its own entry in `ledger/proposed.yaml`.
 - **IF-07 lists every error the API returns.** `InvalidRole` (IF-02) and `ModelCallFailed`
   (FR-LLM-08) were raised by the code and missing from the table.
 
@@ -757,12 +795,10 @@ name (2026-09-24):
 Two clarifications folded in after the first AC 26 and AC 27 live runs, each approved by the
 user (2026-09-24), and the findings they left deferred by name:
 
-- **FR-OPS-06 compares a body fact with the body as of its scene.** The first live turn ended
-  `awaiting_ruling` on a false collision: the canoniser restated a participant's registered
-  graft, and `promote` compared it with the stored map from before the change. Invariant 3
-  and `definitions.md` ChangeEvent ("before it, the old value holds") make the change
-  register part of what the record holds, so the comparison is with the as-of body; the
-  write is unchanged. FR-AGENT-06 hands the auditor the same as-of body for each participant.
+- **FR-OPS-06 compares a body fact with the body as of its scene.** *Superseded for promotion
+  on 2026-09-24 by add-only `promote`:* a key a registered ChangeEvent names counts as already
+  specified and is never changed, so no as-of comparison is needed to promote. The as-of body
+  stays for the auditor: FR-AGENT-06 hands it the as-of body for each participant.
 - **FR-AGENT-05 checks each fact's address before queueing it.** The first live extraction
   named fields no record has, so its facts could never be promoted. The canoniser now gets
   the records and fields `promote` can fill, computed from `promote`'s own tests, and one
@@ -785,23 +821,27 @@ user (2026-09-24), and the findings they left deferred by name:
   closer. `architecture.md`'s Violation table does not list `explanation` (nor `source`), and
   no doc states that a scene record's states yield to the other records: both are Process 1
   questions.
-- *Deferred:* body facts are compared by key. The third live turn's canoniser restated a
-  registered change under a key the stored map lacks (`hand` beside `left_hand`), and
-  `promote` added it as a new attribute; FR-OPS-06 adds an absent key by design, so a
-  restatement under another name is not caught.
+- *Deferred, now in the U register:* body facts are compared by normalised key. The third live
+  turn's canoniser restated a registered change under a key neither the stored map nor the
+  change register names (`hand` beside `left_hand`), and `promote` added it as a new
+  attribute; add-only `promote` adds an absent key by design, so a synonym key still gets
+  through ([accepted-risk register](../../docs/verification.md#accepted-risks-u-register)).
 - *Deferred:* when the canoniser retries, the turn record keeps only the retry's call; the
   first call's usage and the retried and rejected facts are not on it, so a turn's token
   total undercounts by that call and rejected facts are visible only to a direct caller.
 - *Deferred:* the address check covers the field, not the value; a field that holds only
   record ids (`Location.parent`, `derives_from`, `who_has_it`, `who_knows_what`) accepts any
-  text at extraction and can still be refused at promotion. The writer's own facts are not
-  address-checked; `promote` refuses a bad one and the turn lists it as `refused`.
+  text at extraction and can still be refused at promotion; once such a field is set, a fact
+  aimed at it is not applied (FR-OPS-06). The writer's own facts are not address-checked;
+  `promote` refuses a bad one and the turn lists it as `refused`.
 - *Deferred:* a retry that fails outright fails the extract step, and the first answer's
   valid facts go with it.
-- *Deferred:* a record's `body` is offered as a promotable field; almost every record already
-  has one, so a fact aimed at it collides and waits for a person.
+- *Deferred, now in the U register:* a record's `body` is offered as a promotable field;
+  almost every record already has one, so a fact aimed at it is appended as a clause, and
+  `body` fields and axiom statements grow clause by clause.
 - *Deferred:* no code path turns a body change the prose shows into a ChangeEvent in
-  `changes.yaml`; a body change proposed as a fact can only collide and go to a person.
+  `changes.yaml`; a body change proposed as a fact would change an already-specified key and
+  is not applied (the auditor flags the prose under invariant 3).
 
 Two things are recorded here for the reviewer rather than asked:
 
