@@ -56,6 +56,7 @@ Results are persisted and scored by `run_point` (V06), never by the validator.
 | `schema_brief` | stored brief vs `app.interview.brief.Brief` or `schemas/brief.v1.json` | pre_publish | yes (skipped-pass if no schema is available) | interviewer |
 | `lean_chronology` | `repo.chronology_json` → `verify_chronology` (Lean 4) | pre_publish | yes (toolchain missing = fail) | editor |
 | `prose_repetition` | repeated words / 4-grams, Spanish AI clichés (X02) | chapter_close, hook | soft: fails only if ≥ 3 clichés or ≥ 3 repetition hits | editor |
+| `calendar_consistency` | a weekday named next to a date matches the real calendar (tuning 2) | chapter_close | yes | editor (fix or drop the weekday) |
 
 **Matching rules** (documented in the module docstrings):
 
@@ -97,6 +98,26 @@ chapter a missing fact was assigned to), `role_output` (a pydantic model, or a d
   only the first participant exits and only a **later story date** counts as an appearance
   after exit; a flashback dated before the exit and the exit day itself pass.
 
+## Tuning iteration 2 (revision, 2026-09-24)
+
+> Approval delegated by the user for this session; status stays `approved`. Reason: the
+> 10-chapter example was blocked after two repair rounds by `judge_novel` on weekday
+> names that contradict their dates; no programmatic check saw them, so each repair round
+> spent a judge call to find what a calendar computes.
+
+- **`calendar_consistency`** (`calendar.py`, chapter_close, blocking, feedback to the
+  editor). Finds `<weekday> [,] [el] [día] <n> de <mes> [de <año>]` (only commas and a
+  few time words such as "por la mañana", "siguiente" between weekday and date) and
+  `[el] <n> de <mes> [de <año>], [que era] <weekday>`, the day in digits or Spanish words
+  ("veintitrés", "treinta y uno"). The year is the explicit one, else the year of a plan
+  date of this chapter with the same day and month (`ctx.extra["plan"]` chapter
+  `calendar`, fallback its scenes' `story_date`), else the latest year of the chapter's
+  dates, else of the plan; with no year resolvable the mention is skipped, never guessed.
+  A wrong weekday fails with "El capítulo dice «…», pero el 23 de junio de 2026 es martes.
+  Corrige el día de la semana o elimínalo". Weekdays without a date ("aquel lunes") and
+  durations ("treinta años") are out: durations go through the canonical figures of the
+  prompt (spec 007, tuning 2).
+
 ## Acceptance criteria
 
 1. AC 1 — V01: `chapter_length` passes inside the brief range (inclusive), fails outside,
@@ -118,12 +139,17 @@ chapter a missing fact was assigned to), `role_output` (a pydantic model, or a d
    point(s); results reach SQLite and Langfuse through `run_point`. **I** (review; the
    persistence path is tested by spec 005)
 7. AC 7 — X02: `prose_repetition` is soft as specified. **I**
+8. AC 8 — tuning iteration 2: `calendar_consistency` fails on a weekday that contradicts
+   its date (computed with `datetime`, digits or words, year from the plan), passes on the
+   right one, and is registered at chapter_close. **T**
+   (`test_programmatic.py::test_calendar_consistency_weekdays`)
 
 ## Verification plan
 
 `backend/app/validators/programmatic/tests/test_programmatic.py`, tests tagged
 `# spec 008 / AC n`: AC 1 (length boundaries), AC 2 (variants), AC 3 (coverage over
-`BibleRepository.open(":memory:")`), AC 4 (`skipif` on `find_lake()`). AC 5–7 by review in
+`BibleRepository.open(":memory:")`), AC 4 (`skipif` on `find_lake()`), AC 8 (calendar).
+AC 5–7 by review in
 the `backend:` commit. Gate: `ruff check`, `mypy --strict`, `pytest -q` on `app/validators`.
 
 ## Open questions
