@@ -86,6 +86,7 @@ git diff --stat spec/001-backend...exam/rescope
 | `exam/process-0/round-2-rescope.md` | Ronda 2 del Proceso 0, con respuestas |
 | `exam/process-0/round-3-rescope.md` | Ronda 3: la spec pasa a 004 y se centra en confrontar `docs/` con el enunciado |
 | `exam/process-0/round-4-rescope.md` | Ronda 4: qué ha resuelto ya la rama del backend (revisión en solo lectura) |
+| `specs/004-exam-refactor-programme/004-exam-refactor-programme.md` | **Spec 004 en borrador**: confrontación de `docs/` con el enunciado, decisiones, 12 bloques paralelos con dueños de ficheros, contratos entre bloques, protocolo y plantilla de spec de bloque |
 | `.claude/commands/exam-gap.md` | Comando `/exam-gap`: regenera el informe y propone el siguiente bloque |
 | `.claude/memory/` | Copia curada de la memoria de Claude Code |
 | `.mcp.json` | Servidor Playwright MCP fijado a 0.0.82, para inspección visual |
@@ -127,6 +128,7 @@ git diff --stat spec/001-backend...exam/rescope
     `exam/rescope` y la protección local ahora bloquea cualquier cambio de rama allí.
 14. **Reenfoque del usuario:** la spec pasa a ser la **004** y se centra en **confrontar
     `docs/` con el enunciado**. Ronda 3 del Proceso 0.
+16. **Spec 004 redactada en borrador** a petición del usuario, antes de cerrar el Proceso 0: las preguntas abiertas van con su respuesta por defecto en sus Open questions (2, 10, 26, 29-37). Pensada para lanzarse en `spec/001-backend` y generar desde ella las specs de bloque en paralelo.
 15. **Ronda 4:** revisión en solo lectura de `spec/001-backend`. `docs/` no ha cambiado,
     así que las contradicciones de la ronda 3 siguen en pie. El código sí ha avanzado:
     retries con límite, orquestador, resúmenes por capítulo, reanudación de turno, CI,
