@@ -171,7 +171,7 @@ to a generated `.lean` file, and `lake build` checks four theorems over it:
 4. **No appearance after death or departure** — invariant 16.
 
 The build runs automatically at `pre_publish`. A failure blocks the version, and the failed
-theorem with its events is sent to the editor as feedback for the repair round
+theorem with its events is sent to the editor as feedback for the repair rounds
 (`architecture.md`, [Figure 5](./architecture.md#figure-5--one-novel-generation)); the result is
 a validator result and a Langfuse score. The design's own properties — the permission table
 and the harness flow — are checked by TLA+, not by Lean (see Model checking below).
@@ -341,8 +341,11 @@ The **judge** role scores each chapter at `chapter_close` and the whole novel at
 
 The rubric names the defects that fail a chapter whatever its score: **inconsistent
 characters, senseless time jumps, chapters that contradict each other, mechanical or
-repetitive prose, abrupt endings, and forced personalisation**. A chapter below the
-threshold on any criterion goes back to the editor with the justification.
+repetitive prose, abrupt endings, and forced personalisation**. A defect fails the chapter
+only when it is **concrete**: the judge names the chapters involved, cites the passage and
+rates it severity `alta`; a suspicion ("posible", "parece") or a `media` / `baja` defect is
+feedback for the editor, not a failure. The score thresholds are unchanged. A chapter below
+the threshold on any criterion goes back to the editor with the justification.
 
 A **human review** of at least one full novel uses the same rubric and the same scale, and
 its scores are compared with the judge's in a table per criterion; disagreement is the
