@@ -82,6 +82,8 @@ are; the 3D graph page.
 
 1. AC 1 — R01, R02: `GET /novels/{id}/versions/{v}/chapters` lists every chapter with title,
    words and `changed_vs_parent`. **T**
+   *Clarified (browser-MCP finding 1): this holds under concurrent requests too — the
+   per-request repository is opened with `check_same_thread=False`.*
 2. AC 2 — R03, R04, R06, E05: `export_pdf` writes a PDF with a cover (title, recipient,
    dedication), a "Novedades" page when version > 1, a linked index, the chapters and the
    character/place sheet with links, and internal links throughout. **T**
