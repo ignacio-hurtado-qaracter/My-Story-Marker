@@ -153,6 +153,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Login
+         * @description Check the password and return a session token.
+         */
+        post: operations["login_auth_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Me
+         * @description The identity the token (or `AUTH_REQUIRED=0`) resolves to.
+         */
+        get: operations["me_auth_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Register
+         * @description Create a user (bcrypt-hashed password) and return a session token.
+         */
+        post: operations["register_auth_register_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/canon/axioms": {
         parameters: {
             query?: never;
@@ -740,6 +800,66 @@ export interface paths {
         get: operations["index_status_index_status_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/interview/briefs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ingest
+         * @description Validate and ingest a brief into the story bible; returns the novel id.
+         */
+        post: operations["ingest_interview_briefs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/interview/turn": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Turn
+         * @description One interviewer step: merge the answer into the draft, return the next question.
+         */
+        post: operations["turn_interview_turn_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/interview/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Validate
+         * @description Missing fields, contradictions and schema errors of a brief.
+         */
+        post: operations["validate_interview_validate_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1763,6 +1883,20 @@ export interface components {
             role: string;
         };
         /**
+         * BriefReport
+         * @description What `validate_brief` answers. `valid` iff all three lists are empty.
+         */
+        BriefReport: {
+            /** Contradictions */
+            contradictions?: string[];
+            /** Errors */
+            errors?: string[];
+            /** Missing */
+            missing?: string[];
+            /** Valid */
+            valid: boolean;
+        };
+        /**
          * Calendar
          * @description DR-09. One culture's way of naming the time that `epoch_zero` counts.
          *
@@ -2258,6 +2392,16 @@ export interface components {
          * @enum {string}
          */
         ContextPart: "role_input" | "fixed" | "pov" | "literal_tail" | "lexicon" | "selected" | "setup";
+        /** Credentials */
+        Credentials: {
+            /**
+             * Email
+             * @example ana@example.com
+             */
+            email: string;
+            /** Password */
+            password: string;
+        };
         /**
          * DatedValence
          * @description DR-08. One reading of an edge, anchored to the scene that produced it.
@@ -2857,6 +3001,27 @@ export interface components {
              */
             vector_rows: number;
         };
+        /** IngestRequest */
+        IngestRequest: {
+            /**
+             * Brief
+             * @description A brief with the brief.v1.json shape.
+             */
+            brief: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /**
+             * Novel Id
+             * @description The id minted at the start of the interview, if any.
+             */
+            novel_id?: string | null;
+        };
+        /** IngestResponse */
+        IngestResponse: {
+            /** Novel Id */
+            novel_id: string;
+        };
+        JsonValue: unknown;
         /**
          * KindIndex
          * @description IF-03, `GET /canon/{kind}`: the identifiers of one kind, and nothing else.
@@ -4582,6 +4747,26 @@ export interface components {
              */
             story_axis?: string[];
         };
+        /** TokenResponse */
+        TokenResponse: {
+            /**
+             * Access Token
+             * @description Send as `Authorization: Bearer <token>`.
+             */
+            access_token: string;
+            /**
+             * Expires In
+             * @description Seconds until the token expires.
+             */
+            expires_in: number;
+            /**
+             * Token Type
+             * @default bearer
+             * @constant
+             */
+            token_type: "bearer";
+            user: components["schemas"]["UserInfo"];
+        };
         /**
          * TrimmedDossier
          * @description FR-OPS-01, AC 10. The character as they were at story hour `at`, and nothing later.
@@ -4802,16 +4987,26 @@ export interface components {
             steps?: components["schemas"]["StepRecord"][];
         };
         /**
-         * TurnRequest
-         * @description IF-06, the body of `POST /agents/turns`: the scene to write. Nothing else -- the scene
-         *     record says what the scene is for, and the stores say everything the roles may read.
+         * TurnResult
+         * @description What a caller gets back: the merged draft, the question to ask, and the report.
          */
-        TurnRequest: {
+        TurnResult: {
             /**
-             * Scene Id
-             * @description The scene to run one turn on (FR-TURN-01).
+             * Degraded
+             * @description Set when the model call failed and the question is the deterministic one.
              */
-            scene_id: string;
+            degraded?: string | null;
+            /** Done */
+            done: boolean;
+            /** Draft */
+            draft: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /** Next Question */
+            next_question: string;
+            /** Novel Id */
+            novel_id: string;
+            report: components["schemas"]["BriefReport"];
         };
         /**
          * TurnStep
@@ -4822,6 +5017,13 @@ export interface components {
          * @enum {string}
          */
         TurnStep: "assemble" | "write" | "audit" | "revise" | "polish" | "recheck" | "digest" | "extract" | "promote" | "done";
+        /** UserInfo */
+        UserInfo: {
+            /** Email */
+            email: string;
+            /** Id */
+            id: string;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -5063,6 +5265,40 @@ export interface components {
             /** Role */
             role: string;
         };
+        /**
+         * TurnRequest
+         * @description IF-06, the body of `POST /agents/turns`: the scene to write. Nothing else -- the scene
+         *     record says what the scene is for, and the stores say everything the roles may read.
+         */
+        app__agents__models__TurnRequest: {
+            /**
+             * Scene Id
+             * @description The scene to run one turn on (FR-TURN-01).
+             */
+            scene_id: string;
+        };
+        /** TurnRequest */
+        app__interview__router__TurnRequest: {
+            /**
+             * Answer
+             * @description The client's last answer. Untrusted data.
+             */
+            answer: string;
+            /** Draft */
+            draft?: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /**
+             * Last Question
+             * @default ¡Hola! Vamos a preparar una novela única. ¿Para quién es el regalo? Dime su nombre, su edad y qué relación tienes con esa persona.
+             */
+            last_question: string;
+            /**
+             * Novel Id
+             * @description Omit on the first turn.
+             */
+            novel_id?: string | null;
+        };
     };
     responses: never;
     parameters: never;
@@ -5174,7 +5410,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["TurnRequest"];
+                "application/json": components["schemas"]["app__agents__models__TurnRequest"];
             };
         };
         responses: {
@@ -5292,6 +5528,106 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["TurnRecord"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    login_auth_login_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Credentials"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            /** @description Wrong email or password. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    me_auth_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserInfo"];
+                };
+            };
+        };
+    };
+    register_auth_register_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Credentials"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponse"];
+                };
+            };
+            /** @description The email is already registered. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {
@@ -6423,6 +6759,119 @@ export interface operations {
             };
         };
     };
+    ingest_interview_briefs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["IngestRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngestResponse"];
+                };
+            };
+            /** @description `novel_id` names a novel of another owner. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The novel already has an ingested brief. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid brief; `detail` is its BriefReport. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    turn_interview_turn_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["app__interview__router__TurnRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TurnResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    validate_interview_validate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: components["schemas"]["JsonValue"];
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BriefReport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_proposed_ledger_proposed_get: {
         parameters: {
             query?: never;
@@ -6948,8 +7397,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                novel_id: string;
                 job_id: string;
+                novel_id: string;
             };
             cookie?: never;
         };
@@ -7011,8 +7460,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                novel_id: string;
                 version: number;
+                novel_id: string;
             };
             cookie?: never;
         };
@@ -7043,9 +7492,9 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                novel_id: string;
                 version: number;
                 n: number;
+                novel_id: string;
             };
             cookie?: never;
         };
@@ -7076,8 +7525,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                novel_id: string;
                 version: number;
+                novel_id: string;
             };
             cookie?: never;
         };

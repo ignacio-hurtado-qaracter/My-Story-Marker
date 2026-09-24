@@ -187,6 +187,16 @@ K5_READER = frozenset(
 )
 """Spec 014 (contract K5): the gift-novel reader over the story bible."""
 
+SPEC_018_AUTH = frozenset(
+    {
+        ("POST", "/auth/register"),
+        ("POST", "/auth/login"),
+        ("GET", "/auth/me"),
+    }
+)
+"""Spec 018 (X03): login. The contract suites run with `AUTH_REQUIRED=0` (root conftest), so
+the reader and interview routes they exercise act as the built-in `local` owner."""
+
 EXPECTED_ROUTES = (
     META_ROUTES
     | IF_03_READS
@@ -195,6 +205,7 @@ EXPECTED_ROUTES = (
     | IF_06_AGENTS
     | SPEC_006_INTERVIEW
     | K5_READER
+    | SPEC_018_AUTH
 )
 
 

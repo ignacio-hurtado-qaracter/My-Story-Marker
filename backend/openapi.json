@@ -1304,6 +1304,32 @@
         "title": "ContextPart",
         "type": "string"
       },
+      "Credentials": {
+        "properties": {
+          "email": {
+            "examples": [
+              "ana@example.com"
+            ],
+            "maxLength": 254,
+            "minLength": 3,
+            "pattern": "^[^@\\s]+@[^@\\s]+$",
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "maxLength": 72,
+            "minLength": 8,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "Credentials",
+        "type": "object"
+      },
       "DatedValence": {
         "additionalProperties": false,
         "description": "DR-08. One reading of an edge, anchored to the scene that produced it.\n\nThe anchor is a scene rather than a story time for the same reason `KnowledgeState`\nanchors to one: scenes are re-dated on the story axis during planning, and a valence\nthat carried its own timestamp would quietly stop agreeing with the scene it came from.",
@@ -4539,6 +4565,36 @@
         "title": "TimelineFile",
         "type": "object"
       },
+      "TokenResponse": {
+        "properties": {
+          "access_token": {
+            "description": "Send as `Authorization: Bearer <token>`.",
+            "title": "Access Token",
+            "type": "string"
+          },
+          "expires_in": {
+            "description": "Seconds until the token expires.",
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "token_type": {
+            "const": "bearer",
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserInfo"
+          }
+        },
+        "required": [
+          "access_token",
+          "expires_in",
+          "user"
+        ],
+        "title": "TokenResponse",
+        "type": "object"
+      },
       "TrimmedDossier": {
         "additionalProperties": false,
         "description": "FR-OPS-01, AC 10. The character as they were at story hour `at`, and nothing later.\n\n`docs/architecture.md` Operations: \"Returns the character as they were at that instant:\nonly the facts already acquired, the valence of their relationships on that date, and the\ncorresponding point on their arc.\" It is the load-bearing call of assembly\n(FR-OPS-03): a writer handed the complete record uses facts the character has not yet\nlearned, because nothing in the text marks them as future.\n\n**What is left out, and why.** The Markdown `body` of `dossier.md` is not here. It is\nundated prose, and a dossier body is exactly where an author writes \"until scene 004,\nwhere for the first time she does not\" - the fixture's own dossiers do. A field that\ncannot be shown to hold at or before `at` is not included, which is the same rule that\nexcludes a knowledge row whose scene does not exist. `voice.md` is not here either: it is\nread at a different moment, by a different role (see `VoiceProfile`).\n\n**`immutable_physical` is the as-of body**, not the stored map: registered ChangeEvents\ndated at or before `at` are applied, because `definitions.md` ChangeEvent says \"before it,\nthe old value holds\" - and therefore after it, the new one does.",
@@ -5008,6 +5064,24 @@
         "title": "TurnStep",
         "type": "string"
       },
+      "UserInfo": {
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email"
+        ],
+        "title": "UserInfo",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -5390,6 +5464,13 @@
         ],
         "title": "TurnRequest",
         "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "description": "The JWT returned by `/auth/login` or `/auth/register`.",
+        "scheme": "bearer",
+        "type": "http"
       }
     }
   },
@@ -5808,6 +5889,123 @@
         "summary": "Rule on a turn's collided facts",
         "tags": [
           "agents"
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "description": "Check the password and return a session token.",
+        "operationId": "login_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Credentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Wrong email or password."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "description": "The identity the token (or `AUTH_REQUIRED=0`) resolves to.",
+        "operationId": "me_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserInfo"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "description": "Create a user (bcrypt-hashed password) and return a session token.",
+        "operationId": "register_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Credentials"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "The email is already registered."
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Register",
+        "tags": [
+          "auth"
         ]
       }
     },
@@ -7722,10 +7920,21 @@
             },
             "description": "Successful Response"
           },
+          "404": {
+            "description": "`novel_id` names a novel of another owner."
+          },
+          "409": {
+            "description": "The novel already has an ingested brief."
+          },
           "422": {
             "description": "Invalid brief; `detail` is its BriefReport."
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Ingest",
         "tags": [
           "interview"
@@ -7768,6 +7977,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Turn",
         "tags": [
           "interview"
@@ -8567,6 +8781,11 @@
             "description": "Successful Response"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "List Novels",
         "tags": [
           "reader"
@@ -8610,6 +8829,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Get Novel",
         "tags": [
           "reader"
@@ -8673,6 +8897,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Story Bible",
         "tags": [
           "reader"
@@ -8726,6 +8955,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Request Change",
         "tags": [
           "reader"
@@ -8739,19 +8973,19 @@
         "parameters": [
           {
             "in": "path",
-            "name": "novel_id",
+            "name": "job_id",
             "required": true,
             "schema": {
-              "title": "Novel Id",
+              "title": "Job Id",
               "type": "string"
             }
           },
           {
             "in": "path",
-            "name": "job_id",
+            "name": "novel_id",
             "required": true,
             "schema": {
-              "title": "Job Id",
+              "title": "Novel Id",
               "type": "string"
             }
           }
@@ -8778,6 +9012,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Change Status",
         "tags": [
           "reader"
@@ -8825,6 +9064,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "List Versions",
         "tags": [
           "reader"
@@ -8838,15 +9082,6 @@
         "parameters": [
           {
             "in": "path",
-            "name": "novel_id",
-            "required": true,
-            "schema": {
-              "title": "Novel Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
             "name": "version",
             "required": true,
             "schema": {
@@ -8854,6 +9089,15 @@
               "minimum": 1,
               "title": "Version",
               "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "novel_id",
+            "required": true,
+            "schema": {
+              "title": "Novel Id",
+              "type": "string"
             }
           }
         ],
@@ -8879,6 +9123,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Chapter Index",
         "tags": [
           "reader"
@@ -8890,15 +9139,6 @@
         "description": "One chapter's text, whether it changed, and the facts it uses.",
         "operationId": "read_chapter_novels__novel_id__versions__version__chapters__n__get",
         "parameters": [
-          {
-            "in": "path",
-            "name": "novel_id",
-            "required": true,
-            "schema": {
-              "title": "Novel Id",
-              "type": "string"
-            }
-          },
           {
             "in": "path",
             "name": "version",
@@ -8919,6 +9159,15 @@
               "minimum": 1,
               "title": "N",
               "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "novel_id",
+            "required": true,
+            "schema": {
+              "title": "Novel Id",
+              "type": "string"
             }
           }
         ],
@@ -8944,6 +9193,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Read Chapter",
         "tags": [
           "reader"
@@ -8957,15 +9211,6 @@
         "parameters": [
           {
             "in": "path",
-            "name": "novel_id",
-            "required": true,
-            "schema": {
-              "title": "Novel Id",
-              "type": "string"
-            }
-          },
-          {
-            "in": "path",
             "name": "version",
             "required": true,
             "schema": {
@@ -8973,6 +9218,15 @@
               "minimum": 1,
               "title": "Version",
               "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "novel_id",
+            "required": true,
+            "schema": {
+              "title": "Novel Id",
+              "type": "string"
             }
           }
         ],
@@ -8994,6 +9248,11 @@
             "description": "Validation Error"
           }
         },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
         "summary": "Download Pdf",
         "tags": [
           "reader"
