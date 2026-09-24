@@ -1,5 +1,17 @@
 /* The global layout: main's glass header, pill navigation and footer. Spec 003, FR-SHELL3. */
 
+/* The page fills the window, so the footer sits at the bottom even on short pages. */
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+#root > main {
+  flex: 1;
+  width: 100%;
+}
+
 .app-header {
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(10px);
