@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import Path as PathParam
 from fastapi.responses import FileResponse
 from starlette.background import BackgroundTask
 
@@ -73,6 +74,11 @@ JobsDep = Annotated[ChangeJobs, Depends(get_change_jobs)]
 
 router = APIRouter(prefix="/novels", tags=["reader"])
 
+# SQLite integers are 64-bit; a larger number in the URL is a 422, never a 500.
+_MAX = 2**31 - 1
+Version = Annotated[int, PathParam(ge=1, le=_MAX)]
+ChapterNumber = Annotated[int, PathParam(ge=1, le=_MAX)]
+
 
 def _not_found(error: BibleNotFoundError) -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(error))
@@ -103,7 +109,7 @@ def list_versions(novel_id: str, repo: RepoDep) -> list[VersionInfo]:
 
 
 @router.get("/{novel_id}/versions/{version}/chapters")
-def chapter_index(novel_id: str, version: int, repo: RepoDep) -> ChapterIndex:
+def chapter_index(novel_id: str, version: Version, repo: RepoDep) -> ChapterIndex:
     """The navigable index (R01), each chapter marked when changed vs the parent (R06)."""
     try:
         return service.chapter_index(repo, novel_id, version)
@@ -112,7 +118,7 @@ def chapter_index(novel_id: str, version: int, repo: RepoDep) -> ChapterIndex:
 
 
 @router.get("/{novel_id}/versions/{version}/chapters/{n}")
-def read_chapter(novel_id: str, version: int, n: int, repo: RepoDep) -> ChapterDetail:
+def read_chapter(novel_id: str, version: Version, n: ChapterNumber, repo: RepoDep) -> ChapterDetail:
     """One chapter's text, whether it changed, and the facts it uses."""
     try:
         return service.chapter_detail(repo, novel_id, version, n)
@@ -124,7 +130,9 @@ def read_chapter(novel_id: str, version: int, n: int, repo: RepoDep) -> ChapterD
 def story_bible(
     novel_id: str,
     repo: RepoDep,
-    version: Annotated[int | None, Query(description="Default: the current version.")] = None,
+    version: Annotated[
+        int | None, Query(ge=1, le=_MAX, description="Default: the current version.")
+    ] = None,
 ) -> StoryBible:
     """Character and place sheets with the chapters where each appears (R03)."""
     try:
@@ -165,7 +173,7 @@ def change_status(novel_id: str, job_id: str, jobs: JobsDep) -> ChangeJob:
     response_class=FileResponse,
     responses={200: {"content": {"application/pdf": {}}}},
 )
-def download_pdf(novel_id: str, version: int, repo: RepoDep) -> FileResponse:
+def download_pdf(novel_id: str, version: Version, repo: RepoDep) -> FileResponse:
     """The interactive PDF of this version (cover, novedades, index, sheets)."""
     try:
         repo.get_version(novel_id, version)
