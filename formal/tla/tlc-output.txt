@@ -1,0 +1,40 @@
+TLC2 Version 2026.09.23.154203 (rev: 4260e47)
+Running breadth-first search Model-Checking with fp 21 and seed 5194566727973272431 with 4 workers on 4 cores with 3042MB heap and 64MB offheap memory [pid: 7937] (Linux 6.18.44-fc-v37 amd64, Ubuntu 21.0.10 64bit, MSBDiskFPSet, DiskStateQueue).
+Parsing file /home/user/My-Story-Marker/.claude/worktrees/agent-a6c345c6b240bdd5b/formal/tla/GiftNovelHarness.tla
+Parsing file /tmp/tlc-8943775698686330961/Naturals.tla (jar:file:/home/user/My-Story-Marker/.claude/worktrees/agent-a6c345c6b240bdd5b/formal/tla/tools/tla2tools.jar!/tla2sany/StandardModules/Naturals.tla)
+Parsing file /tmp/tlc-8943775698686330961/FiniteSets.tla (jar:file:/home/user/My-Story-Marker/.claude/worktrees/agent-a6c345c6b240bdd5b/formal/tla/tools/tla2tools.jar!/tla2sany/StandardModules/FiniteSets.tla)
+Parsing file /tmp/tlc-8943775698686330961/_TLCTrace.tla (jar:file:/home/user/My-Story-Marker/.claude/worktrees/agent-a6c345c6b240bdd5b/formal/tla/tools/tla2tools.jar!/tla2sany/StandardModules/_TLCTrace.tla)
+Parsing file /tmp/tlc-8943775698686330961/Sequences.tla (jar:file:/home/user/My-Story-Marker/.claude/worktrees/agent-a6c345c6b240bdd5b/formal/tla/tools/tla2tools.jar!/tla2sany/StandardModules/Sequences.tla)
+Parsing file /tmp/tlc-8943775698686330961/TLC.tla (jar:file:/home/user/My-Story-Marker/.claude/worktrees/agent-a6c345c6b240bdd5b/formal/tla/tools/tla2tools.jar!/tla2sany/StandardModules/TLC.tla)
+Parsing file /tmp/tlc-8943775698686330961/TLCExt.tla (jar:file:/home/user/My-Story-Marker/.claude/worktrees/agent-a6c345c6b240bdd5b/formal/tla/tools/tla2tools.jar!/tla2sany/StandardModules/TLCExt.tla)
+Parsing file /tmp/tlc-8943775698686330961/Integers.tla (jar:file:/home/user/My-Story-Marker/.claude/worktrees/agent-a6c345c6b240bdd5b/formal/tla/tools/tla2tools.jar!/tla2sany/StandardModules/Integers.tla)
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module Integers
+Semantic processing of module TLCExt
+Semantic processing of module _TLCTrace
+Semantic processing of module GiftNovelHarness
+Linting of module TLCExt
+Linting of module _TLCTrace
+Linting of module GiftNovelHarness
+Starting... (2026-09-24 18:36:31)
+Implied-temporal checking--satisfiability problem has 2 branches.
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-09-24 18:36:31.
+Checking 2 branches of temporal properties for the current state space with 55527 total distinct states at (2026-09-24 18:36:34)
+Finished checking temporal properties in 00s at 2026-09-24 18:36:35
+Progress(60) at 2026-09-24 18:36:35: 51,082 states generated (51,082 s/min), 30,144 distinct states found (30,144 ds/min), 4,761 states left on queue.
+Progress(109) at 2026-09-24 18:37:18: 1,247,479 states generated, 696,062 distinct states found, 0 states left on queue.
+Checking 2 branches of temporal properties for the complete state space with 1392124 total distinct states at (2026-09-24 18:37:18)
+Finished checking temporal properties in 11s at 2026-09-24 18:37:30
+Model checking completed. No error has been found.
+  Estimates of the probability that TLC did not check all reachable states
+  because two distinct states had the same fingerprint:
+  calculated (optimistic):  val = 2.1E-8
+  based on the actual fingerprints:  val = 5.4E-9
+1247479 states generated, 696062 distinct states found, 0 states left on queue.
+The depth of the complete state graph search is 109.
+The average outdegree of the complete state graph is 1 (minimum is 0, the maximum 31 and the 95th percentile is 2).
+Finished in 59s at (2026-09-24 18:37:30)
