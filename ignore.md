@@ -19,8 +19,8 @@ sesión, las respuestas que se dieron y el enunciado completo del examen.
 2. Abre Claude Code en esa carpeta y empieza con este mensaje:
 
    > Lee `ignore.md` y todos los ficheros de `.claude/memory/`. Después lee todas las rondas
-   > de `exam/process-0/`, ejecuta `python exam/check.py` y dime qué queda abierto antes de
-   > redactar la spec 004.
+   > de `exam/process-0/` y la spec 004, ejecuta `python exam/check.py` y dime qué queda
+   > abierto antes de aprobarla.
 
 3. La memoria automática de Claude Code **no viaja**: vive en el perfil de usuario de cada
    máquina. Por eso hay una copia curada en `.claude/memory/`, que Claude no carga solo;
@@ -45,9 +45,10 @@ El enunciado del examen llegó con la spec 001 del backend a medio implementar. 
 qué falta frente al enunciado y se montó un espacio de trabajo paralelo (worktree
 `My-Story-Marker-docs`, rama `exam/rescope`) para refactorizar documentación y todo lo que
 no es código sin pisar a la sesión del backend. Ya existe un comprobador automático de
-cumplimiento, el andamiaje de entregables y tres rondas del Proceso 0. **El siguiente paso
-es contestar las rondas 3 y 4 (preguntas 2, 10, 26, 29-34) y redactar la spec 004**, que
-confronta lo que dice `docs/` con el enunciado del examen.
+cumplimiento, el andamiaje de entregables, cuatro rondas del Proceso 0 y la **spec 004 en
+borrador**, que confronta `docs/` con el enunciado y reparte el resto en bloques paralelos.
+**El siguiente paso es revisarla, aceptar o cambiar los valores por defecto de sus Open
+questions (2, 10, 26, 29-37) y aprobarla.** Después: bloque B0 (docs) y specs de bloque.
 
 ---
 
@@ -128,12 +129,12 @@ git diff --stat spec/001-backend...exam/rescope
     `exam/rescope` y la protección local ahora bloquea cualquier cambio de rama allí.
 14. **Reenfoque del usuario:** la spec pasa a ser la **004** y se centra en **confrontar
     `docs/` con el enunciado**. Ronda 3 del Proceso 0.
-16. **Spec 004 redactada en borrador** a petición del usuario, antes de cerrar el Proceso 0: las preguntas abiertas van con su respuesta por defecto en sus Open questions (2, 10, 26, 29-37). Pensada para lanzarse en `spec/001-backend` y generar desde ella las specs de bloque en paralelo.
 15. **Ronda 4:** revisión en solo lectura de `spec/001-backend`. `docs/` no ha cambiado,
     así que las contradicciones de la ronda 3 siguen en pie. El código sí ha avanzado:
     retries con límite, orquestador, resúmenes por capítulo, reanudación de turno, CI,
     contrato y base del frontend. Se corrigieron cuatro falsos positivos del comprobador y
     se hizo merge de la rama del backend en `exam/rescope`. Cumplimiento: 17 de 72.
+16. **Spec 004 redactada en borrador** a petición del usuario, antes de cerrar el Proceso 0: las preguntas abiertas van con su respuesta por defecto en sus Open questions (2, 10, 26, 29-37). Pensada para lanzarse en `spec/001-backend` y generar desde ella las specs de bloque en paralelo.
 
 ---
 
