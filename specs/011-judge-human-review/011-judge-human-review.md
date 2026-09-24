@@ -71,6 +71,8 @@ and `traced_complete` already make.
 | AC 4 — S02 | `evals/human-review/` holds the protocol, the Spanish rubric and a blank template, both generated from `rubric.py`. | **I** |
 | AC 5 | `ruff` and `mypy --strict` clean on `app/judge`. | **A** |
 
+*Clarified (red-team R2): the judge's `brief/summary.json` never includes the raw `free_text`; its extracted facts reach the judge through the bible (`test_brief_summary_drops_free_text`, **T**).*
+
 ## Verification plan
 
 | AC | Where |
