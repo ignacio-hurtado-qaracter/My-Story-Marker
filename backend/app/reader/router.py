@@ -26,7 +26,12 @@ from app.commons.deps import get_model_client
 from app.commons.llm import ModelClient
 from app.export.pdf import export_pdf, pdf_filename
 from app.reader import service
-from app.reader.changes import ChangeJobs, editable_fact
+from app.reader.changes import (
+    INJECTION_POLICY,
+    ChangeJobs,
+    change_injection_markers,
+    editable_fact,
+)
 from app.reader.models import (
     ChangeAccepted,
     ChangeJob,
@@ -157,6 +162,19 @@ def request_change(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"the novel has no fact {change.fact_key!r}",
+        )
+    markers = change_injection_markers(change)
+    if markers:
+        # SEC-05: the new value would become a fact in the writer's prompt. Logged, refused.
+        repo.log_policy_decision(
+            policy=INJECTION_POLICY,
+            decision="reject",
+            novel_id=novel_id,
+            detail="prescan: " + ", ".join(markers),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="the request looks like an instruction to the system, not a change of fact",
         )
     job = jobs.submit(path, novel_id, change)
     return ChangeAccepted(job_id=job.job_id)

@@ -28,12 +28,15 @@ from app.bible import BibleRepository, Fact
 from app.commons.llm import Document, ModelClient
 from app.commons.observability import CallScope, NoopObserver, Observer, traced_complete
 from app.commons.permissions import AgentRole
+from app.interview.extract import prescan_injection
 from app.reader.models import ChangeJob, ChangeRequest
 
 PIPELINE_MODULE: Final[str] = "app.novel.pipeline"
 
 HIDDEN_FACT_KINDS: Final[frozenset[str]] = frozenset({"plan"})
 """Internal facts (the planner's `plan.v1`) a reader may neither see nor change (SEC-04)."""
+
+INJECTION_POLICY: Final[str] = "reader_change_injection"
 
 # A kind keyword in the request narrows the candidates to the facts of that kind.
 _KIND_WORDS: Final[dict[str, tuple[str, ...]]] = {
@@ -72,6 +75,12 @@ def editable_fact(repo: BibleRepository, novel_id: str, key: str) -> Fact | None
 def editable_facts(repo: BibleRepository, novel_id: str) -> list[Fact]:
     return [f for f in repo.list_facts(novel_id) if f.kind not in HIDDEN_FACT_KINDS]
 
+
+def change_injection_markers(change: ChangeRequest) -> list[str]:
+    """The pre-scan's markers in the reader's text (SEC-05). The new value becomes a fact
+    that reaches the writer and editor prompts, so it gets the brief's free-text scan."""
+    text = f"{change.fragment or ''}\n{change.request}"
+    return prescan_injection(text).markers
 
 
 @dataclass(frozen=True, slots=True)
@@ -152,6 +161,10 @@ def resolve_change(
     observer: Observer | None = None,
 ) -> ResolvedChange:
     """Which fact, and its new value. Raises `ChangeResolutionError` when nothing fits."""
+    markers = change_injection_markers(change)
+    if markers:
+        message = f"the request looks like a prompt injection ({', '.join(markers)})"
+        raise ChangeResolutionError(message)
     facts = editable_facts(repo, novel_id)
     fragment = change.fragment or ""
     new_value = extract_new_value(change.request)
@@ -302,9 +315,11 @@ class ChangeJobs:
 
 __all__ = [
     "HIDDEN_FACT_KINDS",
+    "INJECTION_POLICY",
     "ChangeJobs",
     "ChangeResolutionError",
     "ResolvedChange",
+    "change_injection_markers",
     "editable_fact",
     "editable_facts",
     "extract_new_value",
