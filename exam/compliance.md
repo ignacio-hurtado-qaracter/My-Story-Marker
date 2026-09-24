@@ -4,7 +4,7 @@ Generado por `python exam/check.py` a partir de `exam/requirements.toml`. No se 
 
 Las comprobaciones son heurísticas: ✅ dice que el artefacto existe, no que sea bueno.
 
-**Obligatorios comprobables cumplidos: 68 de 72.**
+**Obligatorios comprobables cumplidos: 69 de 72.**
 
 Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ existe, revisar a mano
 
@@ -12,7 +12,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 
 | Bloque | ✅ | 🟡 | ❌ | 📝 |
 |---|---|---|---|---|
-| Entregables | 3 | 0 | 2 | 3 |
+| Entregables | 4 | 0 | 1 | 3 |
 | Presentación | 4 | 0 | 1 | 0 |
 | Claude Code | 6 | 0 | 0 | 0 |
 | 1. Configuración | 4 | 0 | 0 | 0 |
@@ -36,7 +36,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 | E01 | ✅ | README.md en la raíz del repo | ✓ exists: README.md |
 | E02 | ✅ | Brief de ejemplo reproducible, citado desde el README (provisional: ejemplos/brief-ejemplo.json) | ✓ 1 file(s) for ejemplos/brief-ejemplo.* (need 1)<br>✓ /brief-ejemplo/ in README.md |
 | E03 | ✅ | .env.example versionado | ✓ exists: .env.example |
-| E04 | ❌ | Sin API keys ni tokens en ningún fichero versionado | ✗ matches in security/hooks_probe.sh |
+| E04 | ✅ | Sin API keys ni tokens en ningún fichero versionado | ✓ no match in tracked files |
 | E05 | ❌ | Novela de ejemplo completa de 10 capítulos en PDF | ✗ missing: ejemplos/novela-ejemplo.pdf |
 | E06 | 📝✅ | CLAUDE.md en la raíz, cuidado y legible (se puntúa) | ✓ exists: CLAUDE.md |
 | E07 | 📝 | Repositorio MyFactory: commit final enlazado | — |

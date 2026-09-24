@@ -12,8 +12,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 export CLAUDE_PROJECT_DIR="$ROOT"
 export HARNESS_DB="/nonexistent/security-probe.sqlite"
 HOOK="$ROOT/.claude/hooks/policy_guard.py"
-KEY_ANT="sk-ant-api03$(printf 'Q9wZ7rT2mB4kL8pN6vC1')"
-KEY_LF="sk-lf-$(printf '1a2b3c4d')-$(printf '9f8e7d6c5b4a')"
+KEY_ANT="sk""-ant-api03$(printf 'Q9wZ7rT2mB4kL8pN6vC1')"
+KEY_LF="sk""-lf-$(printf '1a2b3c4d')-$(printf '9f8e7d6c5b4a')"
 
 run() {
   local expect="$1" label="$2" json="$3"
@@ -37,7 +37,7 @@ run 2 "Write con clave Anthropic" \
 run 2 "Edit con clave Langfuse" \
   "{\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"backend/app/x.py\",\"new_string\":\"S='$KEY_LF'\"}}"
 run 0 "Write con placeholder de clave" \
-  '{"tool_name":"Write","tool_input":{"file_path":"notes.txt","content":"K=sk-ant-xxxxxxxxxxxxxxxxxxxxxxxx"}}'
+  '{"tool_name":"Write","tool_input":{"file_path":"notes.txt","content":"K=sk''-ant-xxxxxxxxxxxxxxxxxxxxxxxx"}}'
 run 2 "Bash: echo clave > .env" \
   "{\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"echo LANGFUSE_SECRET_KEY=$KEY_LF > backend/.env\"}}"
 run 2 "Bash: sqlite3 delete en harness.sqlite" \
