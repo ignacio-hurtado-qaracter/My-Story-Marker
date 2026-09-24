@@ -1,5 +1,5 @@
 // app/'s route table and providers. Spec 002, FR-SHELL-01 and FR-SHELL-03 (AC 16); spec 003,
-// FR-IA (revision 2: the cover at `/`, navigation Portada · Índice · Personajes · Lugares).
+// FR-IA (revision 2); spec 014: `/` lists the novels, navigation Novelas · Escenas.
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { HttpResponse } from 'msw'
 import userEvent from '@testing-library/user-event'
@@ -30,7 +30,12 @@ beforeEach(() => {
     http.get('/cast/{id}', ({ response }) =>
       response.untyped(HttpResponse.json({ error: 'not_found', detail: 'no such character' }, { status: 404 })),
     ),
-    // The cover loads the premise.
+    // Spec 014: the novels list at `/` and a novel's reader.
+    http.get('/novels', ({ response }) => response(200).json([])),
+    http.get('/novels/{novel_id}', ({ response }) =>
+      response(200).json({ id: 'demo', title: 'Demo', status: 'draft', current_version: null, versions: [] }),
+    ),
+    // The legacy cover loaded the premise.
     http.get('/canon/project', ({ response }) =>
       response(200).json({
         schema_version: 1,
@@ -55,16 +60,15 @@ describe('AppRoutes', () => {
     // Revised by spec 003 (revision 2): the brand leads to the cover; the navigation is new.
     expect(within(header).getByRole('link', { name: 'My Story Marker' })).toHaveAttribute('href', '/')
     const nav = within(header).getByRole('navigation', { name: 'Principal' })
-    expect(within(nav).getByRole('link', { name: 'Portada' })).toHaveAttribute('href', '/')
-    expect(within(nav).getByRole('link', { name: 'Índice' })).toHaveAttribute('href', '/scenes')
-    expect(within(nav).getByRole('link', { name: 'Personajes' })).toHaveAttribute('href', '/characters')
-    expect(within(nav).getByRole('link', { name: 'Lugares' })).toHaveAttribute('href', '/locations')
+    // Revised by spec 014: the reader's own navigation lives inside each novel.
+    expect(within(nav).getByRole('link', { name: 'Novelas' })).toHaveAttribute('href', '/')
+    expect(within(nav).getByRole('link', { name: 'Escenas' })).toHaveAttribute('href', '/scenes')
     expect(await within(header).findByText('ok · vector: available')).toBeInTheDocument()
     expect(within(screen.getByRole('main')).getByRole('heading', { level: 1 })).toBeInTheDocument()
   })
 
-  // spec 002 / AC 16, revised by spec 003 (revision 2): `/` is the cover, not a redirect.
-  it('shows the cover at /', async () => {
+  // spec 002 / AC 16, revised by spec 003 (revision 2) and spec 014: `/` lists the novels.
+  it('shows the novels at /', async () => {
     renderWithProviders(
       <>
         <AppRoutes />
@@ -116,11 +120,10 @@ describe('Layout (spec 003)', () => {
 
   // spec 003 / AC 6
   it.each([
-    ['/', 'Portada'],
-    ['/scenes', 'Índice'],
-    ['/chapters/ch01', 'Índice'],
-    ['/characters/vance', 'Personajes'],
-    ['/locations', 'Lugares'],
+    ['/', 'Novelas'],
+    ['/novelas/demo', 'Novelas'],
+    ['/scenes', 'Escenas'],
+    ['/chapters/ch01', 'Escenas'],
   ])('on %s marks only "%s" with aria-current="page"', async (route, current) => {
     renderWithProviders(<AppRoutes />, { route })
     const nav = within(screen.getByRole('banner')).getByRole('navigation', { name: 'Principal' })
