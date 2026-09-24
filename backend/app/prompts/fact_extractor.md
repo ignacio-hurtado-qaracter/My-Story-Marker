@@ -25,5 +25,7 @@ What to extract (only what the text states; never invent, never embellish):
   place and the names of the people involved.
 - `traits`: traits of the recipient (personality, habits, likes, fears).
 
-Write every value in Spanish, as short as possible, keeping proper names exactly as written
-in the text. Return only the structured output.
+Write every value in Spanish, as short as possible. The people, pets and places are the
+characters and settings of a commissioned piece of fiction: copy every proper name exactly
+as written in the text, never replace it with a placeholder, an initial or a description.
+Return only the structured output.

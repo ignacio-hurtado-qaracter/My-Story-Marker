@@ -143,7 +143,23 @@ def extract_facts_from_free_text(
 
     With `repo`, a pre-scan hit and a model-reported suspicion are each logged as a
     `free_text_injection` policy decision (the pre-scan one before the model is called).
+    Outside a trace (e.g. called on its own), it opens one in the novel's session.
     """
+    if observer.current_trace_id() is not None:
+        return _extract(text, client, observer, repo=repo, novel_id=novel_id)
+    session = observer.start_session(novel_id or "free-text-extraction")
+    with observer.trace("free_text_extraction", session_id=session):
+        return _extract(text, client, observer, repo=repo, novel_id=novel_id)
+
+
+def _extract(
+    text: str,
+    client: ModelClient,
+    observer: Observer,
+    *,
+    repo: BibleRepository | None,
+    novel_id: str | None,
+) -> ExtractedFacts:
     scan = prescan_injection(text)
     with observer.span("tool:injection_prescan", input={"chars": len(text)}) as span:
         span.update(output=scan.model_dump())
