@@ -555,7 +555,9 @@ def write_chapter(run: Run, version: NovelVersion, chapter: int) -> None:
             chapter,
             [cx.text_document("manuscript/chapter-draft.txt", joined)],
             "Une las tres escenas de manuscript/chapter-draft.txt en un capítulo continuo y "
-            "pulido (transiciones, repeticiones, clichés), y haz tu autocrítica.",
+            "pulido (transiciones, repeticiones, clichés), y haz tu autocrítica. No resumas ni "
+            f"condenses: las escenas suman {word_count(joined)} palabras y el capítulo final "
+            "debe conservar prácticamente todo su contenido.",
         )
     close_chapter(run, v, chapter, edit, scene_texts)
 
