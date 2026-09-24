@@ -163,7 +163,18 @@ forgotten, and this list is what lets the reverse-direction check below tell "no
 yet" apart from "written and never mounted".
 """
 
-EXPECTED_ROUTES = META_ROUTES | IF_03_READS | IF_04_WRITES | IF_05_OPERATIONS | IF_06_AGENTS
+SPEC_006_INTERVIEW = frozenset(
+    {
+        ("POST", "/interview/validate"),  # spec 006, C03
+        ("POST", "/interview/briefs"),  # spec 006, C01/C02
+        ("POST", "/interview/turn"),  # spec 006, C01
+    }
+)
+"""Spec 006 (B2): the interview and brief routes."""
+
+EXPECTED_ROUTES = (
+    META_ROUTES | IF_03_READS | IF_04_WRITES | IF_05_OPERATIONS | IF_06_AGENTS | SPEC_006_INTERVIEW
+)
 
 
 def normalise_template(path: str) -> str:

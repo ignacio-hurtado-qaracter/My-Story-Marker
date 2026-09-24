@@ -20,6 +20,7 @@ from app.commons.schemas.common import StoreDocument
 from scripts.export_schemas import (
     DOCUMENT_FORMATS,
     DOCUMENT_MODELS,
+    exported_models,
     render,
     schemas_dir,
     stale,
@@ -108,7 +109,7 @@ def test_committed_schemas_are_not_stale() -> None:
 
 # spec 001 / AC 29 — and nothing else is lying around in schemas/.
 def test_no_orphan_schema_files() -> None:
-    expected = {target_path(name).name for name in DOCUMENT_MODELS}
+    expected = {target_path(name).name for name in exported_models()}
     present = {path.name for path in schemas_dir().glob("*.json")}
     assert present == expected, f"unexpected: {sorted(present - expected)}"
 

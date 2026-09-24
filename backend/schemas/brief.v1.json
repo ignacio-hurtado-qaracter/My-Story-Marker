@@ -1,0 +1,387 @@
+{
+  "$defs": {
+    "BriefPlace": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "BriefPlace",
+      "type": "object"
+    },
+    "Length": {
+      "additionalProperties": false,
+      "properties": {
+        "chapters": {
+          "default": 10,
+          "maximum": 30,
+          "minimum": 1,
+          "title": "Chapters",
+          "type": "integer"
+        },
+        "words_max": {
+          "default": 1500,
+          "minimum": 100,
+          "title": "Words Max",
+          "type": "integer"
+        },
+        "words_min": {
+          "default": 1000,
+          "minimum": 100,
+          "title": "Words Min",
+          "type": "integer"
+        }
+      },
+      "title": "Length",
+      "type": "object"
+    },
+    "Memory": {
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "people": {
+          "items": {
+            "type": "string"
+          },
+          "title": "People",
+          "type": "array"
+        },
+        "place": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Place"
+        },
+        "title": {
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "title": "Memory",
+      "type": "object"
+    },
+    "Person": {
+      "additionalProperties": false,
+      "properties": {
+        "birth_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Birth Date"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "relation": {
+          "default": "",
+          "title": "Relation",
+          "type": "string"
+        },
+        "traits": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Traits",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Person",
+      "type": "object"
+    },
+    "Pet": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "species": {
+          "default": "",
+          "title": "Species",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Pet",
+      "type": "object"
+    },
+    "Recipient": {
+      "additionalProperties": false,
+      "description": "The real person the novel is written for (definitions, Recipient).",
+      "properties": {
+        "age": {
+          "description": "Age at the time of the gift.",
+          "maximum": 120,
+          "minimum": 0,
+          "title": "Age",
+          "type": "integer"
+        },
+        "birth_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Birth Date"
+        },
+        "gender": {
+          "anyOf": [
+            {
+              "enum": [
+                "femenino",
+                "masculino",
+                "no_binario"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Gender"
+        },
+        "hobbies": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Hobbies",
+          "type": "array"
+        },
+        "name": {
+          "description": "Canonical name, checked exactly in prose.",
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "profession": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Profession"
+        },
+        "relation_to_buyer": {
+          "default": "",
+          "title": "Relation To Buyer",
+          "type": "string"
+        },
+        "traits": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Traits",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "age",
+        "traits"
+      ],
+      "title": "Recipient",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Contract shape (004-contracts, Brief). Enum values are Spanish (spec 004 D9).",
+  "properties": {
+    "buyer_name": {
+      "default": "",
+      "title": "Buyer Name",
+      "type": "string"
+    },
+    "dedication": {
+      "minLength": 1,
+      "title": "Dedication",
+      "type": "string"
+    },
+    "forbidden_terms": {
+      "description": "Words or topics the client does NOT want.",
+      "items": {
+        "type": "string"
+      },
+      "title": "Forbidden Terms",
+      "type": "array"
+    },
+    "free_text": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Untrusted pasted text; only extracted facts are used.",
+      "title": "Free Text"
+    },
+    "genre": {
+      "enum": [
+        "aventura",
+        "fantas\u00eda",
+        "comedia",
+        "romance",
+        "misterio",
+        "ciencia_ficci\u00f3n",
+        "realista",
+        "f\u00e1bula"
+      ],
+      "title": "Genre",
+      "type": "string"
+    },
+    "language": {
+      "const": "es",
+      "default": "es",
+      "title": "Language",
+      "type": "string"
+    },
+    "length": {
+      "$ref": "#/$defs/Length"
+    },
+    "mandatory_elements": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Mandatory Elements",
+      "type": "array"
+    },
+    "memories": {
+      "items": {
+        "$ref": "#/$defs/Memory"
+      },
+      "minItems": 1,
+      "title": "Memories",
+      "type": "array"
+    },
+    "occasion": {
+      "default": "otro",
+      "enum": [
+        "cumplea\u00f1os",
+        "boda",
+        "aniversario",
+        "jubilaci\u00f3n",
+        "nacimiento",
+        "graduaci\u00f3n",
+        "otro"
+      ],
+      "title": "Occasion",
+      "type": "string"
+    },
+    "people": {
+      "items": {
+        "$ref": "#/$defs/Person"
+      },
+      "title": "People",
+      "type": "array"
+    },
+    "pets": {
+      "items": {
+        "$ref": "#/$defs/Pet"
+      },
+      "title": "Pets",
+      "type": "array"
+    },
+    "places": {
+      "items": {
+        "$ref": "#/$defs/BriefPlace"
+      },
+      "title": "Places",
+      "type": "array"
+    },
+    "recipient": {
+      "$ref": "#/$defs/Recipient"
+    },
+    "tone": {
+      "enum": [
+        "tierno",
+        "divertido",
+        "emotivo",
+        "\u00e9pico",
+        "nost\u00e1lgico",
+        "oscuro"
+      ],
+      "title": "Tone",
+      "type": "string"
+    }
+  },
+  "required": [
+    "recipient",
+    "dedication",
+    "memories",
+    "genre",
+    "tone"
+  ],
+  "title": "Brief",
+  "type": "object"
+}

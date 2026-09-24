@@ -1,0 +1,165 @@
+# Revisión humana (spec 011). Rúbrica: evals/human-review/rubrica.md
+# Rellena score (1-5) y justification (1-3 frases citando el texto) de cada criterio.
+novel_id: ""
+version: 1
+reviewer: ""
+date: ""          # AAAA-MM-DD
+chapters:
+  - chapter: 1
+    continuidad:
+      score:          # 1-5
+      justification: ""
+    tono:
+      score:          # 1-5
+      justification: ""
+    calidad_narrativa:
+      score:          # 1-5
+      justification: ""
+    personalizacion_natural:
+      score:          # 1-5
+      justification: ""
+    blocking_issues: []
+  - chapter: 2
+    continuidad:
+      score:          # 1-5
+      justification: ""
+    tono:
+      score:          # 1-5
+      justification: ""
+    calidad_narrativa:
+      score:          # 1-5
+      justification: ""
+    personalizacion_natural:
+      score:          # 1-5
+      justification: ""
+    blocking_issues: []
+  - chapter: 3
+    continuidad:
+      score:          # 1-5
+      justification: ""
+    tono:
+      score:          # 1-5
+      justification: ""
+    calidad_narrativa:
+      score:          # 1-5
+      justification: ""
+    personalizacion_natural:
+      score:          # 1-5
+      justification: ""
+    blocking_issues: []
+  - chapter: 4
+    continuidad:
+      score:          # 1-5
+      justification: ""
+    tono:
+      score:          # 1-5
+      justification: ""
+    calidad_narrativa:
+      score:          # 1-5
+      justification: ""
+    personalizacion_natural:
+      score:          # 1-5
+      justification: ""
+    blocking_issues: []
+  - chapter: 5
+    continuidad:
+      score:          # 1-5
+      justification: ""
+    tono:
+      score:          # 1-5
+      justification: ""
+    calidad_narrativa:
+      score:          # 1-5
+      justification: ""
+    personalizacion_natural:
+      score:          # 1-5
+      justification: ""
+    blocking_issues: []
+  - chapter: 6
+    continuidad:
+      score:          # 1-5
+      justification: ""
+    tono:
+      score:          # 1-5
+      justification: ""
+    calidad_narrativa:
+      score:          # 1-5
+      justification: ""
+    personalizacion_natural:
+      score:          # 1-5
+      justification: ""
+    blocking_issues: []
+  - chapter: 7
+    continuidad:
+      score:          # 1-5
+      justification: ""
+    tono:
+      score:          # 1-5
+      justification: ""
+    calidad_narrativa:
+      score:          # 1-5
+      justification: ""
+    personalizacion_natural:
+      score:          # 1-5
+      justification: ""
+    blocking_issues: []
+  - chapter: 8
+    continuidad:
+      score:          # 1-5
+      justification: ""
+    tono:
+      score:          # 1-5
+      justification: ""
+    calidad_narrativa:
+      score:          # 1-5
+      justification: ""
+    personalizacion_natural:
+      score:          # 1-5
+      justification: ""
+    blocking_issues: []
+  - chapter: 9
+    continuidad:
+      score:          # 1-5
+      justification: ""
+    tono:
+      score:          # 1-5
+      justification: ""
+    calidad_narrativa:
+      score:          # 1-5
+      justification: ""
+    personalizacion_natural:
+      score:          # 1-5
+      justification: ""
+    blocking_issues: []
+  - chapter: 10
+    continuidad:
+      score:          # 1-5
+      justification: ""
+    tono:
+      score:          # 1-5
+      justification: ""
+    calidad_narrativa:
+      score:          # 1-5
+      justification: ""
+    personalizacion_natural:
+      score:          # 1-5
+      justification: ""
+    blocking_issues: []
+novel:
+  continuidad:
+    score:          # 1-5
+    justification: ""
+  tono:
+    score:          # 1-5
+    justification: ""
+  calidad_narrativa:
+    score:          # 1-5
+    justification: ""
+  personalizacion_natural:
+    score:          # 1-5
+    justification: ""
+  final_satisfactorio:
+    score:          # 1-5
+    justification: ""
+  contradicciones: []
+  comment: ""
