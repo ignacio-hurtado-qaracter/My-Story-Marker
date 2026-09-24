@@ -33,6 +33,15 @@ validated again before it is returned. An invalid call comes back as an MCP erro
 - `download_novel` needs the PDF exporter (`app.export.pdf`); without it the tool answers
   with an error saying so.
 
+## Identity (spec 018)
+
+Every tool runs as one owner: the registered user whose email is in `STORY_MAKER_USER`, or
+the built-in `local` owner (what the CLI generates) when it is unset. `list_novels` lists
+only that owner's novels; every other tool answers "no novel" for anyone else's. An email
+that is not registered is an error, never a fallback. Add it to the client's `env`, e.g.
+`--env STORY_MAKER_USER=ana@example.com`. The HTTP transport binds `127.0.0.1` and uses the
+same identity (token auth for it is deferred).
+
 ## Run it
 
 ```bash
