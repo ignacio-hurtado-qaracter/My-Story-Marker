@@ -21,6 +21,8 @@ dependencies = [
     "langfuse==4.15.6",
     "reportlab==5.0.1",
     "fastmcp==4.0.9",
+    "bcrypt==5.0.0",
+    "pyjwt==2.15.0",
 ]
 
 [dependency-groups]
