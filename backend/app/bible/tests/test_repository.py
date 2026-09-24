@@ -1,4 +1,4 @@
-"""Spec 005 — K1 round trips."""
+"""Spec 005 — K1 round trips, and the TLC counterexample rules CE1-CE4 (spec 013)."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ def repo(tmp_path: Path) -> BibleRepository:
 
 # spec 005 / AC 1 — M01
 def test_fact_usage_roundtrip(repo: BibleRepository) -> None:
-    assert applied_migrations(repo.connection) == ["1000_init"]
+    assert applied_migrations(repo.connection) == ["1000_init", "1001_tlc_rules"]
     assert repo.connection.execute("pragma journal_mode").fetchone()[0] == "wal"
     novel = repo.create_novel(title="El verano de Lucía", recipient_name="Lucía")
     assert novel.session_id == novel.id
@@ -121,3 +121,38 @@ def test_versions_keep_parent(repo: BibleRepository) -> None:
     assert old.text == "Capítulo 2."
     assert old.hash == text_hash("Capítulo 2.")
     assert [v.status for v in repo.list_versions(novel.id)] == ["published", "published"]
+
+
+# spec 005 / AC 3 — R07, with the TLC counterexample rules CE1-CE4 of spec 013
+def test_tlc_rules(repo: BibleRepository) -> None:
+    novel = repo.create_novel()
+    v1 = repo.create_version(novel.id)
+    for chapter in (1, 2, 3):  # CE1: text and checkpoint in one transaction
+        repo.save_chapter_and_checkpoint(novel.id, 1, chapter, text=f"Texto {chapter}.")
+    assert repo.first_incomplete_chapter(novel.id, v1.version, total_chapters=3) is None
+
+    repo.record_chapter_attempt(novel.id, 1, 2, text="Rechazado.", reason="too short")  # CE3
+    assert [a.attempt for a in repo.list_chapter_attempts(novel.id, 1, 2)] == [1]
+    for run in ("r1", "r2"):  # CE2: two chapter-close runs of two validators each
+        for name in ("length", "names"):
+            repo.save_validator_result(
+                novel_id=novel.id,
+                name=name,
+                point="chapter_close",
+                passed=False,
+                version=1,
+                chapter=2,
+                run_id=run,
+            )
+    assert repo.count_chapter_attempts(novel.id, 1, 2) == 2
+
+    blocked = repo.block_version(novel.id, 1, repair_rounds=2, note="lean failed")  # CE4
+    assert (blocked.status, blocked.repair_rounds) == ("blocked", 2)
+    repo.set_version_status(novel.id, 1, "published")
+
+    v2 = repo.create_version_from(novel.id, 1, copy_chapters_except={2})
+    assert [c.chapter for c in repo.list_chapters(novel.id, v2.version)] == [1, 3]
+    assert repo.first_incomplete_chapter(novel.id, v2.version, total_chapters=3) == 2
+    assert [c.chapter for c in repo.list_chapters(novel.id, 1)] == [1, 2, 3]
+    with pytest.raises(VersionFrozenError):
+        repo.set_version_status(novel.id, 1, "draft")

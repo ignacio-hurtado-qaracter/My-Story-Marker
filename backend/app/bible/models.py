@@ -104,6 +104,7 @@ class NovelVersion(_Record):
     changed_chapters: tuple[int, ...] = ()
     note: str = ""
     trace_id: str | None = None
+    repair_rounds: int = 0
     created_at: str
     updated_at: str
 
@@ -117,6 +118,20 @@ class ChapterVersion(_Record):
     hash: str = Field(description="SHA-256 hex of `text` (UTF-8).")
     summary: str = ""
     word_count: int
+    created_at: str
+
+
+class ChapterAttempt(_Record):
+    """A rejected chapter text, kept so nothing is ever deleted (D6, TLC CE3)."""
+
+    id: int
+    novel_id: str
+    version: int
+    chapter: int
+    attempt: int
+    text: str
+    hash: str
+    reason: str = ""
     created_at: str
 
 
@@ -165,6 +180,7 @@ class StoredValidatorResult(_Record):
     evidence: tuple[str, ...] = ()
     explanation: str = ""
     trace_id: str | None = None
+    run_id: str | None = None
     created_at: str
 
 
@@ -193,6 +209,7 @@ class CostSummary(_Record):
 
 __all__ = [
     "Brief",
+    "ChapterAttempt",
     "ChapterCost",
     "ChapterVersion",
     "Character",

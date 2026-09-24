@@ -26,6 +26,7 @@ from pydantic import JsonValue, TypeAdapter
 
 from app.bible.models import (
     Brief,
+    ChapterAttempt,
     ChapterCost,
     ChapterVersion,
     Character,
@@ -488,11 +489,52 @@ class BibleRepository:
         copy_chapters: bool = True,
     ) -> NovelVersion:
         """A new draft version numbered after the latest. With a `parent` and
-        `copy_chapters`, the parent's chapters are copied as the starting point, so a
-        regeneration rewrites only the affected chapters and the rest stay byte-identical."""
+        `copy_chapters`, the parent's chapters and checkpoints are copied as the starting
+        point (see `create_version_from`)."""
+        return self._new_version(
+            novel_id, parent, note=note, trace_id=trace_id, copy=copy_chapters, skip=set()
+        )
+
+    def create_version_from(
+        self,
+        novel_id: str,
+        parent: int,
+        *,
+        copy_chapters_except: set[int] | frozenset[int] = frozenset(),
+        note: str = "",
+        trace_id: str | None = None,
+    ) -> NovelVersion:
+        """TLC CE4 / `change_fact`: a new draft child of `parent` holding copies of every
+        parent chapter row **and its checkpoint** except those in `copy_chapters_except`,
+        all in one transaction. The parent's rows are only read, never touched, so the
+        previous version survives the regeneration whatever happens next."""
+        return self._new_version(
+            novel_id,
+            parent,
+            note=note,
+            trace_id=trace_id,
+            copy=True,
+            skip=set(copy_chapters_except),
+        )
+
+    def _new_version(
+        self,
+        novel_id: str,
+        parent: int | None,
+        *,
+        note: str,
+        trace_id: str | None,
+        copy: bool,
+        skip: set[int],
+    ) -> NovelVersion:
         self.get_novel(novel_id)
+        chapters: list[int] = []
         if parent is not None:
             self.get_version(novel_id, parent)
+            if copy:
+                chapters = [
+                    c.chapter for c in self.list_chapters(novel_id, parent) if c.chapter not in skip
+                ]
         now = _now()
         with transaction(self._db):
             row = self._db.execute(
@@ -506,13 +548,19 @@ class BibleRepository:
                 "values (?, ?, ?, 'draft', '[]', ?, ?, ?, ?)",
                 (novel_id, number, parent, note, trace_id, now, now),
             )
-            if parent is not None and copy_chapters:
+            for chapter in chapters:
                 self._db.execute(
                     "insert into chapter_version (novel_id, version, chapter, title, text, hash, "
                     "summary, word_count, created_at) select novel_id, ?, chapter, title, text, "
                     "hash, summary, word_count, ? from chapter_version "
-                    "where novel_id = ? and version = ?",
-                    (number, now, novel_id, parent),
+                    "where novel_id = ? and version = ? and chapter = ?",
+                    (number, now, novel_id, parent, chapter),
+                )
+                self._db.execute(
+                    "insert into checkpoint (novel_id, version, chapter, status, detail, "
+                    "updated_at) select novel_id, ?, chapter, status, detail, ? from checkpoint "
+                    "where novel_id = ? and version = ? and chapter = ?",
+                    (number, now, novel_id, parent, chapter),
                 )
         return self.get_version(novel_id, number)
 
@@ -538,25 +586,45 @@ class BibleRepository:
         return versions[-1] if versions else None
 
     def set_version_status(
-        self, novel_id: str, version: int, status: VersionStatus, *, note: str | None = None
+        self,
+        novel_id: str,
+        version: int,
+        status: VersionStatus,
+        *,
+        note: str | None = None,
+        repair_rounds: int | None = None,
     ) -> NovelVersion:
-        """Publishing (or blocking) freezes the version and records which chapters changed
-        against its parent."""
+        """Record which chapters changed against the parent and set the status, in one
+        statement. `repair_rounds` (TLC CE4) is written in that same statement, so a
+        `blocked` version never exists without the rounds that led to it. Publishing
+        freezes the version's chapters; a published version never changes status."""
         current = self.get_version(novel_id, version)
+        if current.status == "published" and status != "published":
+            message = f"version {version} of {novel_id!r} is published and cannot change status"
+            raise VersionFrozenError(message)
         changed = self.changed_chapters(novel_id, version)
         self._db.execute(
-            "update novel_version set status = ?, changed_chapters = ?, note = ?, updated_at = ? "
-            "where novel_id = ? and version = ?",
+            "update novel_version set status = ?, changed_chapters = ?, note = ?, "
+            "repair_rounds = ?, updated_at = ? where novel_id = ? and version = ?",
             (
                 status,
                 json.dumps(changed),
                 note if note is not None else current.note,
+                repair_rounds if repair_rounds is not None else current.repair_rounds,
                 _now(),
                 novel_id,
                 version,
             ),
         )
         return self.get_version(novel_id, version)
+
+    def block_version(
+        self, novel_id: str, version: int, *, repair_rounds: int, note: str = ""
+    ) -> NovelVersion:
+        """TLC CE4: `blocked` and its repair rounds, atomically."""
+        return self.set_version_status(
+            novel_id, version, "blocked", note=note, repair_rounds=repair_rounds
+        )
 
     def changed_chapters(self, novel_id: str, version: int) -> list[int]:
         """R06: chapters whose hash differs from the parent version's (all, without one)."""
@@ -577,10 +645,95 @@ class BibleRepository:
         title: str = "",
         summary: str = "",
     ) -> ChapterVersion:
-        """Write (or rewrite, while the version is a draft) one chapter's text and hash."""
-        if self.get_version(novel_id, version).status != "draft":
-            message = f"version {version} of {novel_id!r} is frozen"
+        """Upsert one chapter's text and hash (TLC CE3: unique per novel, version and
+        chapter). Refused once the version is published (R07); a blocked version can still
+        be repaired. Keep a rejected text with `record_chapter_attempt` before overwriting."""
+        self._require_writable(novel_id, version)
+        self._upsert_chapter(novel_id, version, chapter, text=text, title=title, summary=summary)
+        return self._chapter(novel_id, version, chapter)
+
+    def save_chapter_and_checkpoint(
+        self,
+        novel_id: str,
+        version: int,
+        chapter: int,
+        *,
+        text: str,
+        title: str = "",
+        summary: str = "",
+        detail: str = "",
+    ) -> ChapterVersion:
+        """TLC CE1: the chapter text and its `complete` checkpoint in ONE transaction, so a
+        crash can never leave a completed checkpoint without its text, or the reverse."""
+        self._require_writable(novel_id, version)
+        with transaction(self._db):
+            self._upsert_chapter(
+                novel_id, version, chapter, text=text, title=title, summary=summary
+            )
+            self._db.execute(
+                "insert into checkpoint (novel_id, version, chapter, status, detail, updated_at) "
+                "values (?, ?, ?, 'complete', ?, ?) on conflict (novel_id, version, chapter) do "
+                "update set status = excluded.status, detail = excluded.detail, "
+                "updated_at = excluded.updated_at",
+                (novel_id, version, chapter, detail, _now()),
+            )
+        return self._chapter(novel_id, version, chapter)
+
+    def record_chapter_attempt(
+        self, novel_id: str, version: int, chapter: int, *, text: str, reason: str = ""
+    ) -> ChapterAttempt:
+        """TLC CE3 / D6: keep a rejected chapter text. Attempts are numbered 1, 2, ..."""
+        self.get_version(novel_id, version)
+        with transaction(self._db):
+            row = self._db.execute(
+                "select coalesce(max(attempt), 0) + 1 from chapter_attempt "
+                "where novel_id = ? and version = ? and chapter = ?",
+                (novel_id, version, chapter),
+            ).fetchone()
+            attempt = int(row[0])
+            self._db.execute(
+                "insert into chapter_attempt (novel_id, version, chapter, attempt, text, hash, "
+                "reason, created_at) values (?, ?, ?, ?, ?, ?, ?, ?)",
+                (novel_id, version, chapter, attempt, text, text_hash(text), reason, _now()),
+            )
+        return self.list_chapter_attempts(novel_id, version, chapter)[-1]
+
+    def list_chapter_attempts(
+        self, novel_id: str, version: int, chapter: int
+    ) -> list[ChapterAttempt]:
+        rows = self._db.execute(
+            "select * from chapter_attempt where novel_id = ? and version = ? and chapter = ? "
+            "order by attempt",
+            (novel_id, version, chapter),
+        ).fetchall()
+        return [ChapterAttempt.model_validate(dict(row)) for row in rows]
+
+    def count_chapter_attempts(self, novel_id: str, version: int, chapter: int) -> int:
+        """TLC CE2: how many chapter-close validation runs this chapter has had, derived
+        from the persisted `validator_result` rows (one `run_id` per `run_point` call), so
+        the retry bound survives a restart."""
+        row = self._db.execute(
+            "select count(distinct coalesce(run_id, cast(id as text))) from validator_result "
+            "where novel_id = ? and version = ? and chapter = ? and point = 'chapter_close'",
+            (novel_id, version, chapter),
+        ).fetchone()
+        return int(row[0])
+
+    def _require_writable(self, novel_id: str, version: int) -> None:
+        if self.get_version(novel_id, version).status == "published":
+            message = f"version {version} of {novel_id!r} is published and frozen"
             raise VersionFrozenError(message)
+
+    def _chapter(self, novel_id: str, version: int, chapter: int) -> ChapterVersion:
+        found = self.get_chapter(novel_id, version, chapter)
+        if found is None:  # pragma: no cover - just written
+            message = f"chapter {chapter} of version {version} vanished"
+            raise BibleError(message)
+        return found
+
+    def _upsert_chapter(
+        self, novel_id: str, version: int, chapter: int, *, text: str, title: str, summary: str
+    ) -> None:
         self._db.execute(
             "insert into chapter_version (novel_id, version, chapter, title, text, hash, summary, "
             "word_count, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?) "
@@ -599,11 +752,6 @@ class BibleRepository:
                 _now(),
             ),
         )
-        found = self.get_chapter(novel_id, version, chapter)
-        if found is None:  # pragma: no cover - just written
-            message = f"chapter {chapter} vanished"
-            raise BibleError(message)
-        return found
 
     def get_chapter(self, novel_id: str, version: int, chapter: int) -> ChapterVersion | None:
         row = self._db.execute(
@@ -755,11 +903,12 @@ class BibleRepository:
         chapter: int | None = None,
         scene: int | None = None,
         trace_id: str | None = None,
+        run_id: str | None = None,
     ) -> int:
         cursor = self._db.execute(
             "insert into validator_result (novel_id, version, chapter, scene, name, point, "
-            "passed, score, evidence_json, explanation, trace_id, created_at) "
-            "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "passed, score, evidence_json, explanation, trace_id, run_id, created_at) "
+            "values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 novel_id,
                 version,
@@ -772,6 +921,7 @@ class BibleRepository:
                 json.dumps(list(evidence), ensure_ascii=False),
                 explanation,
                 trace_id,
+                run_id,
                 _now(),
             ),
         )

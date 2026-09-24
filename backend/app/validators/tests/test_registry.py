@@ -66,6 +66,8 @@ def test_run_point_persists_and_scores(tmp_path: Path) -> None:
         ("crashes", False, "chapter_close", trace.id),
     ]
     assert stored[0].evidence == ("4 words",)
+    assert stored[0].run_id == stored[1].run_id  # one run id per run_point (TLC CE2)
+    assert repo.count_chapter_attempts(novel.id, 1, 3) == 1
     assert "RuntimeError: boom" in stored[1].evidence[0]
     assert [(s.name, s.value, s.trace_id) for s in observer.scores] == [
         ("validator:chapter_length", 1.0, trace.id),

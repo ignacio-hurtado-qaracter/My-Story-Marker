@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from app.bible.models import (
     Brief,
+    ChapterAttempt,
     ChapterCost,
     ChapterVersion,
     Character,
@@ -48,6 +49,7 @@ __all__ = [
     "BibleNotFoundError",
     "BibleRepository",
     "Brief",
+    "ChapterAttempt",
     "ChapterCost",
     "ChapterVersion",
     "Character",

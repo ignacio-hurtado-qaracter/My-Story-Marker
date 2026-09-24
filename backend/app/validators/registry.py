@@ -13,6 +13,7 @@ evidence: a crashing check never counts as a pass, and never stops the others.
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Sequence
 from typing import Final
 
@@ -80,6 +81,7 @@ def run_point(
     """Run every validator registered for `point` (or the given ones), persist and score
     each result, and return them in order."""
     chosen = list(validators) if validators is not None else validators_for(point)
+    run_id = uuid.uuid4().hex  # one per run: chapter retries are counted from it (TLC CE2)
     results: list[ValidationResult] = []
     for validator in chosen:
         result = _run_one(validator, ctx)
@@ -96,6 +98,7 @@ def run_point(
             chapter=ctx.chapter,
             scene=ctx.scene,
             trace_id=trace_id,
+            run_id=run_id,
         )
         value = result.score if result.score is not None else (1.0 if result.passed else 0.0)
         verdict = "pass" if result.passed else "fail"
