@@ -12,6 +12,7 @@ third-party one.
 | `sqlite-vec/` | MCPmarket installer payload, skill files only (see below) | No, third party | Not stated | 2026-09-21 |
 | `verification/` | Written for this repository, around a third-party reference sheet (see below) | No, ours | This repo | 2026-09-21 |
 | `gift-novel-run/` | Created in this repository (spec 016, block B12) | No, ours | This repo | 2026-09-24 |
+| `security-review-harness/` | Created in this repository (programme 004, exam X04) | No, ours | This repo | 2026-09-24 |
 
 ## FastAPI
 
@@ -148,3 +149,14 @@ generation, checkpoints, validator results in the SQLite story bible, the Langfu
 the web reader through Playwright MCP (`.mcp.json`) and the PDF export. It wraps
 operations other blocks provide and changes nothing itself. Its steps name the CLI and
 tables of plan 004's contracts; refresh them when blocks B3 and B10 merge.
+
+## security-review-harness
+
+The harness's security-analysis skill (exam, optional item X04), created in this repository
+under programme 004. It re-runs the review recorded in
+[`docs/security-report.md`](../../docs/security-report.md): secrets in the git history,
+dependency audits (`pip-audit`, `npm audit`), prompt injection through the brief's free text
+and the reader's change requests, exfiltration between novels through the reader API, the
+tools and the MCP server, the Claude Code policy hooks, and an API-hardening pass. The
+probes it drives live in [`security/`](../../security/); none of them opens `HARNESS_DB` or
+calls a model.
