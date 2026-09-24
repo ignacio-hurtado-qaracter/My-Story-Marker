@@ -240,7 +240,7 @@ Source: [definitions.md](../../docs/definitions.md), [domain-knowledge Figure 2]
 | DR-04 | `KnowledgeState.certainty` is the five-value enum; `via` is `witnessed · was_told · deduced · suspects`. Booleans are rejected. |
 | DR-05 | `Setup.resolution` is `paid · subverted · deliberately_abandoned`, optional while `paid_in` is empty; `due_by` required. |
 | DR-06 | `PlotThread.state` is the five-value enum; `max_latency: int` required. |
-| DR-07 | `ProposedFact`: `extracted_from`, `target_entity`, `target_field`, `payload`, `source_scene`, `conflict: bool`, `existing_value` (set on collision), `status` (`pending · promoted · rejected`), `ruling` (optional: `by`, `reason`, `at`). `Violation`: `scene`, `invariant` (1–10), `evidence` (quote + offset), `severity` (`blocking · reviewable · note`), `resolution` (optional: `fix_prose · fix_canon · accept_with_reason`), `source` (`mechanical · model`), `explanation` (optional: why the quoted passage breaks the invariant, in the auditor's words; set on model findings and refreshed when a re-audit reproduces the finding; the mechanical checks leave it empty in v1). |
+| DR-07 | `ProposedFact`: `extracted_from`, `target_entity`, `target_field`, `payload`, `source_scene`, `conflict: bool`, `existing_value` (set on collision), `status` (`pending · promoted · rejected`), `ruling` (optional: `by`, `reason`, `at`). `Violation`: `scene`, `invariant` (1–10), `evidence` (quote + offset), `severity` (`blocking · reviewable · note`), `resolution` (optional: `fix_prose · fix_canon · accept_with_reason`), `source` (`mechanical · model`), `explanation` (optional: why the quoted passage breaks the invariant, in the auditor's words; set on model findings; when a re-audit reproduces an unresolved finding its explanation is replaced by the fresh one, and cleared if the fresh one has none, while a resolved finding is kept as it is; the mechanical checks leave it empty in v1). |
 | DR-08 | Identifiers are stable; the backend never renames. `Relationship` is directed with `valence` as a dated list. `ChangeEvent` (`character`, `attribute`, `from`, `to`, `scene`, `cause`) lives in `cast/{id}/changes.yaml` as [definitions.md](../../docs/definitions.md#changeevent) and the storage layout now state. |
 | DR-09 | `CanonicalTerm.forbidden_variants` present (may be empty). `TemporalSystem.epoch_zero` and `transit_matrix` required. |
 | DR-10 | Every JSON Schema is versioned in its filename and via `schema_version`; unknown versions fail validation. |
@@ -331,7 +331,7 @@ available to the role.**
 
 | Id | Role · call | Requirement |
 |---|---|---|
-| FR-AGENT-01 | Writer · `write(assembled_context) -> WriterOutput` | Prompt = role system prompt + the `AssembledContext` of FR-OPS-03 as documents. Instruction states dramatic function (goal, conflict, outcome, value_change, budget) and leaves execution free. Output body is written to `manuscript/NNN.md`; `proposed_facts` are appended to `ledger/proposed.yaml` with `status: pending`. The instruction also lists, in compact form, the records a proposed fact may address and their fields, as FR-AGENT-05 derives them. |
+| FR-AGENT-01 | Writer · `write(assembled_context) -> WriterOutput` | Prompt = role system prompt + the `AssembledContext` of FR-OPS-03 as documents. Instruction states dramatic function (goal, conflict, outcome, value_change, budget) and leaves execution free. Output body is written to `manuscript/NNN.md`; `proposed_facts` are appended to `ledger/proposed.yaml` with `status: pending`. The instruction also lists, in compact form, the records a proposed fact may address and their fields, as FR-AGENT-05 derives them. The scene record's `entry_state` and `exit_state` are not part of the fixed function: the writer reaches them only in ways the other records allow and falls short of them rather than break a record, since the invariants are checked and the states are not. |
 | FR-AGENT-02 | Writer · `revise(draft, violations) -> ReviseOutput` | Inputs: the current draft, the **blocking** violations only, each with its `explanation` where it has one, the same assembled context. Instruction: change only the flagged spans. The orchestrator diff-checks the output: if more than `REVISE_MAX_CHANGED_RATIO` (default 0.35) of the draft's sentences changed, the revision is rejected and retried once with a stronger instruction; a second failure escalates. |
 | FR-AGENT-03 | Writer · `digest(draft) -> DigestOutput` | Produces the scene-level `SceneDigest` (~100 words) written to `manuscript/digests/NNN.md`; `literal_tail` is derived by code, not by the model. |
 | FR-AGENT-04 | Style editor · `polish(draft, style) -> PolishOutput` | Inputs: `manuscript/NNN.md`, `canon/style.md`, `canon/lexicon.yaml`, POV `cast/{id}/voice.md`. Writes `manuscript/NNN.md`. Runs after a clean audit and before extraction; a polished draft is re-checked by the mechanical lexicon and voice checks (FR-AUD-05, -07) before acceptance. |
@@ -774,6 +774,21 @@ user (2026-09-24), and the findings they left deferred by name:
   clarification. The second live turn escalated because `revise` could not know why a
   sentence was flagged; the explanation now reaches it from `ledger/violations.yaml`, as
   FR-AGENT-11 requires, and a re-audit that reproduces a finding refreshes it.
+- **FR-AGENT-01: the states yield to the records.** The write instruction called
+  `entry_state` and `exit_state` part of the fixed function, which FR-AGENT-01 does not list;
+  coming last, it overrode the system prompt's rule that the records win, and both live turns'
+  writers broke a participant's body to reach the exit state.
+- *Deferred:* FR-AGENT-02 says "change only the flagged spans"; the instruction says "change
+  only what each finding needs", which resolving an explanation can stretch to a sentence
+  nobody quoted, still under `REVISE_MAX_CHANGED_RATIO`. The auditor now quotes every sentence
+  that shows a breach, which narrows the gap and, on a heavily breached draft, brings the ratio
+  closer. `architecture.md`'s Violation table does not list `explanation` (nor `source`), and
+  no doc states that a scene record's states yield to the other records: both are Process 1
+  questions.
+- *Deferred:* body facts are compared by key. The third live turn's canoniser restated a
+  registered change under a key the stored map lacks (`hand` beside `left_hand`), and
+  `promote` added it as a new attribute; FR-OPS-06 adds an absent key by design, so a
+  restatement under another name is not caught.
 - *Deferred:* when the canoniser retries, the turn record keeps only the retry's call; the
   first call's usage and the retried and rejected facts are not on it, so a turn's token
   total undercounts by that call and rejected facts are visible only to a direct caller.
