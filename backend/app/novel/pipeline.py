@@ -64,8 +64,8 @@ from app.validators import (
 
 MAX_SCENE_RETRIES: Final[int] = 2
 MAX_CHAPTER_RETRIES: Final[int] = 2
-MAX_REPAIR_ROUNDS: Final[int] = 1
-MAX_REPLANS: Final[int] = 1
+MAX_REPAIR_ROUNDS: Final[int] = 2  # tuning 1 (was 1); TLC re-run with 2
+MAX_REPLANS: Final[int] = 2  # tuning 1 (was 1): the plan check grew (time markers, overlap)
 DEFAULT_CHAPTERS: Final[int] = 10
 
 Progress = Callable[[str], None]
@@ -379,6 +379,7 @@ def write_scene(run: Run, version: int, chapter: int, scene: int, written: dict[
         ),
         cx.character_sheet_document(run.repo, run.novel_id, observer=run.observer),
         cx.chapter_plan_document(plan, chapter, facts),
+        cx.facts_checklist_document(plan, chapter, facts, run.brief, scene=scene),
         cx.text_document("manuscript/previous-tail.txt", tail or "(inicio de la novela)"),
         cx.forbidden_document(run.forbidden()),
         cx.names_document(run.names()),
@@ -420,9 +421,11 @@ def _clean(text: str) -> str:
 
 def _editor_docs(run: Run, version: int, chapter: int) -> list[Document]:
     plan = run.require_plan()
+    facts = run.facts()
     return [
         cx.brief_summary_document(run.brief),
-        cx.chapter_plan_document(plan, chapter, run.facts()),
+        cx.chapter_plan_document(plan, chapter, facts),
+        cx.facts_checklist_document(plan, chapter, facts, run.brief),
         cx.character_sheet_document(run.repo, run.novel_id, observer=run.observer),
         cx.text_document(
             "manuscript/previous-chapter-summary.txt",
@@ -507,10 +510,16 @@ def write_chapter(run: Run, version: NovelVersion, chapter: int) -> None:
             [
                 cx.text_document("manuscript/chapter-draft.txt", existing.text),
                 cx.text_document("manuscript/feedback.txt", feedback or "(sin detalle)"),
+                cx.text_document(
+                    "manuscript/neighbour-summaries.txt", _neighbour_summaries(run, v, chapter)
+                ),
             ],
-            "Repara el capítulo de manuscript/chapter-draft.txt según manuscript/feedback.txt "
-            "(validadores de publicación): si falta un hecho del brief asignado a este "
-            "capítulo, intégralo con naturalidad; si hay una incoherencia temporal, corrígela. "
+            f"Repara el capítulo {chapter} de manuscript/chapter-draft.txt según "
+            "manuscript/feedback.txt (validadores de publicación y juez): corrige lo que el "
+            f"feedback dice del capítulo {chapter}. Si falta un hecho del brief asignado a este "
+            "capítulo, intégralo con naturalidad; si hay una incoherencia temporal o se repite "
+            "lo que cuenta otro capítulo, corrígelo usando manuscript/neighbour-summaries.txt "
+            "(qué cuentan el capítulo anterior y el siguiente) y la «Marca temporal» del plan. "
             "Mantén todo lo demás.",
         )
     elif (
@@ -558,6 +567,16 @@ def write_chapter(run: Run, version: NovelVersion, chapter: int) -> None:
             "debe conservar prácticamente todo su contenido.",
         )
     close_chapter(run, v, chapter, edit, scene_texts)
+
+
+def _neighbour_summaries(run: Run, version: int, chapter: int) -> str:
+    """Tuning 1: the stored summaries of the previous and next chapters, for a repair."""
+    lines = []
+    for number, label in ((chapter - 1, "anterior"), (chapter + 1, "siguiente")):
+        row = run.repo.get_chapter(run.novel_id, version, number) if number >= 1 else None
+        if row is not None:
+            lines.append(f"Capítulo {label} ({number}, {row.title}): {row.summary}")
+    return "\n".join(lines) or "(sin capítulos vecinos)"
 
 
 def _chapter_close_runs(run: Run, version: int, chapter: int) -> int:
@@ -666,6 +685,13 @@ def chapters_named(results: Sequence[ValidationResult], plan: NovelPlan, total: 
     for result in results:
         if result.passed:
             continue
+        if result.name == "judge_novel":
+            # Tuning 1: the judge names the chapters to repair (`capitulos_a_reparar`);
+            # its justifications cite many chapters it does not want rewritten.
+            named = _judge_repair_chapters(result)
+            if named:
+                found |= named
+                continue
         for blob in [result.explanation, *result.evidence]:
             found |= {int(n) for n in _CHAPTER_REF.findall(blob)}
             found |= {
@@ -676,6 +702,23 @@ def chapters_named(results: Sequence[ValidationResult], plan: NovelPlan, total: 
                     found.add(scene.chapter)
     chosen = sorted(c for c in found if 1 <= c <= total)
     return chosen or list(range(1, total + 1))
+
+
+_REPAIR_LINE = re.compile(r"^cap[ií]tulos a reparar:\s*(.+)$", re.IGNORECASE)
+_BLOCKING_CHAPTERS = re.compile(r"\[alta; cap\. ([\d, ]+)\]")
+
+
+def _judge_repair_chapters(result: ValidationResult) -> set[int]:
+    """`capitulos_a_reparar` and the chapters of `alta` issues, from the judge evidence."""
+    found: set[int] = set()
+    for line in result.evidence:
+        match = _REPAIR_LINE.match(line.strip())
+        if match:
+            found |= {int(n) for n in re.findall(r"\d+", match.group(1))}
+        if line.startswith("bloqueante:"):
+            for group in _BLOCKING_CHAPTERS.findall(line):
+                found |= {int(n) for n in re.findall(r"\d+", group)}
+    return found
 
 
 def publish_version(run: Run, version: int, total: int) -> RunResult | None:

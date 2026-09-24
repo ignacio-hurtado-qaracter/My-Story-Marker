@@ -40,6 +40,17 @@ class PlanChapter(_Out):
     title: str
     synopsis: str
     arc_role: str = Field(description="setup, rising, midpoint, climax, resolution...")
+    time_marker: str = Field(
+        default="",
+        description=(
+            "Explicit story-time marker of the chapter's present action, relative to the "
+            "previous chapter (e.g. 'viernes 26 de junio de 2026, dos días después')"
+        ),
+    )
+    flashback: bool = Field(
+        default=False,
+        description="True only if the whole chapter happens before the previous chapter",
+    )
 
 
 class PlanScene(_Out):

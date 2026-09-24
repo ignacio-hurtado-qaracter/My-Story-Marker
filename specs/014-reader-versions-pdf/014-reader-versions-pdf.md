@@ -91,6 +91,10 @@ are; the 3D graph page.
 2. AC 2 — R03, R04, R06, E05: `export_pdf` writes a PDF with a cover (title, recipient,
    dedication), a "Novedades" page when version > 1, a linked index, the chapters and the
    character/place sheet with links, and internal links throughout. **T**
+   *Clarified (tuning iteration 1): "Novedades" renders the version note for a reader —
+   `{"change": {key, old, new}}` as "Cambio: <key>: «old» → «new»", internal keys such as
+   `stop_reason` hidden — instead of the raw JSON, then the changed chapters with links
+   (`app.export.pdf.note_lines`).*
 3. AC 3 — R05: `POST /novels/{id}/changes` resolves a fact deterministically when it can and
    starts `change_fact` in the background, returning 202 and a pollable job. **I · D**
 4. AC 4 — R02–R04, R06, R07: the web reader shows the cover with the dedication from the

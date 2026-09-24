@@ -33,10 +33,21 @@ by a soundness theorem, so a passing build is a proof of the `Prop`.
 | `temporalOrder` | `TemporalOrder` | every event told later (greater `seq`) happens on the same day or later |
 | `agesCoherent` | `AgesCoherent` | every declared age equals the full years between the character's birth and the event date (no birth date: nothing to check) |
 | `noBilocation` | `NoBilocation` | no character is in two different places on the same day |
-| `noAfterExit` | `NoAfterExit` | after a `death` or `departure` event, its first participant takes part in no event told later |
+| `noAfterExit` | `NoAfterExit` | after a `death` or `departure` event, its first participant (the one who dies or leaves; the others are witnesses) takes part in no event on a **later day of the story** — the exit day itself and flashbacks dated before it are fine |
 
 `datesConsistent` (every `day` equals `date.dayNumber`) is checked inside
-`temporalOrder` and `noBilocation`, which compare `day`.
+`temporalOrder`, `noBilocation` and `noAfterExit`, which compare `day`.
+
+**Story axis, not discourse axis (tuning iteration 1).** Until 2026-09-24 `noAfterExit`
+compared `seq`, the order of the telling, so a flashback narrated after a death but dated
+before it would have failed; invariant 16 of `docs/definitions.md` is on the story axis.
+It now compares `day`. In the pipeline the plan's `seq` is renumbered in date order
+(`app/novel/chronology.normalise_events`), so the two readings only differed on same-day
+ties. The Python mirror that phrases Lean's failures for the editor
+(`app/validators/programmatic/chronology.diagnose`) had a worse divergence: it exited
+**every** participant of a death, so in `b4-temporal` the recipient, who buries his dog,
+"could not appear" afterwards and the plan stage stopped. Both now agree
+(`app/formal/tests/test_lean.py::test_no_after_exit_is_on_the_story_axis`).
 
 ## The generated file
 

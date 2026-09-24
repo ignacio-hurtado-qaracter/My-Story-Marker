@@ -29,6 +29,35 @@ def test_pass_rule() -> None:
     assert not evaluate(dict.fromkeys(good, 5), ["final abrupto"]).passed
 
 
+# spec 011 (revised, tuning iteration 1): only a concrete `alta` issue naming chapters blocks.
+def test_only_concrete_high_issues_block() -> None:
+    from app.judge.models import Issue
+    from app.judge.validators import _result
+
+    scores = dict.fromkeys(
+        ("continuidad", "tono", "calidad_narrativa", "personalizacion_natural"), 4
+    )
+    base = _judgement(scores)
+    advisory = [
+        Issue(
+            descripcion="Posible redundancia entre caps. 1 y 2", capitulos=[1, 2], severidad="alta"
+        ),
+        Issue(descripcion="El cap. 3 repite un adjetivo", capitulos=[3], severidad="media"),
+        Issue(descripcion="Salto temporal sin aclarar", capitulos=[], severidad="alta"),
+    ]
+    soft = _result("judge_chapter", base.model_copy(update={"blocking_issues": advisory}))
+    assert soft.passed, soft.explanation
+    assert sum("observación (no bloquea)" in e for e in soft.evidence) == 3
+    hard = Issue(
+        descripcion="Cap. 5 acaba el miércoles; cap. 6 dice «tercera semana»",
+        capitulos=[5, 6],
+        severidad="alta",
+    )
+    blocked = _result("judge_chapter", base.model_copy(update={"blocking_issues": [hard]}))
+    assert not blocked.passed
+    assert "bloqueante: [alta; cap. 5, 6]" in " ".join(blocked.evidence)
+
+
 # spec 011 (clarified): the judge's brief summary never carries the raw free text (R2).
 def test_brief_summary_drops_free_text() -> None:
     with BibleRepository.open(":memory:") as repo:

@@ -95,7 +95,13 @@ def _plan(call: FakeCall, chapters: int) -> NovelPlan:
         ],
         places=[PlanPlace(name="Casa")],
         chapters=[
-            PlanChapter(number=c, title=f"Capítulo {c}", synopsis="...", arc_role="rising")
+            PlanChapter(
+                number=c,
+                title=f"Capítulo {c}",
+                synopsis="...",
+                arc_role="rising",
+                time_marker=f"mes {c} de 2024",
+            )
             for c in range(1, chapters + 1)
         ],
         scenes=scenes,

@@ -84,6 +84,17 @@ invariant.
   and Lean's output to the editor as feedback; the result is the Langfuse score
   `lean_chronology` (1 / 0).
 
+- **Revised 2026-09-24 — tuning iteration 1** (approval delegated by the user for this
+  session; status stays `approved`). `noAfterExit` compared `seq` (the discourse axis),
+  while invariant 16 of [`definitions.md`](../../docs/definitions.md) puts it on the
+  **story axis** "except as memory or flashback". Now `noAfterExitB` compares `day`
+  (strictly later day; the exit day itself is allowed) and checks `datesConsistent`; the
+  `Prop` `NoAfterExit` quantifies over `date.dayNumber`, and `noAfterExit_sound` still
+  proves it. In the pipeline the plan's `seq` is renumbered in date order
+  (`app/novel/chronology.normalise_events`), so the two axes differ only on same-day ties;
+  the `b4-temporal` plan-stage stop was caused by the Python mirror exiting every
+  participant (spec 008 revision). L04's real case: [`docs/process/lean-caso-real.md`](../../docs/process/lean-caso-real.md).
+
 ## Acceptance criteria
 
 | AC | Criterion | Req | Letter |

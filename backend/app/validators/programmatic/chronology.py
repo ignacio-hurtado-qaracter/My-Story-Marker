@@ -113,19 +113,29 @@ def diagnose(chronology: Mapping[str, object]) -> dict[str, list[str]]:
                     f"«{places.get(str(other.get('place_id')), other.get('place_id'))}»."
                 )
 
-    exits: dict[str, Mapping[str, object]] = {}
+    # noAfterExit, as in Lean: on the story axis (story date, not `seq`), and only the
+    # event's first participant leaves (the one who dies or departs; the others witness it).
+    # A flashback told later but dated before the exit, or the exit day itself, is fine.
+    exits: dict[str, tuple[dt.date, Mapping[str, object]]] = {}
     for event in events:
+        date = _date(event.get("story_date"))
+        who = participants(event)
+        if event.get("kind") in {"death", "departure"} and who and date is not None:
+            known = exits.get(who[0])
+            if known is None or date < known[0]:
+                exits[who[0]] = (date, event)
+    for event in events:
+        date = _date(event.get("story_date"))
+        if date is None:
+            continue
         for cid in participants(event):
-            if cid in exits:
-                exit_event = exits[cid]
+            if cid in exits and exits[cid][0] < date:
+                exit_date, exit_event = exits[cid]
                 found["noAfterExit"].append(
-                    f"{_where(event)} hace aparecer a {names.get(cid, cid)}, que ya había "
-                    f"salido de la historia ({exit_event.get('kind')}) en "
-                    f"{exit_event.get('id')} (capítulo {exit_event.get('chapter')})."
+                    f"{_where(event)} ({date}) hace aparecer a {names.get(cid, cid)}, que ya "
+                    f"había salido de la historia ({exit_event.get('kind')}) el {exit_date} "
+                    f"en {exit_event.get('id')} (capítulo {exit_event.get('chapter')})."
                 )
-        if event.get("kind") in {"death", "departure"}:
-            for cid in participants(event):
-                exits.setdefault(cid, event)
     return dict(found)
 
 

@@ -65,7 +65,10 @@ class Roles:
             f"1..{chapters}, cada uno con exactamente 3 escenas, cuyas word_budget sumen entre "
             "1100 y 1350 por capítulo. Usa en facts_used las claves del documento "
             "bible/facts.txt; cada hecho con mandatory=true debe estar en al menos una escena. "
-            "Al menos un evento de cronología por escena. Fechas en formato YYYY-MM-DD."
+            "Al menos un evento de cronología por escena. Fechas en formato YYYY-MM-DD. Cada "
+            "capítulo lleva time_marker (cuándo ocurre su acción presente respecto al anterior) "
+            "y avanza en el tiempo salvo que marques flashback=true; ningún capítulo repite el "
+            "núcleo de otro."
         )
         if feedback:
             instruction += (
@@ -96,8 +99,17 @@ class Roles:
             f"plan/chapter-{chapter}.txt, en español, con unas {words} palabras. Continúa de "
             "forma natural desde manuscript/previous-tail.txt. Respeta exactamente los nombres "
             "de bible/exact-names.txt y no uses ningún término de bible/forbidden-terms.txt. "
+            "Cada hecho de plan/facts-checklist.txt debe quedar reconocible en la escena, con "
+            "sus detalles concretos (objetos, lugares, acciones), contado con naturalidad, no "
+            "como lista. No cuentes lo que el plan reserva al capítulo siguiente. "
             "Solo prosa: sin títulos, sin encabezados, sin comentarios."
         )
+        if scene == 1 and chapter > 1:
+            instruction += (
+                " Es la primera escena del capítulo: ábrela anclando el paso del tiempo desde el "
+                "capítulo anterior según la «Marca temporal» del plan (cuándo ocurre respecto a "
+                "lo ya contado), en una frase natural."
+            )
         if feedback:
             instruction += (
                 "\n\nFEEDBACK del intento anterior (en manuscript/feedback.txt): corrígelo."
@@ -126,10 +138,14 @@ class Roles:
             f"{task}\n\nEl capítulo final debe tener entre {words_min} y {words_max} palabras "
             f"(objetivo: unas {target}). Conserva exactamente los nombres de "
             "bible/exact-names.txt y los hechos del plan; ningún término de "
-            "bible/forbidden-terms.txt. Cada hecho de «Hechos a integrar» del plan debe "
-            "aparecer al menos una vez con su expresión literal (si el hecho es «un faro», "
-            "el texto contiene «un faro»). Devuelve title, text, summary (~120 palabras) e "
-            "issues."
+            "bible/forbidden-terms.txt. Cada hecho de plan/facts-checklist.txt debe aparecer "
+            "de forma reconocible, con su expresión literal cuando es corto (si el hecho es "
+            "«un faro», el texto contiene «un faro») y, si es un recuerdo, con su título y sus "
+            "detalles concretos, integrado con naturalidad (nunca como lista). El capítulo "
+            "respeta su «Marca temporal» (el comienzo deja claro cuándo ocurre respecto al "
+            "capítulo anterior) y no repite el capítulo anterior ni anticipa el siguiente. "
+            "El summary empieza por la marca temporal. Devuelve title, text, summary (~120 "
+            "palabras) e issues."
         )
         return self._call(
             AgentRole.EDITOR,

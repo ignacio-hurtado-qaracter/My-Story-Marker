@@ -73,6 +73,8 @@ and `traced_complete` already make.
 
 *Clarified (red-team R2): the judge's `brief/summary.json` never includes the raw `free_text`; its extracted facts reach the judge through the bible (`test_brief_summary_drops_free_text`, **T**).*
 
+*Revised 2026-09-24 — tuning iteration 1 (approval delegated by the user for this session; status stays `approved`). Reason: the 10-chapter example was stopped by `judge_novel` on "bloqueante: Posible redundancia…" and on contradictions it could not cite, and the first round had passed on scores ("aprueba, media 4.0"). Now `blocking_issues` and `contradicciones` are lists of `Issue {descripcion, capitulos, severidad: alta|media|baja}`; an issue blocks only if it is `alta`, names at least one chapter and is not speculative ("posible", "parece", "podría", "quizá", "tal vez", "revisar si"…, `SPECULATIVE` in `validators.py`). The rest is evidence marked "observación (no bloquea)". The thresholds of AC 1 (every criterion ≥ 3, mean ≥ 3.5) are unchanged (D11). The pipeline reopens `capitulos_a_reparar` plus the chapters of `alta` issues (spec 007, AC 7). Test: `test_only_concrete_high_issues_block` (**T**).*
+
 ## Verification plan
 
 | AC | Where |

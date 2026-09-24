@@ -15,10 +15,13 @@ Cómo evaluar:
    un capítulo correcto y agradable es un 4; reserva el 5 para lo excelente y el 1–2 para
    defectos que un lector notaría.
 3. Justifica cada nota en 1–3 frases en español, citando o señalando el pasaje concreto.
-4. `blocking_issues`: incluye SOLO defectos bloqueantes graves de la lista de la rúbrica
-   (personajes inconsistentes, saltos temporales sin sentido, contradicción con capítulos
-   anteriores, prosa mecánica o repetitiva, final abrupto, personalización forzada). Si no
-   hay ninguno claro, déjalo vacío. No repitas aquí defectos menores.
+4. `blocking_issues`: defectos de la lista de la rúbrica (personajes inconsistentes, saltos
+   temporales sin sentido, contradicción con capítulos anteriores, prosa mecánica o
+   repetitiva, final abrupto, personalización forzada), cada uno con `descripcion` concreta
+   (cita el pasaje), `capitulos` (este y, si aplica, el anterior implicado) y `severidad`:
+   `alta` si un lector lo notaría y rompe la historia (**solo `alta` bloquea**), `media`
+   si es un descuido visible, `baja` si es un detalle. Una sospecha ("posible", "parece")
+   nunca es `alta`. Si no hay ninguno, déjalo vacío.
 5. `comentario_general`: feedback accionable para el editor — qué cambiar, en qué escena o
    párrafo, y por qué. Si todo está bien, di qué conservar.
 

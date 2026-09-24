@@ -213,23 +213,27 @@ theorem noBilocation_sound (s : Story) (h : noBilocationB s = true) : NoBilocati
 
 /-! ## Invariant 4 — nobody acts after leaving
 
-After an event of kind `death` or `departure`, its first participant takes part in no
-event told later. The outer loop runs over exit events only, so the check costs
-(exits × events), not events². -/
+After an event of kind `death` or `departure`, its first participant (the one who dies or
+leaves) takes part in no event that happens on a **later day in story time**. The order is
+the story axis (`day`), not the discourse axis (`seq`): a flashback told after the death
+but dated before it is legitimate, and the day of the exit itself is allowed (the farewell
+scene). Tuning iteration 1 moved this invariant from `seq` to `day`. The outer loop runs
+over exit events only, so the check costs (exits × events), not events². -/
 
 def noAfterExitB (s : Story) : Bool :=
-  (s.events.filter (·.kind.isExit)).all fun x => s.events.all fun y =>
-    !(decide (x.seq < y.seq) &&
+  datesConsistent s && (s.events.filter (·.kind.isExit)).all fun x => s.events.all fun y =>
+    !(decide (x.day < y.day) &&
       (x.participants.head?.map (fun c => y.participants.contains c)).getD false)
 
 def NoAfterExit (s : Story) : Prop :=
   ∀ x ∈ s.events, ∀ y ∈ s.events, ∀ c, x.kind.isExit = true → x.participants.head? = some c →
-    x.seq < y.seq → c ∉ y.participants
+    x.date.dayNumber < y.date.dayNumber → c ∉ y.participants
 
 theorem noAfterExit_sound (s : Story) (h : noAfterExitB s = true) : NoAfterExit s := by
   intro x hx y hy c hk hc hlt hmem
-  simp only [noAfterExitB, List.all_eq_true] at h
-  have := h x (List.mem_filter.mpr ⟨hx, hk⟩) y hy
+  simp only [noAfterExitB, Bool.and_eq_true, List.all_eq_true] at h
+  rw [← day_eq_of_consistent h.1 hx, ← day_eq_of_consistent h.1 hy] at hlt
+  have := h.2 x (List.mem_filter.mpr ⟨hx, hk⟩) y hy
   simp_all
 
 /-! ## The whole story -/

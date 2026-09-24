@@ -180,7 +180,7 @@ the authoritative database; nothing is deleted.
 |---|---|
 | `version` | Sequential per novel; version 1 is the first generation |
 | `parent_version` | The version this one was derived from by `change_fact`; empty for version 1 |
-| `status` | `draft` (being generated) · `published` (pre-publish passed) · `blocked` (pre-publish failed after its repair round) |
+| `status` | `draft` (being generated) · `published` (pre-publish passed) · `blocked` (pre-publish failed after its repair rounds) |
 | `changed_chapters[]` | Chapters whose text hash differs from the parent's; drives the reader's marks and the PDF's "novedades" page |
 | `note` | The change request that produced it, in the reader's words |
 | `chapter_version.text` · `hash` · `summary` · `title` | The chapter's prose, its content hash, and its chapter digest |
@@ -780,10 +780,10 @@ stateDiagram-v2
   CHECKPOINT --> PRE_PUBLISH : c = N
   PRE_PUBLISH --> PUBLISHED : every validator passes
   PRE_PUBLISH --> BLOCKED : a validator fails
-  BLOCKED --> PRE_PUBLISH : editor repairs, one round
+  BLOCKED --> PRE_PUBLISH : editor repairs, at most 2 rounds
   WRITING --> STOPPED_ERROR : scene retries exhausted
   CLOSING --> STOPPED_ERROR : chapter retries exhausted
-  BLOCKED --> STOPPED_ERROR : repair round already used
+  BLOCKED --> STOPPED_ERROR : repair rounds used up
   PUBLISHED --> [*]
   STOPPED_ERROR --> [*]
 ```
@@ -816,8 +816,10 @@ and never lost.
 **Publication is gated.** `pre_publish` runs brief coverage over the whole novel, the Lean 4
 proof of the chronology, and the visual check of the reader through a browser MCP. If all
 pass, `publish_version` sets the version `published`. If one fails, the version is
-`BLOCKED` and the failures go back to the editor as feedback for **one repair round** of the
-chapters they name; a second failure ends the run in `STOPPED_ERROR`, leaving the version
+`BLOCKED` and the failures go back to the editor as feedback for a **repair round** of the
+chapters they name (the judge names them explicitly), with the neighbouring chapters'
+summaries; at most `MAX_REPAIR_ROUNDS = 2` rounds, and a failure after the last one ends
+the run in `STOPPED_ERROR`, leaving the version
 `blocked` and any earlier published version untouched. Every run ends in `PUBLISHED` or
 `STOPPED_ERROR`; there is no third ending.
 
