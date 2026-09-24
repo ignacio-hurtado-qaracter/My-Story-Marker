@@ -7,11 +7,18 @@ layer (`Tool.run`), and runs inside a Langfuse trace (session = novel) with a
 
 Read-only by construction: the database is opened with `mode=ro` and `query_only`, no
 migration runs, and no tool handler calls a write method of `BibleRepository`.
+
+Spec 018 (X03, SEC-01): every call runs on a repository scoped to one owner, so
+`list_novels` lists only that owner's novels and every other tool answers "no novel" for
+anyone else's. Over stdio the identity is the environment's: `STORY_MAKER_USER` (the email
+of a registered user) or, unset, the built-in `local` owner of what the CLI generates. The
+HTTP transport binds 127.0.0.1 and uses the same identity (token auth for it is deferred).
 """
 
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from pathlib import Path
 from typing import Final
@@ -24,7 +31,7 @@ from fastmcp.tools import ToolResult
 from mcp.types import ToolAnnotations
 from pydantic import JsonValue, PrivateAttr
 
-from app.bible import BibleRepository
+from app.bible import DEFAULT_OWNER_ENV, LOCAL_OWNER_ID, BibleRepository
 from app.commons.config import get_settings
 from app.commons.observability import Observer, get_observer
 from app.tools import REGISTRY, AnyTool, ToolError, ToolOutput
@@ -54,12 +61,37 @@ def open_readonly(path: Path | None = None) -> BibleRepository:
     return BibleRepository(connection)
 
 
+USER_ENV: Final[str] = DEFAULT_OWNER_ENV
+"""`STORY_MAKER_USER`: the email whose novels this server serves (spec 018)."""
+
+
+def resolve_owner(repo: BibleRepository, email: str | None = None) -> str:
+    """The owner id for `email` (default: `STORY_MAKER_USER`), or `local` when unset.
+
+    An email that is not registered is an error, never a fallback to `local`: a typo must not
+    widen what the server shows."""
+    wanted = (email if email is not None else os.environ.get(USER_ENV, "")).strip().casefold()
+    try:
+        repo.connection.execute("select 1 from app_user limit 1").fetchall()
+    except sqlite3.OperationalError as exc:
+        message = "story bible predates login (spec 018): start the backend once to migrate it"
+        raise McpToolError(message) from exc
+    if not wanted:
+        return LOCAL_OWNER_ID
+    user = repo.find_user_by_email(wanted)
+    if user is None:
+        message = f"{USER_ENV} names no registered user"
+        raise McpToolError(message)
+    return user.id
+
+
 def run_tool(
     tool: AnyTool,
     arguments: dict[str, object],
     *,
     observer: Observer,
     db_path: Path | None = None,
+    user_email: str | None = None,
 ) -> ToolOutput:
     """One MCP call: a trace per call, the tool's own span and validation, a score."""
     novel_id = arguments.get("novel_id")
@@ -73,7 +105,8 @@ def run_tool(
             try:
                 tool.validate_input(arguments)  # reject bad input before touching the DB
                 with open_readonly(db_path) as repo:
-                    result = tool.run(repo, arguments, observer=observer)
+                    owned = repo.scoped_to(resolve_owner(repo, user_email))
+                    result = tool.run(owned, arguments, observer=observer)
             except (ToolError, McpToolError) as exc:
                 observer.score("tool_ok", 0.0, comment=f"{tool.name}: {exc}"[:500])
                 raise McpToolError(str(exc)) from exc
@@ -88,9 +121,12 @@ class BibleTool(McpTool):  # type: ignore[explicit-any]  # fastmcp.Tool has Any 
 
     _tool: AnyTool = PrivateAttr()
     _db_path: Path | None = PrivateAttr(default=None)
+    _user_email: str | None = PrivateAttr(default=None)
 
     @classmethod
-    def wrap(cls, tool: AnyTool, *, db_path: Path | None = None) -> BibleTool:
+    def wrap(
+        cls, tool: AnyTool, *, db_path: Path | None = None, user_email: str | None = None
+    ) -> BibleTool:
         mcp_tool = cls(
             name=tool.name,
             description=tool.description,
@@ -105,13 +141,20 @@ class BibleTool(McpTool):  # type: ignore[explicit-any]  # fastmcp.Tool has Any 
         )
         mcp_tool._tool = tool
         mcp_tool._db_path = db_path
+        mcp_tool._user_email = user_email
         return mcp_tool
 
     async def run(self, arguments: dict[str, JsonValue]) -> ToolResult:
         observer = get_observer()
         args: dict[str, object] = dict(arguments)
         result = await anyio.to_thread.run_sync(
-            lambda: run_tool(self._tool, args, observer=observer, db_path=self._db_path)
+            lambda: run_tool(
+                self._tool,
+                args,
+                observer=observer,
+                db_path=self._db_path,
+                user_email=self._user_email,
+            )
         )
         payload = result.model_dump(mode="json")
         return ToolResult(
@@ -119,12 +162,23 @@ class BibleTool(McpTool):  # type: ignore[explicit-any]  # fastmcp.Tool has Any 
         )
 
 
-def build_server(*, db_path: Path | None = None) -> FastMCP:  # type: ignore[explicit-any]  # FastMCP is generic over an Any lifespan result (spec 017)
-    """The FastMCP server with every registry tool. `db_path` overrides `HARNESS_DB`."""
+def build_server(  # type: ignore[explicit-any]  # FastMCP is generic over an Any lifespan result (spec 017)
+    *, db_path: Path | None = None, user_email: str | None = None
+) -> FastMCP:
+    """The FastMCP server with every registry tool. `db_path` overrides `HARNESS_DB`;
+    `user_email` overrides `STORY_MAKER_USER` (spec 018)."""
     server = FastMCP(SERVER_NAME, instructions=INSTRUCTIONS)
     for tool in REGISTRY.values():
-        server.add_tool(BibleTool.wrap(tool, db_path=db_path))
+        server.add_tool(BibleTool.wrap(tool, db_path=db_path, user_email=user_email))
     return server
 
 
-__all__ = ["SERVER_NAME", "BibleTool", "build_server", "open_readonly", "run_tool"]
+__all__ = [
+    "SERVER_NAME",
+    "USER_ENV",
+    "BibleTool",
+    "build_server",
+    "open_readonly",
+    "resolve_owner",
+    "run_tool",
+]

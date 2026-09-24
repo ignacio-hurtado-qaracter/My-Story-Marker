@@ -36,6 +36,7 @@ from app.bible.models import (
 )
 from app.bible.repository import (
     DEFAULT_CHAPTERS,
+    DEFAULT_OWNER_ENV,
     LOCAL_OWNER_ID,
     BibleError,
     BibleNotFoundError,
@@ -47,6 +48,7 @@ from app.bible.repository import (
 
 __all__ = [
     "DEFAULT_CHAPTERS",
+    "DEFAULT_OWNER_ENV",
     "LOCAL_OWNER_ID",
     "AppUser",
     "BibleError",
