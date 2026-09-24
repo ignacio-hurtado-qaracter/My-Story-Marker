@@ -32,7 +32,7 @@ OpenAPI, types. 8. Frontend (AC 6, 7). 9. Security report.
 | 3 | T | `test_auth.py::test_user_cannot_reach_another_users_novel` |
 | 4 | T | `test_auth.py::test_mcp_tools_are_scoped_to_the_env_user` |
 | 5 | T | existing suites + `test_auth.py::test_existing_novels_belong_to_local` |
-| 6 | T | `frontend/src/auth/auth.test.tsx` |
+| 6 | T | `frontend/src/app/auth.test.tsx` |
 | 7 | I | review |
 
 ## Risks and stop conditions

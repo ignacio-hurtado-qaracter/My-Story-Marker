@@ -85,7 +85,7 @@ one (404, same body). The interview creates the novel with the caller as owner, 
 
 ## Verification plan
 
-`backend/app/auth/tests/test_auth.py` (AC 1–5), `frontend/src/auth/auth.test.tsx` (AC 6),
+`backend/app/auth/tests/test_auth.py` (AC 1–5), `frontend/src/app/auth.test.tsx` (AC 6),
 review of the page (AC 7). The contract test and schemathesis run with `AUTH_REQUIRED=0`
 (root conftest); the auth routes are added to the contract's route table.
 
