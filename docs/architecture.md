@@ -24,7 +24,9 @@ in the version that holds at the scene's instant. Retrieval decides *what* enter
 decides *which version*. See [Memory and context budget](#memory-and-context-budget).
 
 **Prose cannot edit canon.** When the draft contradicts a record, the draft is rewritten,
-not the record — unless a designated agent rules otherwise, explicitly.
+not the record — unless a human rules otherwise, explicitly, and the record's owning role
+makes the edit. What the prose invents reaches canon only as an addition: promotion adds
+what a record does not yet say and never changes what it already says.
 
 ---
 
@@ -126,11 +128,21 @@ omit, and its absence is why details get lost and contradicted thirty chapters l
 |---|---|
 | `extracted_from` | Source draft |
 | `target_entity` | Which canon record it would attach to |
-| `conflict` | Whether it collides with something already canonical |
-| `status` | `pending` · `promoted` · `rejected` |
+| `conflict` | Whether a collision with canon was recorded on it. Promotion never sets it: the flag is kept only for facts recorded that way before promotion became add-only, which a human may still rule on |
+| `status` | `pending` · `promoted` (in canon) · `rejected` (not applied because the record already specifies it, or refused by a human ruling) |
 
-**Failure mode.** Automatic promotion with no review. Canon fills with improvised noise
-and stops being authoritative, at which point it is no longer worth consulting.
+Promotion is automatic and **add-only** (see [`promote`](#promotefact--canon)): a fact
+fills what a record leaves empty or adds a detail to it, and is never allowed to change
+what the record already states. Reporting where the prose contradicts canon is the
+auditor's job, done before any fact is extracted, so a fact is not reviewed a second time
+on its way in.
+
+**Failure mode.** Promotion that overwrites. A fact that replaces what a record already
+states lets the prose rewrite the world through the return edge; canon stops being
+authoritative, at which point it is no longer worth consulting. The residual risk of
+add-only promotion — a wrong *new* detail entering canon with no person approving it — is
+accepted and registered in
+[`verification.md`](./verification.md#accepted-risks-u-register).
 
 ### Violation
 
@@ -184,22 +196,42 @@ reached. Described in Figure 2 below.
 
 ### `extract_facts(draft) → ProposedFact[]`
 
-Walks freshly written prose and isolates every assertion about the world that was not
-already in canon. Runs on the draft the turn finally accepts (Figure 4), so that what
-enters the canonisation queue describes prose that exists. Inventions from drafts that
-were revised away are not lost for that: the writer's own proposals from every iteration
-stay in `ledger/proposed.yaml`, because a rejected draft can still have invented a good
-name for something.
+Walks freshly written prose and isolates every assertion about the world that canon does
+not already specify. It leaves out both what a record already states, in any words, and
+what contradicts a record: reporting a contradiction is the auditor's job, done before
+the draft is accepted, so extraction drops it rather than report it again. For a field
+that already holds text, a fact carries only the new detail, never a rewrite of the whole
+value. Runs on the draft the turn finally accepts (Figure 4), so that what enters the
+canonisation queue describes prose that exists. Inventions from drafts that were revised
+away are not lost for that: the writer's own proposals from every iteration stay in
+`ledger/proposed.yaml`, because a rejected draft can still have invented a good name for
+something, and they are promoted by the same add-only rule as the canoniser's.
 
 ### `promote(fact) → canon`
 
 The return edge. The only write path into canon during drafting, and the sole
-responsibility of the canoniser. When a proposed fact collides with an existing record it
-is escalated rather than resolved silently.
+responsibility of the canoniser. Promotion is **add-only** and never judges a fact against
+canon:
+
+- a field the record leaves empty is set to the fact;
+- a text field that already holds a value gets the fact appended as one more clause,
+  unless the text already says it, in which case nothing is written;
+- a list gets the fact appended unless it is already there;
+- a mapping (a character's `immutable_physical`) gets a key it does not have; a key it
+  already has — in the stored map or named by a registered ChangeEvent — is never changed;
+- an identifier or a name that is already set is never changed.
+
+A fact the record already states is settled as `promoted` with no write. A fact that would
+have to change what the record already states is **not applied**: it is settled as
+`rejected` with no ruling, the record is untouched, and the turn goes on. No promotion
+escalates, waits for a person or blocks a turn, and nothing in `canon/` or `cast/` is ever
+overwritten by promotion.
 
 ### `audit(scene) → Violation[]`
 
 Runs the domain invariants against the draft and current canon. Reports; does not repair.
+It is the one place where a contradiction between prose and canon is reported: extraction
+drops a contradiction rather than report it, and promotion never looks for one.
 
 ### `reconcile(canon_change) → affected_scenes[]`
 
@@ -253,8 +285,9 @@ messages. This is the stronger form of the `In`/`Out` contract in Figure 3: an a
 context is built from stores at the start of its call and discarded at the end.
 
 **`promote` is the only write into long-term memory.** Everything the writer invents goes
-to `ledger/proposed.yaml` first and reaches `canon/` only through the canoniser, with a
-human ruling on collisions. Memory consolidation is reviewed, not accumulated.
+to `ledger/proposed.yaml` first and reaches `canon/` only through the canoniser, and only
+as an addition: promotion adds what a record does not yet say and never rewrites what it
+says. Memory consolidation accumulates; it does not overwrite.
 
 **Forgetting is explicit and happens by rollup.** A scene digest is written when the scene
 closes; chapter and arc digests are rolled up from it at their boundaries. The assembler
@@ -417,7 +450,7 @@ Thick edges are writes, dotted edges are reads.
 | Writer | `write(assembled_context) → Draft, ProposedFact[]`<br/>`revise(draft, Violation[]) → Draft` | read only | read | **write** | `assemble_context(scene)` (Figure 2): the fixed block (`canon/project.md` · `canon/style.md`), the POV's `cast/{id}/` as-of and the previous scene's tail, plus whatever `select_entities` ranked within the cap from `cast/` · `canon/` · `ledger/setups.yaml` · `manuscript/digests/`, the selected ids being recorded in the turn trace; on revision also `ledger/violations.yaml` | `manuscript/NNN.md` · `manuscript/digests/NNN.md` · `ledger/proposed.yaml` | One scene per turn, from assembled context |
 | Style editor | `polish(draft, style) → Draft` | read | — | **write** | `manuscript/NNN.md` · `canon/style.md` · `canon/lexicon.yaml` · `cast/{id}/voice.md` | `manuscript/NNN.md` | Voice, rhythm, metrics, forbidden tics |
 | Auditor | `audit(scene) → Violation[]` | read | read | read | `manuscript/NNN.md` · `scenes/NNN.yaml` · the turn's selected-entity list (the axioms it names are the ones in force for invariant 6) · `canon/axioms/` · `canon/time.yaml` · `canon/lexicon.yaml` · `cast/{id}/dossier.md` · `cast/{id}/knowledge.yaml` · `cast/{id}/changes.yaml` · `cast/relationships.yaml` · `ledger/timeline.yaml` | `ledger/violations.yaml` | Runs invariants, issues violations |
-| Canoniser | `promote(fact) → canon` | **write** | — | read | `ledger/proposed.yaml` · `manuscript/NNN.md` · `canon/` | `canon/` · `cast/` · `ledger/proposed.yaml` | Promotes proposed facts, resolves conflicts |
+| Canoniser | `promote(fact) → canon` | **write** | — | read | `ledger/proposed.yaml` · `manuscript/NNN.md` · `canon/` | `canon/` · `cast/` · `ledger/proposed.yaml` | Extracts what canon does not yet specify; promotes it add-only, never overwriting |
 
 `In` and `Out` are a stricter statement than the permission columns: a store an agent is
 allowed to read is not necessarily in its context on a given turn. **Anything not listed
@@ -432,9 +465,10 @@ debts, a recognisable voice and thread latency (invariants 2, 9 and 10) read
 `ledger/setups.yaml`, the POV's `cast/{id}/voice.md` and `ledger/threads.yaml`, none of
 which is handed to the model-backed auditor.
 
-Some inputs and outputs are not artefacts and so do not appear above: the human intent
-that opens a planning turn, the human ruling the canoniser asks for on a collision, and
-the escalation it raises when the conflict is not its to settle.
+One input is not an artefact and so does not appear above: the human intent that opens a
+planning turn. The canoniser has no such input or output: it asks for no human ruling and
+raises no escalation, because promotion is add-only and a fact it cannot add without
+changing a record is simply not applied.
 
 ### Reading it
 
@@ -454,9 +488,13 @@ human or to the architect, so the auditor cannot act on its own findings.
 
 **The canoniser cannot write prose and the writer cannot write canon**, which means no
 single agent can both invent a fact and make it binding. That separation is what keeps
-canon worth trusting. Its human ruling is not optional decoration: a canoniser that
-resolves every collision by itself is the failure mode named under `ProposedFact` — canon
-fills with improvised noise and stops being worth consulting.
+canon worth trusting. What keeps the canoniser itself from rewriting the world is that
+promotion is add-only: it may add what a record does not say, never change what it does
+say. A canoniser that changed a record to fit the prose would be the failure mode named
+under `ProposedFact` — canon bends to the prose and stops being worth consulting. Nor does
+the canoniser judge the prose against canon: the auditor has already done that before the
+draft was accepted, so the two roles do not duplicate each other and neither waits for a
+person.
 
 **The architect's dramatic fields matter beyond their own record.** `goal`, `conflict`,
 `value_change` and the states are what `select_entities` embeds, so a scene record with
@@ -501,9 +539,9 @@ sequenceDiagram
   end
 
   O->>C: extract_facts(draft)
-  C->>C: check against current canon
-  C->>K: promote accepted facts
-  K-->>O: canon updated
+  C->>C: keep only what the records do not yet specify
+  C->>K: promote its facts and the writer's, add-only
+  K-->>O: canon extended, nothing overwritten
   Note over O,K: scene 215 will already see these facts
 ```
 
@@ -520,15 +558,23 @@ instruction is to fix the flagged span, not to regenerate.
 discarded, but facts are extracted from whichever draft is finally accepted, so extraction
 sits on the accepted path.
 
+**Promotion adds; it does not judge.** By the time facts are extracted the auditor has
+already checked the draft against canon, so the canoniser does not check it again: it keeps
+what the records do not yet specify and promotes it, together with the writer's own
+proposals, under the add-only rule of [`promote`](#promotefact--canon). A fact that would
+change a record is not applied, and the turn goes on. Nothing in this sequence waits for a
+person and no fact holds the turn back: a turn that reaches promotion ends merged.
+
 **Canon is updated before the next scene is assembled**, which is what makes the loop
 actually closed. If promotion is deferred to a batch at the end of a chapter, scenes
 within that chapter cannot see each other's inventions, and contradictions cluster inside
 chapters instead of across them.
 
-The unhandled case here is retroactive change. If promotion reveals that a new fact
-contradicts something established in scene 40, `reconcile()` is what identifies the
-affected work. Building the harness without it is viable for a first draft and painful
-from the second onward.
+The unhandled case here is retroactive change. A detail promoted from scene 214 is true of
+the world from then on, and scene 40 may already have told it differently; promotion does
+not look for that, and `reconcile()` is what names the already-written scenes that depend
+on the changed record. Building the harness without it is viable for a first draft and
+painful from the second onward.
 
 ---
 

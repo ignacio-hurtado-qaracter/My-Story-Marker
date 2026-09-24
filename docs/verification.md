@@ -28,7 +28,7 @@ are listed in the coverage matrix like any other claim.
 
 **The agents** — the six roles in Figure 3 of `architecture.md` (architect, world builder,
 writer, auditor, canoniser, style editor). They are stochastic. The same prompt can
-produce a different draft, a different set of proposed facts, a different ruling. A single
+produce a different draft, a different set of proposed facts, a different audit. A single
 passing run proves little. Verification here is about *process*: is the trajectory
 visible, bounded, checked, and recoverable?
 
@@ -187,6 +187,10 @@ invariants in `definitions.md` translate almost directly into properties:
 - Round-trip: parse then serialise any store record yields an equivalent record.
 - `promote(extract_facts(draft))` followed by `audit(scene)` never reports a violation
   *caused by* the promoted facts against themselves.
+- `promote(fact)` on any promotable field of any record, with a valid payload, never
+  overwrites: an old text value is a prefix of the new one, an old list a prefix of the new
+  list, an old mapping a sub-map of the new one with equal values, and nothing changes
+  but the target record and `ledger/proposed.yaml`.
 - `assemble_context(scene)` never includes a fact whose `learned_in` scene is later than
   `scene` on the story axis.
 - `reconcile(change)` returns a superset of every scene that references the changed
@@ -267,7 +271,7 @@ Structured tests of a model or agent's behaviour against a dataset and a scoring
 | Golden dataset | Scenes with hand-labelled expected facts and violations | Exact / set overlap | `extract_facts`, `audit` |
 | Task completion | Scene records from the fixture repo | Did the writer produce a draft that satisfies the record's `goal`, `conflict`, `delta`? | Writer |
 | LLM-as-judge | Drafts paired with `canon/style.md` | Critic model scores voice, forbidden tics, rhythm | Writer, style editor |
-| Adversarial | Scenes engineered to tempt a canon contradiction | Did the auditor flag it? Did the canoniser refuse to promote it? | Auditor, canoniser |
+| Adversarial | Scenes engineered to tempt a canon contradiction | Did the auditor flag it? Did the canoniser leave it out of extraction, and did promotion leave the record as it was? | Auditor, canoniser |
 | Live / online | Real turns in a running project | Human ratings, downstream violation rate | All roles |
 
 Golden and adversarial datasets live in Langfuse datasets and are versioned with the
@@ -307,6 +311,11 @@ is enforced in `backend/`, not in the prompt. Concretely:
   and by tests that attempt the forbidden write (**T**).
 - Output schema validation: `extract_facts` must return a list of well-formed
   `ProposedFact`; a malformed result is rejected, not repaired.
+- Add-only promotion: `promote()` adds what a record does not yet specify and never
+  changes what it already states; a fact that would is not applied. The rule lives in
+  backend code, not in the canoniser's prompt, and is verified by unit and property tests
+  (**T**) and by the static rule that no code under `ledger/` or `agents/` writes `canon/`
+  outside `promote` and `rule` (**A**).
 - Lexicon filter: drafts are checked against `canon/lexicon.yaml` forbidden variants
   before being written to `manuscript/`.
 - Budget guardrails: every agent invocation has a hard cap of 100k context tokens, the
@@ -324,20 +333,27 @@ and be dead prose. That is the auditor's and the human's job.
 A person approves, rejects, or edits high-consequence agent actions, with the decision
 fed back as a training signal.
 
-*In this project.* Two actions are high-consequence and gated:
+*In this project.* One action is high-consequence and gated: **violation escalation**.
+When a violation's resolution is "change the canon" rather than "change the prose" (the
+dotted edge in Figure 1), a human decides.
 
-1. **Canon promotion.** `promote()` proposals above a confidence threshold, or that
-   contradict an existing record, wait in `ledger/proposed.yaml` for a human ruling.
-2. **Violation escalation.** When a violation's resolution is "change the canon" rather
-   than "change the prose" (the dotted edge in Figure 1), a human decides.
+Canon promotion is deliberately **not** gated. `promote()` is add-only — it adds what a
+record does not yet specify and never changes what it already states (see
+[`promote`](./architecture.md#promotefact--canon)) — and the auditor has already checked
+the prose against canon before any fact is extracted, so a per-fact human ruling would
+review the same contradiction twice and hold every turn for it. The residual risk, a wrong
+new fact entering canon with nobody's approval, is registered in the
+[accepted-risk register](#accepted-risks-u-register). The ruling path (`rule`, human actor
+only) is kept for facts recorded as collisions before promotion became add-only; no v1
+turn reaches it.
 
 Decisions are recorded as Langfuse scores on the originating trace, and the queue is a
 Langfuse annotation queue. Over time those decisions become the golden dataset for the
-canoniser eval.
+auditor eval.
 
 *Design constraint.* Review load must stay small or it will be skipped. The
-`architecture.md` warning about over-constraint applies here: gate the two actions above,
-not every draft.
+`architecture.md` warning about over-constraint applies here: gate the one action above,
+not every draft and not every promoted fact.
 
 ### Multi-agent verification — **I**
 
@@ -347,7 +363,7 @@ A second model or a repeated run checks the first. Five patterns:
 |---|---|---|
 | Critic / verifier | A second model checks the first's output | The **auditor** is exactly this: it reads the writer's draft and reports. Already in the architecture. |
 | Self-consistency | Run N times, take the majority | `extract_facts`: run three times, promote only facts that appear in at least two runs. Cheap and effective against hallucinated facts. |
-| Debate | Two models argue, a judge decides | Canon conflicts: one instance argues for the existing record, one for the proposed fact, the canoniser rules. Reserve for contradictions, not routine promotion. |
+| Debate | Two models argue, a judge decides | Escalated violations that might be resolved by changing the canon: one instance argues for the record, one for the prose, and the human who decides reads both. Not applied to promotion, which is add-only and judges nothing. |
 | Reflection | The model critiques and revises its own output | Writer self-review against the scene record before submitting. Weak alone, useful as a first pass. |
 | Ensembles | Different models combined | Auditor: run the invariant checks through two different model families and union the violations. Reduces correlated blind spots. |
 
@@ -401,7 +417,7 @@ adversarial eval set and a periodic manual session.
 | Threat | Attack | Expected defence |
 |---|---|---|
 | Prompt injection | Text inside `canon/` or `manuscript/` instructs the writer to ignore the scene record or write to another store | Guardrails at the tool layer; the auditor flags the drift; injected text is data, never instruction |
-| Tool-misuse chain | The writer proposes a fact, a compromised canoniser promotes it, the next turn's context now contains it | Human gate on contradicting promotions; self-consistency on extraction; provenance |
+| Tool-misuse chain | The writer proposes a fact, a compromised canoniser promotes it, the next turn's context now contains it | Add-only promotion, so the chain can add a false detail but never replace what canon states; self-consistency on extraction; provenance; the residual risk is in the [accepted-risk register](#accepted-risks-u-register) |
 | Goal drift | Over many turns the writer optimises for passing the audit rather than for the story | Style judge and human live eval; the over-constraint warning in `architecture.md` |
 | Data exfiltration | An agent leaks store contents to an external endpoint | Sandbox network policy; no tool has outbound network except the model API |
 
@@ -460,7 +476,7 @@ of this document; the sections above justify it.
 | Drafts match the style bible | LLM-as-judge, style editor | I (machine) |
 | A bad agent action cannot reach `main` | Branch-per-turn sandbox, story pipeline | D, T |
 | The writer cannot write canon | Tool-set guardrail | A, T |
-| Contradicting promotions are ruled by a human | Human-in-the-loop gate | I |
+| A wrong or malicious new fact is kept out of canon | — (promotion is add-only and reviewed by no person; see the [accepted-risk register](#accepted-risks-u-register)) | **U** |
 | Hallucinated facts are not promoted | Self-consistency on extraction | I (machine) |
 | Every store change names its author role | CI provenance check | T |
 | A prompt change does not regress quality | Scoped rollout with trace comparison | D |
@@ -473,7 +489,7 @@ of this document; the sections above justify it.
 | A model-invoked role holds no tool that writes outside its Figure 3 row | Tool sets derived from the permission table by code; enumeration test per role; SAST rule against hand-written tool lists | A, T |
 | Every writing turn ends `merged` or `escalated` within a bounded number of revisions | Turn state-machine tests with a scripted fake model that never passes audit | T |
 | Store content enters a prompt as data, never as a system instruction | Inspection of every recorded fake-client call: nothing from the stores in `system`, every document delimited | T |
-| A collision is promoted only by a human ruling | `promote` returns an escalation and changes nothing; SAST rule that no code path under `ledger/` or `agents/` writes `canon/` outside `promote` and `rule` | T, A |
+| Promotion never overwrites canon; an already-specified key, identifier or name is not applied | Unit and property tests on `promote` (set, append, add a key, not applied; nothing written beyond the target record and `ledger/proposed.yaml`); SAST rule that no code path under `ledger/` or `agents/` writes `canon/` outside `promote` and `rule` | T, A |
 | Body and memory changes are registered, not improvised | Invariant 3 check against `cast/{id}/changes.yaml` on a fixture with one registered and one unregistered change | T |
 | Chapter forty lands | — | **U** |
 
@@ -497,6 +513,7 @@ Every **U** is listed here with a reason. An unlisted U is a defect.
 | Reproducibility of semantic selection | A vector index may rank differently across runs and embedding versions; no method here proves two selections equal | Selected ids are traced per turn so what entered a context is always recoverable; pins through `pins` and `tags` for anything a scene must not miss; pinned embedding model |
 | The agent role on an API write is trusted, not authenticated | The backend is a local, single-operator tool with no network beyond the model API; a caller can claim any role | Every write is recorded with its role and actor in the provenance log; the store tree is a git working tree the operator reviews; authentication is a later spec, triggered by a second user or a network |
 | Turn records and the provenance log under `.index/` are not rebuildable | They are operational history, not derived from the tree; losing `.index/` loses how the tree came to be, though not the tree | Git history of the tree preserves what changed; role and actor are also in structured application logs; tracing to Langfuse (adoption step 3) moves them off disk |
+| Promotion is add-only and reviewed by no person | Accepted by the user for efficiency, 2026-09-24: the auditor already checks prose against canon, and a per-fact human gate reviewed the same contradictions twice and held turns for them. No method here decides whether a new detail is true of the world, so a wrong or malicious *new* fact enters canon without a human, and a contradiction between prose and canon outside the auditor's invariants (for example a location's description) is flagged by nobody. Known ways through: an invention the writer proposed in a draft that revision removed, since the writer's facts are promoted by the same rule; a clause appended to a single-valued field of a record the canoniser was not given (a character's dossier), where it cannot tell a new detail from a contradiction; a synonym key beside an existing one (`hand` next to `left_hand`); a proposal that restates a whole value plus a new detail, appended as a duplicate clause; `body` fields and axiom statements that grow clause by clause | Canon is never overwritten by promotion — only a human `rule(accept)` can change a value a record holds — which bounds the damage to additions; a provenance line names the role behind every write; `reconcile` names the already-written scenes that depend on the changed record; git history of the tree lets any addition be reverted; once adopted (step 5), the story pipeline's diff summary shows every change under `canon/` at merge, per turn rather than per fact |
 
 ---
 
@@ -513,7 +530,7 @@ wall:
 3. Tracing of every turn to Langfuse, with role and store-path tags. (**D**)
 4. Tool-set guardrails and forbidden-write tests. (**A**, **T**)
 5. Branch-per-turn sandbox and the story pipeline in CI. (**D**, **T**)
-6. Golden-dataset evals for `extract_facts` and `audit`; human gate on promotions. (**T**, **I**)
+6. Golden-dataset evals for `extract_facts` and `audit`; human gate on escalated violations. (**T**, **I**)
 7. Property-based tests over the invariants. (**T**)
 8. Self-consistency on extraction; contract tests; adversarial eval set. (**I**, **T**)
 9. Model checking of the permission and turn invariants. (**A**)
