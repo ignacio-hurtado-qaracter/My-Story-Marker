@@ -93,3 +93,11 @@ diseñe por su cuenta con otra forma.
 (`7aa9bbf`) para que la spec 004 cite el código actual. ¿Se mantiene como regla repetirlo
 antes de redactar cada spec de esta rama?
 *Recomendación:* sí, siempre en un solo sentido y solo con la carpeta limpia.
+
+---
+
+## Respuestas del usuario (2026-09-24)
+
+Tras leer el borrador de la spec 004: **"ok a todo"** a los valores por defecto de las preguntas 2, 10,
+26 y 29-37, con un cambio: la decisión 20 pasa a **3-5 escenas por capítulo** (antes 4-7). Con ello el
+Proceso 0 de la spec 004 queda cerrado.

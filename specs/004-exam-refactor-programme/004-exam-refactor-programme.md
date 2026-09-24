@@ -20,13 +20,11 @@ docs:
   - docs/verification.md#accepted-risks-u-register
 ---
 
-> **Process 0 status: not closed.** Rounds 1–4 are recorded in
-> [`exam/process-0/`](../../exam/process-0/). Decisions 1, 4–9, 20–25 and 27 are the user's.
-> Questions 2, 10, 26 and 29–34 are still open. The user asked for this draft before they
-> close, so **each open question is written here with its recommended answer as a working
-> default**, listed in [Open questions](#open-questions). Approving this spec means
-> accepting those defaults or replacing them. Nothing below may be planned or built while
-> the status is `draft`.
+> **Process 0 status: closed.** Rounds 1–4 are recorded in
+> [`exam/process-0/`](../../exam/process-0/). On 2026-09-24 the user accepted every default
+> of [Open questions](#open-questions) and changed one decision: a chapter holds **3 to 5
+> scenes**, not 4 to 7 (decision 20, D3). Nothing is left open. The spec stays `draft` until
+> the user approves it explicitly; nothing below may be planned or built before that.
 
 This is an **umbrella spec**. It changes no code itself. It does three things:
 
@@ -219,7 +217,7 @@ the one that closes the requirement; B0 edits the docs for every *contradicts*, 
 
 | Finding | Exam requirement touched | Block |
 |---|---|---|
-| The previous scene's `literal_tail` is taken by discourse order, so an analepsis gets a later scene's tail; with 4–7 scenes per chapter the 500-word tail is longer than a scene | Continuity, no senseless time jumps | B3 |
+| The previous scene's `literal_tail` is taken by discourse order, so an analepsis gets a later scene's tail; with 3–5 scenes per chapter the 500-word tail is longer than a scene | Continuity, no senseless time jumps | B3 |
 | Provenance lines of draft, digest, proposal and audit writes carry no scene or turn id | Audit log, per-chapter traceability | B5 |
 | Spec 003 keeps the dedication in the browser only | R04 | B10 |
 | Spec 003 reads sheets from file stores, not from the story bible's fact usage | R03 | B10 |
@@ -234,7 +232,7 @@ These bind every block. Numbers are the Process 0 question numbers.
 |---|---|
 | D1 (6, 24, 25) | **One authoritative SQLite database** (default path `data/harness.sqlite`, set by environment), separate from the derived index under `.index/`, with its own migrations. It holds the novel, its versions, the brief, facts and their usage per scene, chronology, forbidden-word lists, the policy decision log and validator results, all keyed by `novel_id`. Prose, canon and cast stay in files, **one store tree per novel** under a novels root. |
 | D2 (26) | **Brief facts are authoritative in the database.** Files the planner writes cite the fact id. A reader change updates the fact; `reconcile` finds the scenes; the owning role rewrites the file. A fact never has two versions. |
-| D3 (7, 20) | A chapter holds **4 to 7 scenes**; the planner splits the 1,000–1,500 words into scene budgets. |
+| D3 (7, 20) | A chapter holds **3 to 5 scenes**; the planner splits the 1,000–1,500 words into scene budgets, about 200–500 words each. |
 | D4 (21) | Validators run at **scene acceptance** (mechanical audit, forbidden words, schema) and at **chapter close** (length, exact names, brief coverage so far, judge); **pre-publish** runs brief coverage, Lean and the visual check. A chapter failure goes back to the scene holding the evidence. |
 | D5 (22) | Chapter checkpoint and resume as in round 2. |
 | D6 (23, 27) | Fact usage per scene; versions as rows with text and hash per chapter; nothing is deleted. |
@@ -415,7 +413,7 @@ After approval, B0 runs Process 1 on each doc, one `docs:` commit per conceptual
 
 | Doc | Changes |
 |---|---|
-| `definitions.md` | Brief and Recipient in Layer 0; brief validation rules (required fields, age × genre/tone); Fact with `source` and usage per scene; forbidden-word normaliser next to invariant 7; chapter = 4–7 scenes, 1,000–1,500 words |
+| `definitions.md` | Brief and Recipient in Layer 0; brief validation rules (required fields, age × genre/tone); Fact with `source` and usage per scene; forbidden-word normaliser next to invariant 7; chapter = 3–5 scenes, 1,000–1,500 words |
 | `domain-knowledge.md` | Brief → facts → canon in the entity graph; chronology events and birth dates on the story axis |
 | `architecture.md` | Governing principle keeps "canon small, prose disposable" and adds the brief as the root; authoritative database beside the derived index (Memory, Storage layout); Figure 3 gains interviewer and judge rows and the planner as a model-invoked architect; Figure 4 becomes a chapter loop with scene turns, chapter close and publication; operations `change_fact` and `publish_version`; Draft versioning moves to the database; the reader as the frontend's first purpose; the read-only MCP tools |
 | `verification.md` | Validator registry and execution points; Lean 4 over the story chronology; TLA+ over the harness flow; LLM-as-judge with the exam rubric and human review; Langfuse session per novel and scores; guardrail levels; coverage matrix rows for every new requirement; "Chapter forty lands" split into minimum quality (**I**) and literary excellence (**U**) |
@@ -458,11 +456,11 @@ last block closes.
 
 ## Open questions
 
-**Why this is a draft with open questions.** The user asked for this programme spec before
-Process 0 closed. Each open question below carries the default this draft uses. Approval
-accepts them or replaces them.
+**Settled** (user, 2026-09-24). The draft was written before Process 0 closed, with a
+default for each open question. The user accepted every default below, and changed
+decision 20 to 3–5 scenes per chapter. Nothing is left open.
 
-| # | Question | Default used in this draft |
+| # | Question | Decision |
 |---|---|---|
 | 2 | Out of scope | Payments, accounts, printing, illustrations, audio, deployment; optionals after every required block |
 | 10 | Languages | Prose, README and presentation in Spanish; docs, specs, code in English; multilingual embedder before the first real rebuild |
@@ -475,7 +473,7 @@ accepts them or replaces them.
 | 34 | Sync rule | One-way merge of the integration branch before drafting and merging, clean worktree only |
 | 35 | Integration branch *(new)* | `spec/001-backend` until the programme ends; block branches merge into it; `main` is decided at the end |
 | 36 | Who runs B0 *(new)* | The session that drafted this spec, on its own branch, since `docs/` has one owner at a time |
-| 37 | Cost of 4–7 scenes per chapter *(new)* | Accepted: 40–70 turns per novel. B3 measures cost and latency per novel through B6 and may propose a change back to this spec |
+| 37 | Cost of the scenes per chapter *(new)* | Accepted for **3–5 scenes**: 30–50 turns per novel, scenes of about 200–500 words. The 500-word `literal_tail` can still exceed a short scene; B3 resolves it. B3 measures cost and latency per novel through B6 and may propose a change back to this spec |
 
 Two facts recorded for the reviewer:
 

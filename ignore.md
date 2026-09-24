@@ -47,8 +47,9 @@ qué falta frente al enunciado y se montó un espacio de trabajo paralelo (workt
 no es código sin pisar a la sesión del backend. Ya existe un comprobador automático de
 cumplimiento, el andamiaje de entregables, cuatro rondas del Proceso 0 y la **spec 004 en
 borrador**, que confronta `docs/` con el enunciado y reparte el resto en bloques paralelos.
-**El siguiente paso es revisarla, aceptar o cambiar los valores por defecto de sus Open
-questions (2, 10, 26, 29-37) y aprobarla.** Después: bloque B0 (docs) y specs de bloque.
+El usuario aceptó todos sus valores por defecto y bajó a 3-5 escenas por capítulo, así que el
+Proceso 0 está cerrado. **El siguiente paso es la aprobación explícita de la spec 004.**
+Después: bloque B0 (docs) y specs de bloque.
 
 ---
 
@@ -135,6 +136,8 @@ git diff --stat spec/001-backend...exam/rescope
     contrato y base del frontend. Se corrigieron cuatro falsos positivos del comprobador y
     se hizo merge de la rama del backend en `exam/rescope`. Cumplimiento: 17 de 72.
 16. **Spec 004 redactada en borrador** a petición del usuario, antes de cerrar el Proceso 0: las preguntas abiertas van con su respuesta por defecto en sus Open questions (2, 10, 26, 29-37). Pensada para lanzarse en `spec/001-backend` y generar desde ella las specs de bloque en paralelo.
+17. **2026-09-24.** El usuario acepta todos los valores por defecto de la spec 004 y cambia la
+    decisión 20 a **3-5 escenas por capítulo**. Proceso 0 cerrado; falta la aprobación explícita.
 
 ---
 
@@ -149,7 +152,7 @@ git diff --stat spec/001-backend...exam/rescope
 | 9 | **Lector web en React** con cambio desde la página, y **exportación a PDF** desde el backend | 1 |
 | 4 | Las specs de esta rama toman siempre el siguiente número libre. La 003 es del frontend, así que la primera de esta rama es la **004** | 2, 3 |
 | 1 | Intención: la spec 004 **confronta `docs/` con el enunciado** requisito a requisito, decide cómo resolver cada contradicción o ausencia y lista las ediciones de `docs/`. Los huecos solo de código van a las specs de bloque | 3 |
-| 20 | **Entre 4 y 7 escenas por capítulo** | 2 |
+| 20 | **Entre 3 y 5 escenas por capítulo** (primero 4-7; cambiado por el usuario el 2026-09-24) | 2, spec 004 |
 | 21 | Validadores en dos puntos: **al aceptar cada escena** (auditoría mecánica, palabras prohibidas, schema) y **al cerrar el capítulo** (longitud, nombres exactos, cobertura del brief, juez). Un fallo de capítulo vuelve a la escena con la evidencia | 2 |
 | 22 | Un capítulo está completo cuando sus escenas están aceptadas, su resumen escrito y sus validadores de cierre pasan. Se reanuda en el primer capítulo incompleto conservando sus escenas aceptadas. En TLA+, capítulos con las escenas como contador | 2 |
 | 23 | El uso de hechos se registra **por escena**; los capítulos se derivan. Un cambio del lector regenera solo las escenas afectadas y marca sus capítulos | 2 |
@@ -158,8 +161,8 @@ git diff --stat spec/001-backend...exam/rescope
 | 27 | **Versiones en SQLite**: una fila por capítulo y versión con texto y hash; publicar crea versión nueva; nada se borra; "capítulos cambiados" = comparar hashes | 2 |
 
 **Consecuencia de la 20, a resolver en la spec del bloque de generación.** Con 1.000-1.500
-palabras por capítulo y 4-7 escenas, cada escena tiene unas 150-375 palabras y la novela
-pasa a 40-70 turnos. El `literal_tail` de 500 palabras es más largo que una escena, y el
+palabras por capítulo y 3-5 escenas, cada escena tiene unas 200-500 palabras y la novela
+pasa a 30-50 turnos. El `literal_tail` de 500 palabras puede ser más largo que una escena corta, y el
 coste y la latencia por novela crecen con el número de turnos.
 
 ---
