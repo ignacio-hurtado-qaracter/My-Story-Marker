@@ -21,6 +21,8 @@ status: approved          # approved 2026-09-24 on the user's delegation for thi
 2. Roles and settings (shared-file commit). AC 5.
 3. Authoritative connection, migrations and `BibleRepository` with tests. AC 1–3, 5.
 4. Validator protocol and registry with a test, after spec 010 step 2 provides `Observer`. AC 4, 5.
+5. Migration `1001_tlc_rules` and the CE1–CE4 repository methods, with `run_id` set by
+   `run_point`. AC 6. (Added 2026-09-24 with the spec revision; plan re-approved on delegation.)
 
 ## Verification mapping
 
@@ -31,6 +33,7 @@ status: approved          # approved 2026-09-24 on the user's delegation for thi
 | 3 | T | `app/bible/tests/test_repository.py::test_versions_keep_parent` |
 | 4 | T | `app/validators/tests/test_registry.py::test_run_point_persists_and_scores` |
 | 5 | A | `ruff check`, `mypy --strict`, `pytest -q` output in commit bodies |
+| 6 | T | `app/bible/tests/test_repository.py::test_tlc_rules`, `app/validators/tests/test_registry.py` |
 
 ## Risks and stop conditions
 

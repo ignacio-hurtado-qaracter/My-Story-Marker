@@ -76,6 +76,7 @@ the Lean file itself (B8), any edit of `docs/` (B0).
 | AC 3 — R07 | A new version keeps its parent; saving a chapter of the new version leaves the parent's text and hash unchanged. | **T** |
 | AC 4 — K3 | `run_point` persists one `validator_result` per registered validator, turning an exception into a failed result, and sends one score per result. | **T** |
 | AC 5 | `ruff` and `mypy --strict` are clean on the new packages; the existing suite stays green. | **A** |
+| AC 6 — T02, T03 | The TLC counterexample rules hold: a chapter's text and its `complete` checkpoint are written in one transaction (CE1); chapter-close retries are countable from persisted `validator_result` rows by run id (CE2); `chapter_version` is unique per (novel, version, chapter), upserted, frozen once published, and rejected texts are kept in `chapter_attempt` (CE3); `repair_rounds` is set with `blocked` in one statement, and `create_version_from(parent, copy_chapters_except)` copies chapters and checkpoints in one transaction without touching the parent (CE4). | **T** |
 
 ## Verification plan
 
@@ -83,9 +84,14 @@ the Lean file itself (B8), any edit of `docs/` (B0).
 |---|---|
 | 1–3 | `backend/app/bible/tests/test_repository.py` (`# spec 005 / AC n`) |
 | 4 | `backend/app/validators/tests/test_registry.py` with `NoopObserver` |
+| 6 | `backend/app/bible/tests/test_repository.py::test_tlc_rules`; run id in `test_registry.py` |
 | 5 | Gate output in the commit bodies |
 
 ## Open questions
 
-None. Deferred: migrating to a server database, concurrent writers beyond WAL — accepted
+**Revised 2026-09-24** (scope grew): the TLA+ block's TLC run (spec 013) found counterexamples
+CE1–CE4, relayed by the orchestrator; AC 6 and migration `1001_tlc_rules` implement them.
+The spec went back to draft and was re-approved on the user's delegation the same day.
+
+Otherwise none. Deferred: migrating to a server database, concurrent writers beyond WAL — accepted
 under plan 004 V3 (light verification).
