@@ -43,7 +43,14 @@ from app.commons.observability import Observer, get_observer
 from app.novel import context as cx
 from app.novel._bible_ext import load_plan, rename_cast, store_plan
 from app.novel.chronology import chronology_problems, normalise_events, plan_births
-from app.novel.models import ChangeResult, ChapterEdit, NovelPlan, RunResult, RunStatus
+from app.novel.models import (
+    ChangeResult,
+    ChapterEdit,
+    NovelPlan,
+    RunResult,
+    RunStatus,
+    SceneDraft,
+)
 from app.novel.plan_check import check_plan
 from app.novel.roles import Roles
 from app.novel.setup import register_all, register_lean_for
@@ -159,7 +166,16 @@ def before_scene_accept(
 ) -> list[ValidationResult]:
     return run_point(
         ValidationPoint.SCENE_ACCEPT,
-        _ctx(run, version, chapter, scene, text, feedback_role="writer"),
+        _ctx(
+            run,
+            version,
+            chapter,
+            scene,
+            text,
+            feedback_role="writer",
+            role_output=SceneDraft(text=text),
+            role_output_model=SceneDraft,
+        ),
     )
 
 
@@ -713,12 +729,13 @@ def _stop(
     run.progress(f"STOPPED: {reason} {detail[:300]}")
 
 
-def _note_dict(version: NovelVersion) -> dict[str, str]:
+def _note_dict(version: NovelVersion) -> dict[str, object]:
+    """The version note is a JSON object (`change`, `stop_reason`); free text is kept."""
     try:
         data = json.loads(version.note) if version.note else {}
     except json.JSONDecodeError:
         return {"text": version.note}
-    return {str(k): str(v) for k, v in data.items()} if isinstance(data, dict) else {}
+    return {str(k): v for k, v in data.items()} if isinstance(data, dict) else {}
 
 
 def _change_note(version: NovelVersion) -> dict[str, str] | None:
