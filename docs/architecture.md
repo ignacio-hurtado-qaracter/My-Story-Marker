@@ -774,7 +774,7 @@ stateDiagram-v2
   WRITING --> WRITING : next scene, Figure 4
   WRITING --> EDITING : 3 scenes accepted
   EDITING --> CLOSING : editor pass
-  CLOSING --> WRITING : chapter_close fails, rewrite the flagged scene
+  CLOSING --> EDITING : chapter_close fails, editor rewrites the whole chapter
   CLOSING --> CHECKPOINT : chapter_close passes
   CHECKPOINT --> WRITING : c < N
   CHECKPOINT --> PRE_PUBLISH : c = N
@@ -801,13 +801,17 @@ scenes each by default, every mandatory fact assigned to at least one scene.
 bounded scene retries. When the chapter's scenes are accepted, the editor makes one pass
 over the chapter (style and audit), and the `chapter_close` validators run: length of
 1,000–1,500 words, exact names, the judge's rubric, brief coverage so far. A failure goes
-back to the scene holding the evidence, is rewritten and re-edited, at most
-`MAX_CHAPTER_RETRIES = 2` times.
+back to the **editor**, which rewrites the whole chapter with the validators' evidence as
+feedback (the scenes are already merged into one text, so there is no single scene to
+redo); the rejected text is kept in `chapter_attempt`, and the rewrite is closed again, at
+most `MAX_CHAPTER_RETRIES = 2` times, counted from persisted results.
 
 **A checkpoint is written only for a closed chapter.** `CHECKPOINT(c)` records that
 chapter *c* is complete: scenes accepted, digest written, chapter-close validators passed.
-A run that stops or crashes **resumes at the first incomplete chapter**, keeping that
-chapter's accepted scenes; completed chapters are never rewritten and never lost.
+A run that stops or crashes **resumes at the first incomplete chapter** and restarts it
+from its first scene: accepted scenes are held in memory only, never persisted, so an
+interrupted chapter is written again from scratch. Completed chapters are never rewritten
+and never lost.
 
 **Publication is gated.** `pre_publish` runs brief coverage over the whole novel, the Lean 4
 proof of the chronology, and the visual check of the reader through a browser MCP. If all

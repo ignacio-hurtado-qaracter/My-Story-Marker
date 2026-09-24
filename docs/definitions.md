@@ -425,7 +425,8 @@ each of **1,000–1,500 words** summed over its scenes (invariant 11). A chapter
 5 scenes**; the planner plans **3** by default and splits the chapter budget into scene
 budgets of about 200–500 words each. A chapter is **complete** when its scenes are
 accepted, its digest is written and its chapter-close validators pass; generation resumes
-at the first incomplete chapter, keeping that chapter's accepted scenes.
+at the first incomplete chapter, restarting it from its first scene (scenes are not
+persisted until their chapter closes).
 
 ### Scene
 
