@@ -1,7 +1,7 @@
 ---
 id: 002
 title: Frontend foundation — scaffold, the OpenAPI contract pipeline, the app shell and one read-only slice
-status: approved         # draft · approved · implemented · superseded
+status: implemented      # draft · approved · implemented · superseded
 supersedes: null
 docs:
   - docs/architecture.md#repository-and-application-stack
@@ -351,6 +351,12 @@ The user asked for every gap between this spec, its plan and `docs/` (above all
 | R3-15 | An empty or non-JSON error body (the dev proxy with the backend down, a plain-text `500`) fitted neither error shape; and `frontend/test/` was not said to be type-checked, which AC 17 depends on. | **Default:** a third, *unknown* error case (FR-API-04; AC 7, AC 9); `typecheck` runs `tsc -b` over every project, `test/` included (AC 1). |
 
 ## Open questions
+
+**Closed as `implemented`** (2026-09-24), by the agent on the user's explicit instruction
+("marca como implemented y done las specs 002 y 003"), before merge rather than after it.
+Every criterion's verification is in place and passing: `npm run gate` 10 of 10 on `d9dbbf7`
+(unit 171 passed in 20 files; e2e 26 passed against the real backend). AC 15 is the review
+note in plan 002. The items below stay open as named findings.
 
 **Why this spec went back to `draft`, and its re-approval** (Process 2, rule 10;
 2026-09-23). Round 3 changed the scope after the first approval: the SSE wrapper left the scope, `health/` became a feature, the slice

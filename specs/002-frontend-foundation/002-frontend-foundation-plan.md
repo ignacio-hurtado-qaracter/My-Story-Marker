@@ -1,7 +1,10 @@
 ---
 spec: 002                 # the approved spec this plan implements
-status: approved          # draft · approved · done
+status: done              # draft · approved · done
 ---
+
+> **Done** (2026-09-24): every step committed and every criterion verified; closed with
+> spec 002 by the agent on the user's explicit instruction.
 
 Implementation plan for [`002-frontend-foundation.md`](./002-frontend-foundation.md).
 The spec says *what* and *why*; this file says *how* and *in what order*. Anything not
