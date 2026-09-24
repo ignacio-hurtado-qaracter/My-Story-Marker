@@ -6,7 +6,9 @@ about which chapters changed and where each character appears.
 
 from __future__ import annotations
 
+import json
 import re
+from collections.abc import Callable
 
 from app.bible import BibleNotFoundError, BibleRepository, ChapterVersion, Novel
 from app.reader.models import (
@@ -158,6 +160,35 @@ def _appearances(
     return [c.chapter for c in chapters if pattern.search(c.text)]
 
 
+def _names_as_of(repo: BibleRepository, novel_id: str, version: int) -> Callable[[str], str]:
+    """Current cast name -> the name version `version` uses.
+
+    Characters and places are not versioned: `change_fact` renames them in place. Every
+    rename is recorded in the note of the version it created (`{"change": {"key", "old",
+    "new"}}`), so undoing the notes of later versions, newest first, gives back the names
+    of `version` (browser-MCP finding 2; spec 014, clarified)."""
+    undo: list[tuple[str, str]] = []
+    for v in sorted(repo.list_versions(novel_id), key=lambda v: v.version, reverse=True):
+        if v.version <= version:
+            break
+        try:
+            change = json.loads(v.note).get("change")
+        except (ValueError, AttributeError):
+            continue
+        if isinstance(change, dict):
+            old, new = change.get("old"), change.get("new")
+            if isinstance(old, str) and isinstance(new, str) and old:
+                undo.append((new, old))
+
+    def name_in_version(name: str) -> str:
+        for new, old in undo:
+            if name == new:
+                name = old
+        return name
+
+    return name_in_version
+
+
 def story_bible(repo: BibleRepository, novel_id: str, version: int | None = None) -> StoryBible:
     repo.get_novel(novel_id)
     target = version if version is not None else current_version(repo, novel_id)
@@ -165,6 +196,7 @@ def story_bible(repo: BibleRepository, novel_id: str, version: int | None = None
         latest = repo.latest_version(novel_id)
         target = None if latest is None else latest.version
     chapters = repo.list_chapters(novel_id, target) if target is not None else []
+    as_of = _names_as_of(repo, novel_id, target) if target is not None else str
 
     def where(name: str, fact_id: int | None) -> list[int]:
         if target is None:
@@ -178,10 +210,10 @@ def story_bible(repo: BibleRepository, novel_id: str, version: int | None = None
             BibleEntry(
                 id=c.id,
                 kind="character",
-                name=c.name,
+                name=as_of(c.name),
                 role=c.role,
                 description=c.description,
-                chapters=where(c.name, c.fact_id),
+                chapters=where(as_of(c.name), c.fact_id),
             )
             for c in repo.list_characters(novel_id)
         ],
@@ -189,9 +221,9 @@ def story_bible(repo: BibleRepository, novel_id: str, version: int | None = None
             BibleEntry(
                 id=p.id,
                 kind="place",
-                name=p.name,
+                name=as_of(p.name),
                 description=p.description,
-                chapters=where(p.name, p.fact_id),
+                chapters=where(as_of(p.name), p.fact_id),
             )
             for p in repo.list_places(novel_id)
         ],

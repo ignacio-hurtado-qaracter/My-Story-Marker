@@ -14,6 +14,7 @@ harmless: an existing novel with the same id is left as it is.
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import Final
@@ -102,7 +103,7 @@ def seed(repo: BibleRepository, novel_id: str = NOVEL_ID) -> bool:
     )
     repo.add_character(
         novel_id, name="Nala", role="mascota",
-        description="Perra de aguas, fiel y ladradora (Toby en la versión 1).", fact_id=pet.id,
+        description="Perra de aguas, fiel y ladradora.", fact_id=pet.id,
     )
     repo.add_character(
         novel_id, name="El antiguo farero", role="secundario",
@@ -129,7 +130,9 @@ def seed(repo: BibleRepository, novel_id: str = NOVEL_ID) -> bool:
     repo.update_fact_value(pet.id, "Nala")
     v2 = repo.create_version_from(
         novel_id, v1.version, copy_chapters_except=uses_pet,
-        note="Cambio pedido por el lector: el perro se llama Nala",
+        note=json.dumps(
+            {"change": {"key": "pet.toby.name", "old": "Toby", "new": "Nala"}}, ensure_ascii=False
+        ),
     )
     for n in sorted(uses_pet):
         title, text = _CHAPTERS[n - 1]

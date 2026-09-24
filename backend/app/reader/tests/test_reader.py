@@ -49,6 +49,13 @@ def test_chapter_index(db: Path) -> None:
     assert chapters["Nala"] == [1, 3]  # from fact usage
     assert chapters["El pueblo"] == [2]  # from the name search fallback
 
+    # spec 014 / AC 1 (clarified): the sheet of v1 uses the names v1's chapters use.
+    old = client.get(f"/novels/{NOVEL_ID}/bible", params={"version": 1}).json()
+    names = {c["name"]: c["chapters"] for c in old["characters"]}
+    assert "Nala" not in names
+    assert names["Toby"] == [1, 3]
+    assert "Toby" in client.get(f"/novels/{NOVEL_ID}/versions/1/chapters/1").json()["text"]
+
 
 def test_change_resolution_is_deterministic(db: Path) -> None:
     # spec 014 / AC 3
