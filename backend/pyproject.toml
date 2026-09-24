@@ -19,6 +19,7 @@ dependencies = [
     "sqlite-vec==0.1.9",
     "sse-starlette==3.4.11",
     "langfuse==4.15.6",
+    "fastmcp==4.0.9",
 ]
 
 [dependency-groups]
