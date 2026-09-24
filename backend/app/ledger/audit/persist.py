@@ -8,8 +8,10 @@ A second guard in this module could only drift from the table. For the same reas
 is attempted even when the merged file equals the one on disk: skipping a no-op write would
 answer a forbidden role with success instead of the refusal Figure 3 owes it.
 
-**How a report merges with the file** (`merge`), for the audited scene and the mechanical
-source only -- everything else in the file is someone else's and is kept untouched, in place:
+**How a report merges with the file** (`merge`), for the audited scene only -- findings of
+other scenes are someone else's and are kept untouched, in place. The rules are the same for
+both halves of the audit, and each half is judged only by its own checks: a finding is
+reconsidered only when the half that made it (its `source`) ran the check for its invariant.
 
 1. A **resolved** mechanical finding for the scene is kept exactly as it is, and a fresh
    finding with the same natural key is *not* added beside it. Resolutions are human rulings
@@ -19,17 +21,19 @@ source only -- everything else in the file is someone else's and is kept untouch
    and position, and takes the fresh severity (FR-AUD-02's severity moves when the last
    scene moves). Recognition is by natural key, not by id, so a prior report written with a
    hand-made id -- the fixture's `vi_002` -- is recognised and not duplicated.
-3. An **unresolved** mechanical finding the fresh audit does *not* reproduce is dropped, but
-   only if its invariant was actually checked in this run. That is how a revised draft's
-   report says a finding is gone (the reason `PUT /ledger/violations` is a replace); and a
-   check that was skipped -- a draft missing, a lexicon absent -- vouches for nothing, so the
-   findings it would have re-examined are kept.
+3. An **unresolved** finding the fresh audit does *not* reproduce is dropped, but only if its
+   own half checked its invariant in this run, and checked it whole. That is how a revised
+   draft's report says a finding is gone (the reason `PUT /ledger/violations` is a replace);
+   and a check that was skipped -- a draft missing, a lexicon absent, a model step that
+   failed, an axiom the cap pruned from the auditor's context (FR-CTX-04) -- vouches for
+   nothing, so the findings it would have re-examined are kept.
 4. A fresh finding matching nothing is appended, in audit order.
 
-Model-sourced findings are never touched here, whatever their scene: they are the
-model-backed auditor's (FR-AUD-09), and a mechanical run has no standing to retract them.
-Re-running the same audit and persisting it again therefore yields the same file, byte for
-byte -- which is what "re-running must not duplicate" means when it is checked.
+So a mechanical-only run (`semantic=False`, or a model step that failed) never retracts a
+model finding, and a model finding is retracted only by a model run that judged its
+invariant: neither half has standing over the other's findings (FR-AUD-09, plan step 17).
+Re-running the same audit and persisting it again yields the same file, byte for byte --
+which is what "re-running must not duplicate" means when it is checked.
 
 **An absent file** is an empty report, on the way in only. The auditor's first audit of a new
 book has to be able to create it; there is nothing else in the file for the merge to keep.
@@ -39,7 +43,7 @@ from __future__ import annotations
 
 from app.commons.errors import InvalidRecord, PermissionDenied
 from app.commons.permissions import Actor, AgentRole, may_write
-from app.commons.schemas import Violation, ViolationsFile, ViolationSource
+from app.commons.schemas import Violation, ViolationsFile
 from app.commons.stores import Store
 from app.commons.stores.provenance import ProvenanceRecord
 from app.ledger import repository
@@ -71,12 +75,16 @@ def merge(existing: ViolationsFile, report: AuditReport) -> ViolationsFile:
     """The file that results from persisting `report` over `existing` (rules in the module
     docstring). Pure, so the rules are testable without a store."""
     fresh = {natural_key(finding): finding for finding in report.violations}
-    checked = {ref.invariant for ref in report.checked}
+    partial = {(ref.source, ref.invariant) for ref in report.skipped}
+    checked = {
+        (ref.source, ref.invariant)
+        for ref in report.checked
+        if (ref.source, ref.invariant) not in partial
+    }
     covered: set[tuple[str, int, str, str, int]] = set()
     merged: list[Violation] = []
     for finding in existing.violations:
-        ours = finding.scene == report.scene and finding.source is ViolationSource.MECHANICAL
-        if not ours:
+        if finding.scene != report.scene:
             merged.append(finding)
             continue
         key = natural_key(finding)
@@ -88,7 +96,7 @@ def merge(existing: ViolationsFile, report: AuditReport) -> ViolationsFile:
         if reproduced is not None:
             merged.append(finding.model_copy(update={"severity": reproduced.severity}))
             covered.add(key)
-        elif finding.invariant not in checked:
+        elif (finding.source, finding.invariant) not in checked:
             merged.append(finding)
     merged.extend(finding for key, finding in fresh.items() if key not in covered)
     _refuse_duplicate_ids(merged)

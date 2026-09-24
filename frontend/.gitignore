@@ -1,0 +1,4 @@
+# node_modules/ and dist/ are ignored at the repository root.
+playwright-report/
+test-results/
+.vite/

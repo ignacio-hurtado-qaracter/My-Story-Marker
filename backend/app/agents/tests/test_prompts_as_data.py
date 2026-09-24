@@ -12,8 +12,10 @@ through a `Store` and never written:
   rendered by the client's own `render_prompt` parses back into exactly the (path, text) pairs
   that were read, each between its BEGIN and END lines, with the instruction last.
 
-The turn-level half -- every recorded call of a real turn -- is plan step 18's
-`test_prompts_as_data` rows; this file proves the assembly those calls are built from. The
+The turn-level half -- every recorded call of whole turns (plan step 18) -- is at the end of
+this file; before it, the assembly those calls are built from, and every role call of plan
+step 17 one by one: the prompt file as system, no store text
+in the instruction beyond the language name, every document a labelled block. The
 prompt checks at the end are the ones Figure 2 and "A warning about over-constraint" ask of the
 writer and FR-AGENT-06 of the auditor; `prompt_version` is FR-AGENT-10.
 """
@@ -26,18 +28,23 @@ from collections.abc import Mapping
 from importlib import resources
 
 import pytest
-from pydantic import BaseModel
+from pydantic import BaseModel, JsonValue
 
 from app.agents import roles
 from app.agents.roles import (
+    MECHANICAL_FINDINGS,
     MODEL_ROLES,
     PROMPTS,
     documents_for,
     prompt_version,
     system_prompt,
 )
+from app.agents.tests.test_roles import CALL_NAMES, ROLE_CALLS
+from app.agents.tests.test_turn_escalation import FIVE_SENTENCES, always_blocking, write
+from app.agents.tests.test_turn_happy import make_turn_env, scripted
 from app.commons.llm import (
     DATA_STATEMENT,
+    FakeCall,
     FakeModelClient,
     Reply,
     render_prompt,
@@ -48,6 +55,7 @@ from app.commons.permissions import AgentRole, may_receive
 from app.commons.schemas import (
     ExtractOutput,
     PolishOutput,
+    Scene,
     SemanticAuditOutput,
     SetupsFile,
     WriterOutput,
@@ -67,6 +75,9 @@ OUTPUTS: Mapping[AgentRole, BaseModel] = {
     AgentRole.AUDITOR: SemanticAuditOutput(violations=[]),
     AgentRole.CANONISER: ExtractOutput(facts=[]),
 }
+
+STORE_FAMILIES = frozenset({"canon", "cast", "structure", "scenes", "manuscript", "ledger"})
+"""The six store roots of the storage layout: a document labelled under one was read from it."""
 
 BLOCK = re.compile(
     r"^=== BEGIN DOCUMENT (?P<boundary>[0-9a-f]+) path=(?P<path>[^\n]*) ===\n"
@@ -274,3 +285,157 @@ def test_a_role_with_no_model_has_no_prompt(role: AgentRole) -> None:
 def test_an_empty_prompt_file_is_refused() -> None:
     with pytest.raises(ValueError, match="empty"):
         roles.prompt_from_bytes(AgentRole.WRITER, b" \r\n\n")
+
+
+# --- plan step 17: every role call, as the fake recorded it ---------------------------------
+
+
+def _recorded(name: str, store: Store) -> FakeCall:
+    case = ROLE_CALLS[name]
+    client = FakeModelClient({case.role: [Reply.of(case.output)]})
+    case.run(store, client)
+    [call] = client.calls
+    return call
+
+
+# spec 001 / AC 23, FR-AGENT-10 -- each role call's system is its prompt file, and nothing else.
+@pytest.mark.parametrize("name", CALL_NAMES)
+def test_every_role_call_sends_its_prompt_file_as_system(
+    name: str, fixture_store: Store, fixture_texts: dict[str, str]
+) -> None:
+    call = _recorded(name, fixture_store)
+    assert call.system == _prompt_file(call.role)
+    assert _shared(render_system(call.system), _runs(fixture_texts)) == []
+
+
+# spec 001 / AC 23, FR-PERM-07, FR-LLM-10 -- the instruction carries no store text; the prose
+# language is the one name that crosses, and it is too short to count as a copied clause.
+@pytest.mark.parametrize("name", CALL_NAMES)
+def test_no_role_call_carries_store_text_in_its_instruction(
+    name: str, fixture_store: Store, fixture_texts: dict[str, str]
+) -> None:
+    call = _recorded(name, fixture_store)
+    assert _shared(call.instruction, _runs(fixture_texts)) == []
+    scene = fixture_store.read("scenes/003.yaml", Scene)
+    for field in (scene.goal, scene.conflict, scene.value_change, scene.notes or scene.goal):
+        assert _flatten(field) not in _flatten(call.instruction)
+
+
+# spec 001 / AC 23 -- every document of every role call is a delimited block labelled with its
+# path, and the computed findings block with its own label, exactly as it was sent.
+@pytest.mark.parametrize("name", CALL_NAMES)
+def test_every_role_call_renders_as_labelled_blocks(name: str, fixture_store: Store) -> None:
+    call = _recorded(name, fixture_store)
+    rendered = render_prompt(call.documents, call.instruction)
+    blocks = [(match["path"], match["text"]) for match in BLOCK.finditer(rendered)]
+    assert blocks == [(document.path, document.text) for document in call.documents]
+    assert rendered.endswith(f"{INSTRUCTION_HEADER}\n{call.instruction}\n")
+    labels = [path for path, _ in blocks]
+    assert (MECHANICAL_FINDINGS in labels) is (call.role is AgentRole.AUDITOR)
+
+
+# --- plan step 18: every call of a whole turn, as the fake recorded it -----------------------
+
+
+def _strings(value: JsonValue) -> list[str]:
+    """Every string inside a scripted payload: the texts a role call produced."""
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list):
+        return [text for item in value for text in _strings(item)]
+    if isinstance(value, dict):
+        return [text for item in value.values() for text in _strings(item)]
+    return []
+
+
+def _outputs(call: FakeCall) -> list[str]:
+    """The lines, long enough to be prose rather than a word, of what a call answered."""
+    texts = [
+        text
+        for outcome in call.outcomes
+        if isinstance(outcome, Reply)
+        for text in _strings(outcome.payload)
+    ]
+    return [line for text in texts for line in text.splitlines() if len(line) > TRIVIAL]
+
+
+def _turn_calls(store: Store) -> list[FakeCall]:
+    """The calls of three turns: a clean one on 002, one on 006 (whose writer is offered an open
+    setup), and one on 002 whose finding never goes away (three revisions)."""
+    env = make_turn_env(store)
+    happy = scripted("happy_002")
+    env.run(happy)
+    tempting = scripted("happy_002")
+    env.run(tempting, "006")
+    blocked = FakeModelClient({AgentRole.WRITER: [write(FIVE_SENTENCES)]}, fallback=always_blocking)
+    env.run(blocked)
+    calls = [*happy.calls, *tempting.calls, *blocked.calls]
+    assert {call.output_schema for call in calls} >= {
+        "WriterOutput",
+        "ReviseOutput",
+        "SemanticAuditOutput",
+        "PolishOutput",
+        "DigestOutput",
+        "ExtractOutput",
+    }
+    return calls
+
+
+# spec 001 / AC 23 -- no recorded call of a turn carries store text in its system field.
+def test_no_turn_call_carries_store_text_in_the_system_field(
+    fixture_store: Store, fixture_texts: dict[str, str]
+) -> None:
+    index = _runs(fixture_texts)
+    for call in _turn_calls(fixture_store):
+        assert call.system == _prompt_file(call.role)
+        assert _shared(render_system(call.system), index) == []
+
+
+# spec 001 / AC 23 -- every document of every turn call is a delimited block labelled with its path.
+def test_every_turn_call_renders_as_labelled_blocks(fixture_store: Store) -> None:
+    for call in _turn_calls(fixture_store):
+        rendered = render_prompt(call.documents, call.instruction)
+        blocks = [(match["path"], match["text"]) for match in BLOCK.finditer(rendered)]
+        assert blocks == [(document.path, document.text) for document in call.documents]
+        assert rendered.endswith(f"{INSTRUCTION_HEADER}\n{call.instruction}\n")
+
+
+# spec 001 / AC 23, FR-AGENT-11 -- no call carries an earlier call's output except as a document
+# read back from the store it was written to: never in the instruction or the system field, never
+# in the one computed document, and never at all when no store holds it (the auditor's
+# explanation, which DR-07 does not store, reaches no later call).
+def test_no_turn_call_carries_an_earlier_output_except_through_a_store(
+    fixture_store: Store,
+) -> None:
+    calls = _turn_calls(fixture_store)
+    explanation = "The seating contradicts the axiom in force."
+    assert any(explanation in _outputs(call) for call in calls)
+    for index, call in enumerate(calls):
+        earlier = {line for previous in calls[:index] for line in _outputs(previous)}
+        for line in earlier:
+            assert line not in call.instruction, call.output_schema
+            assert line not in call.system
+            for document in call.documents:
+                if line in document.text:
+                    assert document.path != MECHANICAL_FINDINGS, line
+                    assert document.path.split("/")[0] in STORE_FAMILIES, document.path
+                    assert line != explanation
+
+
+# spec 001 / AC 23 (Figure 2) -- the writer's instruction names no setup, let alone as required;
+# an open setup reaches the writer as a document offered under "may collect".
+def test_the_writers_instruction_names_no_setup_as_required(fixture_store: Store) -> None:
+    setups = fixture_store.read("ledger/setups.yaml", SetupsFile).setups
+    writes = [call for call in _turn_calls(fixture_store) if call.output_schema == "WriterOutput"]
+    offered = 0
+    for call in writes:
+        flat = _flatten(call.instruction)
+        for setup in setups:
+            assert setup.id not in call.instruction
+            assert _flatten(setup.promise) not in flat
+        assert re.search(r"\b(must|required to|have to|need to)\s+(collect|pay)", flat) is None
+        for document in call.documents:
+            if document.path == "ledger/setups.yaml":
+                offered += 1
+                assert "may collect" in _flatten(document.text)
+    assert offered >= 1, "scene 006 is offered su_readkey, so the label was seen"

@@ -16,6 +16,20 @@ A fourth, **`EmbedderDep`**, gives the index routes the embedder. It is a depend
 than a construction inside the route so the offline suite can override it with
 `FakeEmbedder` and never load a model or reach the network (NFR-06, NFR-09).
 
+Two more are the model's, and both exist so no route builds its own door to a model:
+
+* **`ModelClientDep`** gives a route the model client (FR-LLM-02), `ClaudeCodeModelClient`
+  from settings. The offline suite overrides it with `FakeModelClient`, so no test can reach
+  the CLI however a route is called (NFR-06, NFR-09).
+* **`SemanticAuditorDep`** gives the audit route the model-backed half of the audit
+  (FR-AUD-09, FR-AGENT-06) -- or `None`. The route lives in `scenes`, the auditor role in
+  `agents`, and NFR-04's layers put `agents` above `scenes`: the route may not import the
+  role. So the dependency is inverted here. `SemanticAuditor` is a protocol over commons types
+  only (a `Store`, a scene id and the mechanical findings in; model findings and the
+  accounting out), `get_semantic_auditor` answers `None`, and the app factory substitutes the
+  one `app.agents.service` provides. Nothing wired means the semantic halves are listed as
+  skipped, exactly as they were before any auditor existed.
+
 These are FastAPI dependencies, so they live in `commons/` beside the things they wire, and
 they know no feature's name (NFR-04).
 """
@@ -23,14 +37,18 @@ they know no feature's name (NFR-04).
 from __future__ import annotations
 
 import threading
-from typing import Annotated
+from collections.abc import Sequence
+from dataclasses import dataclass
+from typing import Annotated, Protocol
 
 from fastapi import Depends, Header
 
 from app.commons.config import Settings, get_settings
 from app.commons.embeddings import Embedder, FastEmbedEmbedder
 from app.commons.errors import InvalidRole
+from app.commons.llm import ClaudeCodeModelClient, ModelClient
 from app.commons.permissions import Actor, AgentRole
+from app.commons.schemas import Violation
 from app.commons.stores import Store
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
@@ -123,13 +141,90 @@ def get_embedder(settings: SettingsDep) -> Embedder:
 
 EmbedderDep = Annotated[Embedder, Depends(get_embedder)]
 
+
+def get_model_client(settings: SettingsDep) -> ModelClient:
+    """FR-LLM-02. The live model client: every role call one `claude -p` subprocess under the
+    user's Claude Code login (decision R3-1).
+
+    Built per request. Construction touches nothing -- the executable and its version are
+    resolved on the first call that passes the cap -- so a request that never calls the model
+    never spawns a process. The offline suite overrides this dependency with `FakeModelClient`.
+    """
+    return ClaudeCodeModelClient(settings)
+
+
+ModelClientDep = Annotated[ModelClient, Depends(get_model_client)]
+
+
+@dataclass(frozen=True, slots=True)
+class SemanticSkip:
+    """One model-backed check, or one input of it, that did not run (FR-AUD-09, FR-CTX-04).
+
+    `invariant` is the invariant whose judgement the absence weakens; `reason` says what was
+    missing -- the model step that failed, or the input the cap pruned -- so the absence of a
+    finding is never read as a pass on something that was never checked.
+    """
+
+    invariant: int
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
+class SemanticFindings:
+    """What the model-backed half of an audit answers, in commons types only.
+
+    `violations` are DR-07 records with `source: model`. `checked` names the invariants the
+    model step judged -- empty when it did not run -- and `skipped` what it could not judge,
+    whole invariants or pruned inputs. The report is assembled from the three by the ledger's
+    audit package, which owns its shape.
+    """
+
+    violations: tuple[Violation, ...]
+    checked: tuple[int, ...]
+    skipped: tuple[SemanticSkip, ...]
+
+
+class SemanticAuditor(Protocol):
+    """FR-AGENT-06, FR-AGENT-07. The model-backed half of `audit(scene)`, callable by the audit
+    route without importing the role that implements it.
+
+    `mechanical` holds the mechanical half's findings, computed first: they go into the model's
+    prompt as data, so the model does not report them again. A model step that fails is not an
+    exception here but an answer -- every semantic invariant in `skipped`, with the reason
+    (FR-AUD-09) -- because the mechanical half has already run and must still be reported.
+    """
+
+    def __call__(
+        self, store: Store, scene_id: str, mechanical: Sequence[Violation], /
+    ) -> SemanticFindings:
+        """Judge the scene's draft for the semantic invariants and account for what ran."""
+        ...
+
+
+def get_semantic_auditor() -> SemanticAuditor | None:
+    """None: no model-backed auditor in this process. `main.py` substitutes the one
+    `app.agents.service` provides -- a dependency override, which is exactly what an override
+    is: another provider of the same dependency -- so a bare app still serves the mechanical
+    audit and reports the semantic halves as skipped."""
+    return None
+
+
+SemanticAuditorDep = Annotated[SemanticAuditor | None, Depends(get_semantic_auditor)]
+
 __all__ = [
     "ActorDep",
     "EmbedderDep",
+    "ModelClientDep",
     "RoleDep",
+    "SemanticAuditor",
+    "SemanticAuditorDep",
+    "SemanticFindings",
+    "SemanticSkip",
     "SettingsDep",
     "StoreDep",
     "get_embedder",
+    "get_model_client",
+    "get_semantic_auditor",
     "get_store",
     "request_actor",
     "require_role",

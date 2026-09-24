@@ -7,8 +7,12 @@ or in `commons/`.
 The feature routers of IF-01 are mounted at the bottom of `create_app` and implemented
 nowhere near it. That is the point: a rule written here would be a rule outside the feature
 that owns the store family it touches, and outside the store layer that asks Figure 3
-whether the write is allowed (FR-PERM-03). `main.py` therefore knows six router objects and
+whether the write is allowed (FR-PERM-03). `main.py` therefore knows the feature routers and
 not one store path.
+
+It also makes the one wiring no feature can make for itself: the audit route (`scenes`) is
+handed the model-backed auditor (`agents`) through `commons.deps.get_semantic_auditor`,
+because NFR-04's layers put `agents` above `scenes` and the route may not import it.
 """
 
 from __future__ import annotations
@@ -20,12 +24,20 @@ from pathlib import Path
 from fastapi import APIRouter, FastAPI
 from pydantic import BaseModel, Field
 
+from app.agents import service as agents_service
+from app.agents.router import router as agents_router
 from app.canon.router import router as canon_router
 from app.cast.router import router as cast_router
 from app.commons.config import Settings, get_settings
 from app.commons.db import IndexReport, IndexStatus, rebuild, status
 from app.commons.db.connection import vector_extension_available
-from app.commons.deps import EmbedderDep, SettingsDep, StoreDep, get_embedder
+from app.commons.deps import (
+    EmbedderDep,
+    SettingsDep,
+    StoreDep,
+    get_embedder,
+    get_semantic_auditor,
+)
 from app.commons.errors import register_exception_handlers
 from app.commons.permissions import AgentRole, readable_patterns, writable_patterns
 from app.ledger.router import router as ledger_router
@@ -182,7 +194,15 @@ def create_app() -> FastAPI:
     app.include_router(scenes_router)
     app.include_router(manuscript_router)
     app.include_router(ledger_router)
+    app.include_router(agents_router)
     app.include_router(index_router())
+
+    # FR-AGENT-07, IF-05: `POST /scenes/{id}/audit` runs the auditor role for its semantic
+    # half. `scenes` cannot import `agents` (NFR-04), so the route asks `commons.deps` for a
+    # `SemanticAuditor` and the provider is substituted here. Its own dependencies -- the model
+    # client, the embedder, the settings -- are resolved per request, so a test's overrides of
+    # those reach it too.
+    app.dependency_overrides[get_semantic_auditor] = agents_service.semantic_auditor
 
     return app
 

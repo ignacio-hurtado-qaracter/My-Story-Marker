@@ -200,11 +200,18 @@ class Selection(BaseModel):
 class ContextPart(StrEnum):
     """Which of Figure 2's blocks an entry belongs to, in the order they are loaded.
 
-    The first three are the mandatory part of the writer's input (FR-CTX-03): the fixed
-    block, the POV's as-of dossier and the previous scene's tail. The last three are the
-    prunable part, removed whole from the end when the estimate would cross the cap.
+    `role_input` and the three after it are the mandatory part of the writer's input
+    (FR-CTX-03): what the calling role adds, the fixed block, the POV's as-of dossier and the
+    previous scene's tail. The last three are the prunable part, removed whole from the end
+    when the estimate would cross the cap.
     """
 
+    ROLE_INPUT = "role_input"
+    """A document the calling role adds to its own mandatory part, placed first: the scene
+    record for `write`, the draft and the blocking violations for `revise` (FR-CTX-03). The
+    text is the caller's, verbatim, with no label in front of it -- a violation's offset
+    counts characters of the draft, and a heading would move every one of them. The route
+    never adds one."""
     FIXED = "fixed"
     POV = "pov"
     LITERAL_TAIL = "literal_tail"
@@ -266,7 +273,8 @@ class ContextEntry(BaseModel):
         " tail, which are not entities.",
     )
     mandatory: bool = Field(
-        description="True for the fixed block, the POV dossier and the tail (FR-CTX-03)."
+        description="True for the role's own inputs, the fixed block, the POV dossier and the"
+        " tail (FR-CTX-03)."
         " Pruning never removes a mandatory entry; if they alone do not fit the call is"
         " refused with `ContextBudgetExceeded` (FR-CTX-05).",
     )

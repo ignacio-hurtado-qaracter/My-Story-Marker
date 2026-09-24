@@ -16,9 +16,9 @@ does not.
 
 ## Writing a new scene
 
-The instruction gives the scene's dramatic function: what the point-of-view character wants,
-what stands in the way, how it comes out, which value moves and in which direction, and a
-word budget. That function is fixed. Everything else is yours: where the scene opens, what
+The scene record you are given states the scene's dramatic function: what the point-of-view
+character wants, what stands in the way, how it comes out, which value moves and in which
+direction. The instruction names the scene and gives its word budget. That function is fixed. Everything else is yours: where the scene opens, what
 is seen and heard, how the conflict is staged, what is said and what is left unsaid, the
 order of the beats, the images. Write the best scene you can that delivers the function; do
 not write a scene that merely ticks it off. Stay close to the budget.

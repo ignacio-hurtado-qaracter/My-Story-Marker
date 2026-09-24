@@ -23,7 +23,7 @@ from pathlib import Path
 import pytest
 from pydantic import BaseModel, JsonValue
 
-from app.commons.config import Settings
+from app.commons.config import Settings, get_settings
 from app.commons.errors import ModelCallFailed
 from app.commons.llm.claude_code_client import (
     REPOSITORY_ROOT,
@@ -597,3 +597,31 @@ def test_every_role_schema_fits_on_a_windows_command_line(schema: type[BaseModel
     argument = json_schema_argument(schema)
     assert json.loads(argument) == schema.model_json_schema()
     assert len(argument) < 16_000
+
+
+# spec 001 / NFR-09 -- the net under every offline test: a production client built without a
+# recorder cannot start the CLI, even with an executable in place (conftest replaces the real
+# runner in every test not marked `live`).
+def test_the_offline_suite_never_starts_the_real_cli(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    executable = tmp_path / "bin" / "claude.exe"
+    executable.parent.mkdir()
+    executable.write_bytes(b"")
+    monkeypatch.setenv("CLAUDE_CLI", str(executable))
+    store_root = tmp_path / "story"
+    store_root.mkdir()
+    monkeypatch.setenv("STORY_ROOT", str(store_root))
+    get_settings.cache_clear()
+    try:
+        client = ClaudeCodeModelClient()
+        with pytest.raises(RuntimeError, match="never runs the Claude Code CLI"):
+            client.complete(
+                role=AgentRole.WRITER,
+                system=SYSTEM,
+                documents=DOCUMENTS,
+                instruction=INSTRUCTION,
+                output_schema=WriterOutput,
+            )
+    finally:
+        get_settings.cache_clear()

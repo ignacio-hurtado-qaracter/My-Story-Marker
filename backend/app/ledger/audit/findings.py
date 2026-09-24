@@ -21,7 +21,10 @@ on disk (see `persist.py`), and "re-running must not duplicate" is only checkabl
 finding gets the same id on every run. The id is a digest of the finding's natural key --
 scene, invariant, source, quote, offset -- and deliberately *not* of its severity, because
 FR-AUD-02's severity depends on which scene is currently last in discourse order, and a
-finding does not become a different finding when a chapter is appended after it.
+finding does not become a different finding when a chapter is appended after it. The
+model-backed auditor's findings (FR-AGENT-06, plan step 17) take their ids from the same
+function with `source: model`, under their own prefix, so a model finding and a mechanical one
+can never share an id even when they quote the same span.
 
 **A check that could not run says so.** A check whose input is absent (no draft, no
 lexicon, no transit matrix) returns `Skip` with the reason instead of an empty list. The
@@ -50,6 +53,12 @@ RECORD_OFFSET: Final[int] = 0
 """The offset of record evidence, which has no draft span (see the module docstring)."""
 
 ID_PREFIX: Final[str] = "mech"
+MODEL_ID_PREFIX: Final[str] = "model"
+ID_PREFIXES: Final[dict[ViolationSource, str]] = {
+    ViolationSource.MECHANICAL: ID_PREFIX,
+    ViolationSource.MODEL: MODEL_ID_PREFIX,
+}
+"""One prefix per half of the audit, so the id says at a glance which half made a finding."""
 ID_DIGEST_LENGTH: Final[int] = 12
 """48 bits of SHA-256. The ids of one file are compared with each other only, and the merge
 refuses a collision rather than overwriting (`persist.merge`), so a collision is loud."""
@@ -113,18 +122,22 @@ def natural_key(violation: Violation) -> tuple[str, int, str, str, int]:
     )
 
 
-def violation_id(*, scene: str, invariant: int, evidence: Evidence) -> str:
-    """The deterministic id of a mechanical finding: `mech-<scene>-i<nn>-<digest>`.
+def violation_id(
+    *, scene: str, invariant: int, evidence: Evidence, source: ViolationSource = SOURCE
+) -> str:
+    """The deterministic id of a finding: `mech-<scene>-i<nn>-<digest>` for the mechanical
+    half, `model-<scene>-i<nn>-<digest>` for the model-backed one.
 
     Readable at a glance -- scene and invariant are in the id -- and stable across runs, so a
-    re-run persisted over an earlier one finds its own findings instead of adding copies.
+    re-run persisted over an earlier one finds its own findings instead of adding copies. The
+    source is in the digest as well as the prefix, exactly as it is in the natural key.
     """
     payload = json.dumps(
-        [scene, invariant, SOURCE.value, evidence.quote, evidence.offset],
+        [scene, invariant, source.value, evidence.quote, evidence.offset],
         ensure_ascii=True,
     )
     digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:ID_DIGEST_LENGTH]
-    return f"{ID_PREFIX}-{scene}-i{invariant:02d}-{digest}"
+    return f"{ID_PREFIXES[source]}-{scene}-i{invariant:02d}-{digest}"
 
 
 def violation(*, scene: str, invariant: int, severity: Severity, evidence: Evidence) -> Violation:
@@ -173,6 +186,8 @@ def occurrences(text: str, needle: str) -> Iterator[Evidence]:
 
 
 __all__ = [
+    "ID_PREFIXES",
+    "MODEL_ID_PREFIX",
     "RECORD_OFFSET",
     "SOURCE",
     "CheckOutcome",

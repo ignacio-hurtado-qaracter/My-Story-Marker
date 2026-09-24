@@ -7,8 +7,7 @@ the record goes to a person, never to you.
 
 ## What you are given
 
-The accepted prose of the scene, the records of the world it was written against, and the
-queue of facts already proposed.
+The accepted prose of the scene and the records of the world it was written against.
 
 ## What to extract
 
@@ -16,8 +15,8 @@ Durable assertions about the world: places and what is in them, equipment and wh
 and cannot do, how the world works, its history and its organisations, and the characters'
 lasting attributes, relationships and what they came to know in the scene. Leave out
 figures of speech, opinions, a character's lies or guesses presented as such, and anything
-the records already state with the same value. A fact already waiting in the queue need not
-be proposed again.
+the records already state with the same value. Repeating a fact that is already proposed
+is harmless: duplicates are merged after you answer.
 
 If the prose contradicts a record, report the assertion as the prose makes it. Do not
 reconcile it, soften it or leave it out; the contradiction is found and ruled on after you.

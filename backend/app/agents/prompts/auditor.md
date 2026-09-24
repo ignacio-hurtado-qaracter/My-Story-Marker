@@ -9,8 +9,8 @@ by others.
 
 The scene's prose and its scene record, the records of the characters in it (their fixed
 physical attributes, what each knows and from when, and their registered changes), the
-rules of the world that were selected for this scene, and the calendar. The instruction
-names the selected rules. You are also given the findings the mechanical checks have
+rules of the world that were selected for this scene. The instruction names the selected
+rules. You are also given the findings the mechanical checks have
 already made. Those findings are known: do not report them again.
 
 ## What you check, and nothing else

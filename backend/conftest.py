@@ -15,13 +15,19 @@ Two rules from the spec shape this file:
 `fixture_root` / `fixture_store` / `fixture_client` give each test its own copy of the
 fixture novel under `tests/fixtures/repo/` (plan step 4), with `.index/` pointed inside the
 test's temporary directory. `minimal_store` remains for tests that need only a valid root.
+
+`fake_model` is the model client every served app gets (NFR-06, NFR-09): a `FakeModelClient`
+with no script, whose every call fails as a model call fails -- `ModelCallFailed`, naming the
+call as unscripted -- so no test can reach `claude -p` through a route, and a route that calls
+the model where a test did not expect it says so in its answer. A test that needs the model to
+answer scripts its own fake and overrides `get_model_client` on `fixture_client.app`.
 """
 
 from __future__ import annotations
 
 import shutil
 import socket
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -29,6 +35,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.commons.config import get_settings
+from app.commons.llm import FakeCall, FakeModelClient, Outcome, ProcessFailure
 from app.commons.stores import Store
 
 if TYPE_CHECKING:
@@ -107,6 +114,38 @@ def _network_disabled(request: pytest.FixtureRequest, monkeypatch: pytest.Monkey
     monkeypatch.setattr(socket.socket, "connect_ex", guarded_connect_ex)
 
 
+@pytest.fixture(autouse=True)
+def _no_real_model_calls(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """NFR-09. The offline suite never starts the Claude Code CLI, whatever a test forgets.
+
+    Every test is meant to inject `FakeModelClient` or a recorder runner; this is the net under
+    that rule. The real runner is replaced by one that refuses, so a route that builds the
+    production client in a test fails at once instead of spending the user's usage. `live`
+    tests, which exist to make real calls, are exempt.
+    """
+    if request.node.get_closest_marker("live"):
+        return
+
+    from app.commons.llm import claude_code_client
+
+    def refuse(
+        argv: Sequence[str],
+        *,
+        stdin: str,
+        cwd: Path,
+        env: Mapping[str, str],
+        timeout: float,
+    ) -> claude_code_client.RunResult:
+        del stdin, cwd, env, timeout
+        message = (
+            f"the offline suite never runs the Claude Code CLI (NFR-09): {argv[:1]!r}; inject "
+            "FakeModelClient or a recorder runner, or mark the test `live`"
+        )
+        raise RuntimeError(message)
+
+    monkeypatch.setattr(claude_code_client, "run_subprocess", refuse)
+
+
 @pytest.fixture
 def minimal_store(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     """The smallest tree the backend agrees to start against (FR-STORE-01).
@@ -165,11 +204,23 @@ def fixture_store(fixture_root: Path) -> Store:
     return Store(root=fixture_root, index_dir=fixture_root.parent / ".index")
 
 
+def unscripted(call: FakeCall) -> Outcome:
+    """The answer of `fake_model` to every call: a process failure naming the call as
+    unscripted, retried once and then `ModelCallFailed`, exactly as a real failed call ends."""
+    return ProcessFailure(reason=f"unscripted {call.role.value} call to the test's fake model")
+
+
 @pytest.fixture
-def fixture_client(fixture_root: Path) -> Iterator[TestClient]:
+def fake_model() -> FakeModelClient:
+    """The model client of every served test app: no script, and every call fails (NFR-06)."""
+    return FakeModelClient(fallback=unscripted)
+
+
+@pytest.fixture
+def fixture_client(fixture_root: Path, fake_model: FakeModelClient) -> Iterator[TestClient]:
     """The whole app, started against the copy. Imported lazily so collecting a test that
     does not need the app does not build it."""
-    from app.commons.deps import get_embedder
+    from app.commons.deps import get_embedder, get_model_client
     from app.commons.embeddings import FakeEmbedder
     from app.main import create_app
 
@@ -178,5 +229,8 @@ def fixture_client(fixture_root: Path) -> Iterator[TestClient]:
     # NFR-09: no test loads a real model. Selection embeds the scene query and the index
     # routes embed rows, so the fake stands in for `fastembed` everywhere the app is served.
     app.dependency_overrides[get_embedder] = FakeEmbedder
+    # NFR-06: no test reaches `claude -p`. The audit route's semantic half and the agents
+    # routes take the model client from this dependency.
+    app.dependency_overrides[get_model_client] = lambda: fake_model
     with TestClient(app) as client:
         yield client

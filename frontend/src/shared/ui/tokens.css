@@ -1,0 +1,52 @@
+/* Design tokens: main's web/ identity (Qaracter palette), made WCAG 2.2 AA.
+   Spec 003, FR-TOK-01/02 and FR-FONT-01. test/palette.test.ts reads this file (AC 1). */
+
+/* FR-FONT: self-hosted, latin only; no third-party request at runtime. */
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-500.css';
+@import '@fontsource/inter/latin-600.css';
+@import '@fontsource/inter/latin-700.css';
+@import '@fontsource/jetbrains-mono/latin-400.css';
+
+:root {
+  /* Brand, decoration only: logo, borders, dots, gradients, 3D. Never text on white. */
+  --brand: #FF7A2F;
+  --brand-600: #E5661F;
+  --brand-100: #FFE9DC;
+  --brand-50: #FFF5EE;
+
+  /* Neutrals. */
+  --white: #FFFFFF;
+  --ink: #1E2B37;
+  --ink-600: #3D4A56;
+  --line: #E6E9EC;
+  --surface: #F7F8FA;
+
+  /* Accessible text and interactive roles (FR-TOK-02). */
+  --accent: #AE4E14;
+  --muted: #5E6A77;
+  --pass: #16794A;
+  --pass-tint: #E4F5EA;
+  --fail: #B83232;
+  --fail-tint: #FBE5E5;
+
+  /* Shape and depth. */
+  --radius: 14px;
+  --radius-pill: 999px;
+  --shadow: 0 10px 30px rgba(30, 43, 55, 0.08);
+
+  /* Type. */
+  --font: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', 'Cascadia Code', Consolas, monospace;
+
+  /* Layout. */
+  --container: 1280px;
+  --gutter: 1.5rem;
+  --header-height: 4.25rem;
+}
+
+@media (max-width: 599px) {
+  :root {
+    --gutter: 1rem;
+  }
+}

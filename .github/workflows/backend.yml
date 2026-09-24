@@ -1,0 +1,73 @@
+# Backend CI (spec 001, plan step 19; decision P12).
+#
+# One job, run twice: once with `sqlite-vec` installed and once with it uninstalled (AC 7).
+# FR-IDX-03 says no code path fails for a missing extension, and the only way to know that is
+# to run the whole suite in an interpreter where the import really fails -- a patched import in
+# a unit test proves the branch exists, not that nothing else reaches for the extension.
+#
+# Each cell runs the full local gate, `gate.sh`, so CI and a developer's machine check the same
+# things in the same order: ruff, mypy --strict, bandit, import-linter, the semgrep rules of
+# record (each rule tested against its annotated fixture, then a scan of app/), JSON Schema and
+# OpenAPI freshness (IF-08: a stale contract fails), and pytest, which includes the schemathesis
+# run of AC 29. Live model tests never run here (NFR-09): they need the user's Claude Code login
+# and are excluded unless `--live` is passed.
+
+name: backend
+
+on:
+  push:
+    branches: [main, "spec/**"]
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backend-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: gate (sqlite-vec ${{ matrix.vec }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        vec: [present, absent]
+    defaults:
+      run:
+        working-directory: backend
+    env:
+      # `uv run` re-syncs the environment by default, which would quietly reinstall sqlite-vec
+      # in the `absent` cell. The environment is synced once, explicitly, below.
+      UV_NO_SYNC: "1"
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.12.17"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Sync the locked environment
+        run: uv sync --locked
+
+      - name: Uninstall sqlite-vec (the absent cell, AC 7)
+        if: matrix.vec == 'absent'
+        run: uv pip uninstall sqlite-vec
+
+      - name: Confirm the cell is what it says it is
+        run: >-
+          uv run python -c "import sys;
+          from app.commons.db.connection import vector_extension_available as available;
+          want = '${{ matrix.vec }}' == 'present';
+          sys.exit(0 if available() == want else 1)"
+
+      - name: Gate
+        run: bash gate.sh

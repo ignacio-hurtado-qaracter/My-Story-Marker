@@ -18,9 +18,11 @@ One module per mechanical invariant, named by invariant number:
     inv_09  FR-AUD-07  9  recognisable voice (POV only)         reviewable
     inv_10  FR-AUD-08  10 thread latency                        reviewable
 
-Invariants 3 and 6 and the prose halves of 1 and 8 are the model-backed auditor's (FR-AUD-09,
-plan step 17). Until it exists they are reported in `skipped` whenever the semantic half is
-requested.
+Invariants 3 and 6 and the prose halves of 1 and 8 are the model-backed auditor's (FR-AUD-09),
+the auditor role in `agents`. The combined audit runs the mechanical checks here first and
+folds the role's findings in with `with_semantic`; `violation_id` gives a model finding its
+deterministic id, and `persist` merges both halves into `ledger/violations.yaml` by the same
+rules. With no auditor wired, a request for the semantic half lists those four in `skipped`.
 
 This package is the ledger's public surface for the audit: `scenes` (the route) and, later,
 `agents` (the turn's audit step) import it; neither imports the modules behind it.
@@ -28,17 +30,28 @@ This package is the ledger's public surface for the audit: `scenes` (the route) 
 
 from __future__ import annotations
 
+from app.ledger.audit.findings import natural_key, violation_id
 from app.ledger.audit.persist import merge, persist
 from app.ledger.audit.report import AuditReport, CheckRef, SkippedCheck
-from app.ledger.audit.runner import MECHANICAL_CHECKS, SEMANTIC_HALVES, audit_scene
+from app.ledger.audit.runner import (
+    MECHANICAL_CHECKS,
+    SEMANTIC_CHECK,
+    SEMANTIC_HALVES,
+    audit_scene,
+    with_semantic,
+)
 
 __all__ = [
     "MECHANICAL_CHECKS",
+    "SEMANTIC_CHECK",
     "SEMANTIC_HALVES",
     "AuditReport",
     "CheckRef",
     "SkippedCheck",
     "audit_scene",
     "merge",
+    "natural_key",
     "persist",
+    "violation_id",
+    "with_semantic",
 ]

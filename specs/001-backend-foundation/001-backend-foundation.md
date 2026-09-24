@@ -315,7 +315,7 @@ FR-OPS-03 already prunes the writer's selected entities by rank. These requireme
 |---|---|
 | FR-CTX-01 | The cap is **100 000 input tokens per model call**, identical for every role (NFR-05), and whole over the **useful context the system sends**: role system prompt, documents and instruction. What the CLI adds regardless (FR-LLM-05) is not deducted from it, so a real call may carry about 102 500 input tokens; that cost is accepted (Decision R3-5, [Memory and context budget](../../docs/architecture.md#memory-and-context-budget)). Output tokens do not count against it. |
 | FR-CTX-02 | Input tokens are estimated locally and conservatively: `ceil(characters / 3)` for each text the system sends, and nothing else. Dividing by three overestimates English prose, which is the safe direction for a hard cap. The CLI's overhead is kept as a module constant, `CLI_OVERHEAD_TOKENS` (2 500, measured on 2026-09-23 and re-measured when the CLI is upgraded; not a setting), used **only** by FR-CTX-06 to read the real count, never in the estimate or the pruning. |
-| FR-CTX-03 | Every role's inputs are split into a **mandatory** part and a **prunable, ranked** part. Pruning removes whole prunable entries from the lowest rank upward until the estimate fits; it never cuts inside an entry (FR-OPS-03), and the removed identifiers are recorded on the turn record with `truncated_at`. **write / revise** — prunable: the selected entities in FR-OPS-03 order; mandatory: fixed block, POV dossier, literal tail, instruction, and for `revise` the draft and the blocking violations. **extract_facts** — prunable: the canon documents in rank order; mandatory: the accepted draft. **audit_semantic** — prunable: the non-pinned selected axioms in rank order, then participants' knowledge and changes in the order the participants are listed; mandatory: draft, scene record, pinned axioms, POV dossier. **polish, digest, rollup** — all mandatory, bounded by construction. |
+| FR-CTX-03 | Every role's inputs are split into a **mandatory** part and a **prunable, ranked** part. Pruning removes whole prunable entries from the lowest rank upward until the estimate fits; it never cuts inside an entry (FR-OPS-03), and the removed identifiers are recorded on the turn record with `truncated_at`. **write / revise** — prunable: the selected entities in FR-OPS-03 order; mandatory: fixed block, POV dossier, literal tail, instruction, and for `revise` the draft and the blocking violations. **extract_facts** — prunable: the canon documents in rank order; mandatory: the accepted draft. **audit_semantic** — prunable: the non-pinned selected axioms in rank order, then, per participant in the order they are listed, their `dossier.md#immutable_physical`, knowledge and changes; mandatory: draft, scene record, pinned axioms, POV dossier. **polish, digest, rollup** — all mandatory, bounded by construction. |
 | FR-CTX-04 | An auditor input removed by pruning is listed in the audit's `skipped`, as FR-AUD-09 does for a failed model step, so the absence of a violation is never mistaken for a pass on something that was never checked. |
 | FR-CTX-05 | There is **no model-written compression inside a turn**: loading must stay reproducible, and a summary written by a model would be a record nobody reviewed entering the context. The compression the design already has — the digest ladder of scene, chapter and arc — keeps past prose small by construction. If the mandatory part alone exceeds the cap, the call is not made, `ContextBudgetExceeded` is raised and the turn escalates: the fault is a record that is too large, and the fix belongs in that record rather than in the system shortening it silently. |
 | FR-CTX-06 | After each call the real input count reported by the CLI is recorded beside the estimate. A real count minus `CLI_OVERHEAD_TOKENS` above the cap marks the step `over_cap: true` on the turn record: the call was made on an estimate that proved wrong, which is visible rather than silent and is the signal to make FR-CTX-02 more conservative. |
@@ -716,6 +716,30 @@ Two things were found while implementing and are **deferred by name** (Process 3
   same messages suggest the CLI can retry a refusal on another model by itself, which
   FR-LLM-06 rules out for v1. Both are checked in the AC 26 live run, where `modelUsage`
   would list two models.
+
+One clarification folded in at plan step 20, and further findings of steps 11–20 deferred by
+name (2026-09-24):
+
+- **FR-CTX-03 lists the participants' `immutable_physical`.** FR-AGENT-06 gives the semantic
+  auditor `cast/{id}/dossier.md#immutable_physical`, but FR-CTX-03's split named only the
+  POV's dossier, so invariant 3 could not be judged for a participant — and AC 26's planted
+  body change is a participant's (Ilan, in scene 006). The auditor now receives each
+  participant's stored attributes beside their `changes.yaml`, prunable in participant order.
+- *Deferred:* a chapter digest can load for a scene it covers when every covered scene is at
+  or before `T` (FR-OPS-03 as written); whether a digest covering the scene being written
+  should be withheld is open.
+- *Deferred:* the previous scene's `literal_tail` is taken by discourse order, so an analepsis
+  receives the tail of a scene later in story time.
+- *Deferred:* `openapi.json` declares only the success and validation responses; IF-07's
+  error bodies are not declared, so the generated client cannot type them and schemathesis
+  checks only for server errors.
+- *Deferred:* provenance lines of a turn's draft, digest, proposal and audit writes carry no
+  scene or turn id (FR-STORE-04 "when supplied"); promotions and rulings do.
+- *Deferred:* DR-07 has no field for `SemanticViolation.explanation` or
+  `ProposedFactDraft.evidence`, so neither is stored.
+- *Recorded:* Figure 4 does not place the scene digest; the turn runs it after the polish
+  re-check and before extraction. A lock left by a crashed process is taken over only by a
+  resume of the same turn.
 
 Two things are recorded here for the reviewer rather than asked:
 

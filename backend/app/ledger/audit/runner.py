@@ -5,16 +5,20 @@ with the accounting of what ran and what did not. It reads and never writes: per
 separate call (`persist.persist`) that only the auditor can make succeed, so that "audit" and
 "write a report" cannot be the same accident.
 
-**The model-backed half does not exist yet.** Invariants 3 and 6, and the prose halves of 1
-and 8, are judged by the model-backed auditor of plan step 17 (FR-AGENT-06/07). Until it
-exists, a request for the semantic half lists those four in `skipped` with the reason, which
-is exactly FR-AUD-09's answer to a model step that fails: the absence of a violation is never
-mistaken for a pass. A request with `semantic=False` asked for the mechanical half only and
-gets it, with nothing listed for the half it did not ask for.
+**The model-backed half is not run here.** Invariants 3 and 6, and the prose halves of 1 and
+8, are judged by the auditor role (FR-AGENT-06/07), which lives in `agents` -- above this
+package in NFR-04's layers, so this module cannot call it. The combined audit runs this
+function with `semantic=False` first, hands the mechanical findings to the role as data, and
+folds the role's answer into the report with `with_semantic`. Called with `semantic=True`, this
+function is the audit of a process with no model-backed auditor wired in: it lists those four
+in `skipped` with the reason, which is exactly FR-AUD-09's answer to a model step that fails:
+the absence of a violation is never mistaken for a pass. A request with `semantic=False` asked
+for the mechanical half only and gets it, with nothing listed for the half it did not ask for.
 """
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Final
 
 from app.commons.schemas import Invariant, Violation, ViolationSource
@@ -47,8 +51,8 @@ SEMANTIC_HALVES: Final[tuple[tuple[Invariant, str], ...]] = (
 """What FR-AUD-09 delegates to the model-backed auditor, in invariant order."""
 
 SEMANTIC_UNAVAILABLE: Final[str] = (
-    "is judged by the model-backed auditor (FR-AUD-09), which does not exist yet (plan step "
-    "17); it was not checked"
+    "is judged by the model-backed auditor (FR-AUD-09, plan step 17), and none is wired into "
+    "this process; it was not checked"
 )
 
 
@@ -124,4 +128,64 @@ def audit_scene(store: Store, scene_id: str, *, semantic: bool) -> AuditReport:
     )
 
 
-__all__ = ["MECHANICAL_CHECKS", "SEMANTIC_HALVES", "audit_scene"]
+def with_semantic(
+    report: AuditReport,
+    *,
+    violations: Sequence[Violation],
+    checked: Sequence[Invariant],
+    skipped: Sequence[tuple[Invariant, str]],
+) -> AuditReport:
+    """FR-AGENT-07. The combined audit: a mechanical report, and the model-backed half's answer.
+
+    `report` must be the mechanical half alone (`semantic=False`): the semantic accounting is
+    added here exactly once, and a report that already carries it would end up listing the
+    same invariant as both skipped for want of an auditor and checked by one. `violations` are
+    the model's findings, already DR-07 records with `source: model`; `checked` the semantic
+    invariants the model step judged; `skipped` the ones it could not -- every one of them when
+    the step failed (FR-AUD-09), or one entry per input the cap pruned (FR-CTX-04). An
+    invariant may appear in both lists: judged, but without one of its inputs, which the
+    reason names.
+
+    A model finding is never allowed to carry the mechanical source, and one whose id repeats
+    an earlier finding is dropped, as the mechanical half drops its own repeats.
+    """
+    if report.semantic:
+        message = "with_semantic takes the mechanical half alone (semantic=False)"
+        raise ValueError(message)
+    for finding in violations:
+        if finding.source is not ViolationSource.MODEL:
+            message = f"{finding.id} is not a model finding; FR-AUD-09 findings carry source model"
+            raise ValueError(message)
+    return AuditReport(
+        scene=report.scene,
+        semantic=True,
+        violations=_first_of_each([*report.violations, *violations]),
+        checked=[
+            *report.checked,
+            *(
+                CheckRef(check=SEMANTIC_CHECK, invariant=invariant, source=ViolationSource.MODEL)
+                for invariant in checked
+            ),
+        ],
+        skipped=[
+            *report.skipped,
+            *(
+                SkippedCheck(
+                    check=SEMANTIC_CHECK,
+                    invariant=invariant,
+                    source=ViolationSource.MODEL,
+                    reason=reason,
+                )
+                for invariant, reason in skipped
+            ),
+        ],
+    )
+
+
+__all__ = [
+    "MECHANICAL_CHECKS",
+    "SEMANTIC_CHECK",
+    "SEMANTIC_HALVES",
+    "audit_scene",
+    "with_semantic",
+]
