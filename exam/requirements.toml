@@ -471,7 +471,7 @@ checks = []
 id = "G04"
 block = "7. Guardrails"
 text = "Audit log de las decisiones del policy engine (cada coincidencia también en Langfuse)"
-checks = [{ kind = "grep", regex = '(?i)CREATE TABLE\s+(IF NOT EXISTS\s+)?\w*audit', files = ["backend/app/**/*.sql"] }]
+checks = [{ kind = "grep", regex = '(?i)CREATE TABLE\s+(IF NOT EXISTS\s+)?\w*(audit|policy_decision)', files = ["backend/app/**/*.sql"] }]
 
 [[item]]
 id = "G05"
