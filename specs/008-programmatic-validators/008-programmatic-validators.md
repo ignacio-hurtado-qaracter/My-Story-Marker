@@ -77,6 +77,26 @@ Results are persisted and scored by `run_point` (V06), never by the validator.
 chapter a missing fact was assigned to), `role_output` (a pydantic model, or a dict with
 `role_output_model`, a pydantic model class).
 
+## Tuning iteration 1 (revision, 2026-09-24)
+
+> Approval delegated by the user for this session; status stays `approved`. Reason: the
+> 'before' evals (`evals/results/before/`) stopped `b2` and `b3` on `brief_coverage` for
+> memories the chapters told in full, and stopped `b4` at plan stage on a `noAfterExit`
+> false positive.
+
+- **Memory coverage.** A title of ≤ 3 words used to need the exact phrase ("El caracol
+  campeón"), so "los caracoles de Martina…" did not count. Now a memory is covered when a
+  chapter contains **≥ half (and ≥ 1) of the title's content words, or ≥ 30 % of the
+  description's content words**, words folded by `app.policy.normalise` (case, accents,
+  plurals: `caracoles` → `caracol`). Content words have ≥ 4 letters and are not
+  stopwords, digits, generic title words ("primera", "última"…) or names from the brief, so
+  a name alone never proves a memory. The rule is in the docstring of `coverage.py`.
+- **`noAfterExit` mirror.** `diagnose` marked **every** participant of a death or departure
+  event as exited (in `b4`, the recipient who buries his dog), while Lean exits only the
+  first participant; and both ordered by `seq`. Now, like the revised Lean check (spec 012),
+  only the first participant exits and only a **later story date** counts as an appearance
+  after exit; a flashback dated before the exit and the exit day itself pass.
+
 ## Acceptance criteria
 
 1. AC 1 — V01: `chapter_length` passes inside the brief range (inclusive), fails outside,
@@ -86,8 +106,12 @@ chapter a missing fact was assigned to), `role_output` (a pydantic model, or a d
    canonical names or common words. **T**
 3. AC 3 — V03: `brief_coverage` over an in-memory bible fails listing a mandatory fact that
    no chapter renders and passes once it is rendered; `fact_usage_recorder` writes the rows. **T**
+   *Revised (tuning 1): memories by the content-word rule above
+   (`test_memory_coverage_content_words`). **T***
 4. AC 4 — L03/V06: `lean_chronology` fails with an explanation when `lake` is missing, and
    runs Lean when present. **T** (skip-marked by toolchain presence)
+   *Revised (tuning 1): `diagnose` agrees with Lean on `noAfterExit` on the story axis
+   (`app/formal/tests/test_lean.py::test_no_after_exit_is_on_the_story_axis`). **T***
 5. AC 5 — V04: `schema_role_output` and `schema_brief` report schema results as named
    validators, guarded against B2 not being merged. **I** (review of the guarded imports)
 6. AC 6 — V06: `register_validators()` registers every validator of the table at its
