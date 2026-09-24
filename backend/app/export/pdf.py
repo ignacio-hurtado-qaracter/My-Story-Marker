@@ -16,6 +16,7 @@ the book as well. The read side is `app.reader.service`, the same the web reader
 
 from __future__ import annotations
 
+import json
 import re
 from dataclasses import dataclass
 from html import escape as _html_escape
@@ -54,31 +55,64 @@ STYLES: Final[dict[str, ParagraphStyle]] = {
         "body", parent=_BASE, alignment=TA_JUSTIFY, firstLineIndent=5 * mm, spaceAfter=2
     ),
     "h1": ParagraphStyle(
-        "h1", parent=_BASE, fontName="Helvetica-Bold", fontSize=18, leading=23,
-        spaceBefore=6 * mm, spaceAfter=6 * mm,
+        "h1",
+        parent=_BASE,
+        fontName="Helvetica-Bold",
+        fontSize=18,
+        leading=23,
+        spaceBefore=6 * mm,
+        spaceAfter=6 * mm,
     ),
     "h2": ParagraphStyle(
-        "h2", parent=_BASE, fontName="Helvetica-Bold", fontSize=12.5, leading=16,
-        spaceBefore=4 * mm, spaceAfter=1.5 * mm,
+        "h2",
+        parent=_BASE,
+        fontName="Helvetica-Bold",
+        fontSize=12.5,
+        leading=16,
+        spaceBefore=4 * mm,
+        spaceAfter=1.5 * mm,
     ),
     "eyebrow": ParagraphStyle(
-        "eyebrow", parent=_BASE, fontName="Helvetica", fontSize=8.5, textColor=ACCENT,
-        alignment=TA_CENTER, spaceAfter=3 * mm,
+        "eyebrow",
+        parent=_BASE,
+        fontName="Helvetica",
+        fontSize=8.5,
+        textColor=ACCENT,
+        alignment=TA_CENTER,
+        spaceAfter=3 * mm,
     ),
     "title": ParagraphStyle(
-        "title", parent=_BASE, fontName="Helvetica-Bold", fontSize=26, leading=31,
-        alignment=TA_CENTER, spaceAfter=8 * mm,
+        "title",
+        parent=_BASE,
+        fontName="Helvetica-Bold",
+        fontSize=26,
+        leading=31,
+        alignment=TA_CENTER,
+        spaceAfter=8 * mm,
     ),
     "to": ParagraphStyle(
-        "to", parent=_BASE, fontName="Times-Italic", fontSize=14, alignment=TA_CENTER,
+        "to",
+        parent=_BASE,
+        fontName="Times-Italic",
+        fontSize=14,
+        alignment=TA_CENTER,
         spaceAfter=6 * mm,
     ),
     "dedication": ParagraphStyle(
-        "dedication", parent=_BASE, fontName="Times-Italic", fontSize=12, leading=17,
-        alignment=TA_CENTER, textColor=MUTED,
+        "dedication",
+        parent=_BASE,
+        fontName="Times-Italic",
+        fontSize=12,
+        leading=17,
+        alignment=TA_CENTER,
+        textColor=MUTED,
     ),
     "label": ParagraphStyle(
-        "label", parent=_BASE, fontName="Helvetica", fontSize=8.5, textColor=ACCENT,
+        "label",
+        parent=_BASE,
+        fontName="Helvetica",
+        fontSize=8.5,
+        textColor=ACCENT,
         spaceBefore=4 * mm,
     ),
     "item": ParagraphStyle("item", parent=_BASE, fontSize=11.5, leading=18, leftIndent=2 * mm),
@@ -99,6 +133,28 @@ def escape(text: str) -> str:
 
 def chapter_anchor(n: int) -> str:
     return f"cap-{n}"
+
+
+def note_lines(note: str | None) -> list[str]:
+    """The version note for a reader: `{"change": {key, old, new}}` becomes
+    "Cambio: <key>: «old» → «new»"; internal keys (`stop_reason`) are not shown; a note
+    that is not JSON is shown as written."""
+    if not note:
+        return []
+    try:
+        data = json.loads(note)
+    except json.JSONDecodeError:
+        return [note]
+    if not isinstance(data, dict):
+        return [note]
+    lines: list[str] = []
+    change = data.get("change")
+    if isinstance(change, dict) and {"key", "old", "new"} <= change.keys():
+        lines.append(f"Cambio: {change['key']}: «{change['old']}» → «{change['new']}»")
+    text = data.get("text")
+    if isinstance(text, str) and text:
+        lines.append(text)
+    return lines
 
 
 def pdf_filename(novel_id: str, version: int) -> str:
@@ -226,8 +282,8 @@ def export_pdf(
             f"{info.parent_version}. La versión anterior se conserva.",
             "meta",
         )
-        if info.note:
-            b.para(escape(info.note), "meta")
+        for line in note_lines(info.note):
+            b.para(escape(line), "meta")
         b.add(Spacer(1, 4 * mm))
         if changed:
             b.para("Capítulos modificados:", "h2")
@@ -287,4 +343,4 @@ def export_pdf(
     return target
 
 
-__all__ = ["chapter_anchor", "export_pdf", "pdf_filename"]
+__all__ = ["chapter_anchor", "export_pdf", "note_lines", "pdf_filename"]
