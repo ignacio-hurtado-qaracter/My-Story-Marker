@@ -151,8 +151,8 @@ in [`docs/process/iteraciones.md`](../../docs/process/iteraciones.md#divergencia
    renames of cast, derived facts and brief) **before** `create_version_from`, which is
    itself one transaction. A crash between them leaves the fact changed with no version
    v+1, and `Resume` then finds the latest version published: the change is lost silently.
-   Not fixed here (code is owned by spec 007); proposed fix: one repository transaction
-   around both.
+   **Fixed in `772f846`:** everything from `update_fact_value` to `create_version_from` and
+   the usage rows runs in one `BibleRepository.transaction()` (savepoint-aware).
 
 **Rules the code must follow**, each produced by a counterexample
 ([`COUNTEREXAMPLES.md`](./COUNTEREXAMPLES.md)):
@@ -166,5 +166,5 @@ in [`docs/process/iteraciones.md`](../../docs/process/iteraciones.md#divergencia
    (CE4).
 5. Assumed by the model, not found by TLC: `change_fact` creates the new version and its
    copied rows in one transaction, and publishing is an insert of a new version plus a
-   status change, never an update of an earlier version's rows. The publishing half holds
-   in the code; the `change_fact` half does not yet (divergence 2 above).
+   status change, never an update of an earlier version's rows. Both halves hold in the
+   code (the `change_fact` half since `772f846`, divergence 2 above).

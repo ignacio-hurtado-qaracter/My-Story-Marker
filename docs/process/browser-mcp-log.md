@@ -65,6 +65,11 @@ Capturas (`browser_take_screenshot`, página completa) y transcripciones en
    de ficheros con `check_same_thread=False` (cada petición usa su repositorio en
    exclusiva, sin compartirlo), o que la dependencia y el endpoint corran en el mismo hilo;
    y un test que lance peticiones concurrentes contra la app real.
+   **Resolución (`b612d34`):** `open_authoritative`/`BibleRepository.open` aceptan
+   `check_same_thread`; la dependencia del lector (y la de la entrevista, mismo patrón) lo
+   abren con `False`. Test `test_concurrent_requests_all_succeed`: 20 GET concurrentes con
+   un `TestClient` compartido → 20 × 200 (antes fallaba). Aclaración en spec 014, AC 1
+   (`223382f`).
 2. **Las fichas no son versionadas (contenido).** En `personajes?v=1` la mascota aparece
    con el nombre **nuevo**, mientras que el capítulo 1 de esa misma v1 usa el **antiguo**.
    La API lo confirma: `GET /novels/demo-faro/bible?version=1` devuelve el personaje con el
@@ -74,12 +79,23 @@ Capturas (`browser_take_screenshot`, página completa) y transcripciones en
    contradiría su propio texto. *Arreglo propuesto:* derivar el nombre mostrado del valor
    del hecho en esa versión (la nota `change` de `novel_version` guarda `old`/`new`) o
    versionar el reparto; decisión de diseño (D6, K1), así que pasa por spec.
+   **Resolución (`ed58daa`):** se tomó la primera opción, sin migración. `story_bible`
+   deshace, de la más nueva a la más antigua, los renombrados anotados en `change` de las
+   versiones posteriores a v, para el nombre mostrado y para buscar apariciones (también en
+   la ficha del PDF). La semilla escribe su nota de v2 en ese formato. Test en
+   `test_chapter_index`: `bible?version=1` lista a Toby en 1 y 3, no a Nala. **Limitación
+   conocida:** el reparto sigue sin versionar; descripción y rol se muestran como están
+   ahora (spec 014, Open questions, `dd28eee`).
 3. **Menores.** `favicon.ico` 404 en cada carga (no hay icono en `index.html`); aviso de
    three.js `THREE.Clock … deprecated` en la portada. Sin efecto visible.
+   **Resolución:** favicon SVG (el logo existente) en `index.html` (`bf0cd02`); el aviso de
+   three.js se deja.
 
-**Qué cambio provocó.** Ninguno en código ni prompts todavía: este bloque no posee
-`backend/` ni `frontend/`. Los hallazgos 1 y 2 se han enviado al orquestador para que los
-asigne (B1/B10). Se añadirá aquí el commit que los cierre.
+**Qué cambio provocó.** Este bloque no posee `backend/` ni `frontend/`; los hallazgos se
+enviaron al orquestador, que los asignó a la rama `fix/review-findings`: `b612d34`
+(hallazgo 1), `ed58daa` (hallazgo 2), `bf0cd02` (favicon). Registrados en
+[iteraciones](./iteraciones.md) como filas 14 y 18. Pendiente: repetir las dos pasadas con el
+cliente MCP sobre esa rama.
 
 ## Pendiente
 

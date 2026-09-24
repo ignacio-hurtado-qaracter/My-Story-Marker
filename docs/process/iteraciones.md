@@ -18,7 +18,12 @@
 | 10 | Lean / plan | La prosa no puede reparar filas de cronología | La cronología del plan se hace Lean-válida antes de escribir; un proyecto Lean por novela | `2df3c74`, `bce0907` |
 | 11 | Schemathesis | Un entero > 64 bits en la URL daba 500 (`OverflowError`) | Versión y capítulo acotados a 1..2³¹−1 → 422 | `312b142` |
 | 12 | B7 en vivo | El juez devolvió `comentario_general` como cadena JSON anidada | El prompt exige texto plano en español | `35d3a83`, `app/prompts/judge_*.md` |
-| 13 | Revisión B12 | El código diverge del modelo y de la Figura 5 en tres puntos | Documentado; pendiente de decisión | [abajo](#divergencias-encontradas-al-mapear-tla-a-código) |
+| 13 | Revisión B12 | El código diverge del modelo y de la Figura 5 en tres puntos | 1 aceptada (segura); 2 y 3 corregidas (filas 15 y 16) | [abajo](#divergencias-encontradas-al-mapear-tla-a-código) |
+| 14 | Browser MCP | `GET /novels/{id}` daba 500 intermitente: conexión SQLite abierta en un hilo del threadpool y usada en otro (12/20 concurrentes) | Repositorio por petición con `check_same_thread=False` (lector y entrevista); test de 20 peticiones concurrentes | `b612d34`, [log](./browser-mcp-log.md) |
+| 15 | Revisión TLA+ | `change_fact` confirmaba el hecho antes de crear v+1: un crash perdía el cambio en silencio | Todo `change_fact` en una `repo.transaction()`; `transaction` usa SAVEPOINT si ya hay una abierta | `772f846`, `formal/tla/README.md` |
+| 16 | Revisión Figura 5 | La Figura 5 decía "reescribe la escena señalada" y "conserva escenas aceptadas" | La figura y su prosa siguen al código: el editor reescribe el capítulo (rechazado a `chapter_attempt`); reanudar reinicia el capítulo desde la escena 1 | `2c6edf8` |
+| 17 | Red-team R2 | El `free_text` crudo llegaba al planner (brief completo) y al juez (`brief_summary`) | Ambos lo reciben filtrado; solo hechos `source = free_text` | `a721bc7`, [R2](./red-team-log.md#r2--b3-injection) |
+| 18 | Browser MCP | Las fichas de `?v=1` mostraban el nombre nuevo de la mascota | `story_bible` deshace los renombrados de las notas `change` posteriores a v; reparto sin versionar como limitación conocida | `ed58daa`, spec 014 |
 
 ---
 
@@ -119,7 +124,8 @@ empezara, así que el pipeline nació con las cuatro reglas en su docstring.
 ## Divergencias encontradas al mapear TLA+ a código
 
 Al confirmar la tabla acción → código de [`formal/tla/README.md`](../../formal/tla/README.md#mapping-tla-action--code)
-(esta rama) aparecieron tres diferencias. No se han corregido; se registran para decidir:
+(esta rama) aparecieron tres diferencias. Estado: la 1 se acepta; la 2 y la 3 se
+corrigieron en `fix/review-findings` (filas 15 y 16 de la tabla):
 
 1. **Contador de reintentos de escena en memoria.** `write_scene` usa un bucle local
    (`MAX_SCENE_RETRIES = 2`). Un crash reinicia el capítulo desde la escena 1 con
@@ -131,12 +137,12 @@ Al confirmar la tabla acción → código de [`formal/tla/README.md`](../../form
    confirman **antes** de `create_version_from` (que sí es una transacción). Un crash entre
    ambos deja el hecho con el valor nuevo y ninguna versión v+1; al reanudar, la última
    versión está publicada y el cambio se pierde en silencio. Propuesta: envolver todo en una
-   transacción del repositorio.
+   transacción del repositorio. **Resuelto en `772f846`.**
 3. **Figura 5 frente al código.** `docs/architecture.md` dice que un fallo de
    `chapter_close` "reescribe la escena señalada" y que al reanudar se conservan las
    escenas aceptadas; el código reescribe el **capítulo** con el editor y no conserva
    escenas (V4). El modelo TLA+ ya sigue al código. El documento de diseño es de B0: se
-   notifica al orquestador para un `docs:`.
+   notifica al orquestador para un `docs:`. **Resuelto en `2c6edf8`.**
 
 ## Evals y tuning (pendiente de resultados)
 

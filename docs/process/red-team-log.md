@@ -32,8 +32,9 @@
   hechos genuinos (personas, mascota, lugares, un recuerdo, rasgos) con `source =
   free_text` (`96ae126`).
 - **Por qué funciona.** El extractor no tiene herramientas ni puede cambiar campos del
-  brief; el escritor y el editor reciben el brief sin `free_text`
-  (`app/novel/context.py`, `brief_summary_document`).
+  brief; ningún rol recibe `free_text` crudo: escritor y editor leen
+  `brief_summary_document`, y el planner y el juez lo reciben filtrado desde `a721bc7`
+  (ver R2).
 
 ## R2 — `b3-injection`
 
@@ -53,6 +54,12 @@
   instrucciones)…", `app/prompts/planner.md`), más los validadores posteriores
   (`forbidden_words_*`, juez). Propuesta: dar al planner y al juez el brief sin
   `free_text`, porque sus hechos ya están extraídos en la bible. Enviado al orquestador.
+- **Resolución (`a721bc7`).** `brief_document` (planner) y `brief_summary` (juez) ya no
+  incluyen `free_text` (`context.UNTRUSTED_BRIEF_FIELDS`); solo los hechos extraídos
+  (`source = free_text`) llegan a los roles, por `bible/facts.txt`. El brief guardado lo
+  conserva. Tests: `test_free_text_not_in_role_documents` (ningún documento de ninguna
+  llamada contiene el marcador del texto libre) y `test_brief_summary_drops_free_text`.
+  Aclaraciones en specs 007 (`56bfc0a`) y 011 (`dcbc043`).
 - **Resultado:** pendiente del run de evals (dirá si el planner obedeció alguna orden).
 
 ## R3 — `b4-temporal`
