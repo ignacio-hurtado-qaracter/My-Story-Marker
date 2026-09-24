@@ -111,5 +111,12 @@ the scenes are already merged by the editor).
 
 - H05 (read-only MCP tools `query_story_bible`, `get_chapter_summary`) is deferred: the
   context is assembled by the pipeline and passed as documents. Recorded for wave C.
+- Clarified during implementation (no scope change): the plan's chronology is made
+  Lean-valid before writing (`app/novel/chronology.py`, B4's `diagnose`), because prose
+  rewrites cannot repair chronology rows; each novel gets its own copy of `formal/lean`
+  next to `HARNESS_DB` so concurrent runs do not share `Story.lean`; a pipeline-owned
+  `no_placeholders` validator (scene_accept, chapter_close) rejects anonymised names.
+- The plan is stored as fact `plan.v1` (kind `plan`): B4's `fact_usage_recorder` should
+  skip kind `plan`.
 - K1 has no method to rename a character or place; `change_fact` does it through a small
   helper in `app/novel/_bible_ext.py` over the repository's connection until B1 adds one.
