@@ -32,6 +32,13 @@ docs:
 > single repair round spent on chapters the judge had not asked for. Changes are listed
 > under Design, "Tuning iteration 1", and AC 7.
 
+> **Revised 2026-09-24 — tuning iteration 2** (programme 004; approval delegated, status
+> stays `approved`). Reason: the 10-chapter example (`novela-ejemplo-final`) was blocked
+> after two repair rounds by `judge_novel` on weekdays that contradict their dates (21, 23
+> and 24 June 2026 called domingo/sábado, domingo/martes, lunes) and on "treinta años" of
+> a career dated 1992–2026. The planner itself wrote "El domingo de mañana, veintitrés de
+> junio" (23 June 2026 is a Tuesday). Changes under Design, "Tuning iteration 2", and AC 8.
+
 ## Motivation
 
 Spec 004 § 1 rows H01 (planner, writer, editor/critic), H06 (bounded retries at chapter
@@ -104,6 +111,26 @@ H05 (deferred, see Open questions), the legacy `app/agents/**` turn loop (untouc
   `alta` issues, not every chapter its justifications mention; the repair reads the
   feedback plus the neighbouring chapters' stored summaries.
 
+**Tuning iteration 2.**
+
+- *Calendar facts in the plan* (`app/novel/calendar_facts.py`). After the plan passes its
+  check, `enrich_plan_calendar` corrects in Python every weekday the planner wrote next to
+  a date (time markers, synopses, scene summaries, event descriptions) and stamps each
+  chapter's `time_marker` with its real scene dates (`[fechas: domingo 21 de junio de
+  2026]`, weekday from `datetime.date.weekday()`); idempotent. `ctx.extra["plan"]` gives
+  each chapter a `calendar` list (`date`, `weekday`, `label`). The planner prompt no longer
+  asks for weekdays.
+- *Context.* Writer and editor read `plan/calendar.txt`: one line per scene date ("Fecha:
+  domingo 21 de junio de 2026 (usa exactamente este día de la semana si lo nombras)") and
+  **cifras canónicas** computed from brief dates only where both ends are known: the
+  story's present (latest scene date), each dated person's age in it, and for each dated
+  memory the full years elapsed and the ages then. A rounded figure in a brief description
+  may be replaced by the computed one or a compatible phrase ("más de treinta años"). The
+  scene lines of the chapter plan show the weekday too.
+- *Repair.* The chapter rewrite task tells the editor that a `calendar_consistency`
+  failure (spec 008) is fixed by the weekday the feedback gives, or simply by dropping the
+  weekday name.
+
 Deviation from Figure 5: a `chapter_close` failure is repaired by an editor rewrite of the
 whole chapter with the evidence, not by rewriting only the flagged scene (cheaper on Haiku;
 the scenes are already merged by the editor). *Clarified: Figure 5 now says so, and that
@@ -132,6 +159,11 @@ resume restarts the first incomplete chapter from its first scene; no longer a d
    the facts checklist and the neighbours' synopses; a failed `judge_novel` reopens only the
    chapters it names, at most two rounds. **T** (`test_pipeline.py` with time markers,
    `test_judge.py`) · **D** (`evals/results/after/`, `evals/results/tuning.md`).
+8. AC 8 — tuning iteration 2: the stored plan names only real weekdays next to its dates
+   and each chapter's `time_marker` carries its computed dates; writer and editor receive
+   `plan/calendar.txt` with the dates and the canonical figures. **T**
+   (`test_pipeline.py::test_plan_calendar_enrichment`) · **D** (the orchestrator's rerun
+   of `ejemplo`, recorded in `docs/process/iteraciones.md`).
 
 ## Verification plan
 
