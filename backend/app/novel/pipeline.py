@@ -28,8 +28,10 @@ from __future__ import annotations
 
 import json
 import re
+import tempfile
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Final
 
 from pydantic import JsonValue
@@ -40,10 +42,11 @@ from app.commons.llm import ClaudeCodeModelClient, Document, ModelClient
 from app.commons.observability import Observer, get_observer
 from app.novel import context as cx
 from app.novel._bible_ext import load_plan, rename_cast, store_plan
+from app.novel.chronology import chronology_problems, normalise_events, plan_births
 from app.novel.models import ChangeResult, ChapterEdit, NovelPlan, RunResult, RunStatus
 from app.novel.plan_check import check_plan
 from app.novel.roles import Roles
-from app.novel.setup import register_all
+from app.novel.setup import register_all, register_lean_for
 from app.validators import (
     ValidationContext,
     ValidationPoint,
@@ -117,7 +120,7 @@ def _ctx(
 ) -> ValidationContext:
     payload: dict[str, object] = {
         "brief": run.brief,
-        "plan": run.plan.model_dump(mode="json") if run.plan is not None else {},
+        "plan": plan_for_validators(run.plan) if run.plan is not None else {},
     }
     payload.update(extra)
     return ValidationContext(
@@ -131,6 +134,24 @@ def _ctx(
         extra=payload,
         trace_id=run.trace_id,
     )
+
+
+def plan_for_validators(plan: NovelPlan) -> dict[str, object]:
+    """The plan as `ctx.extra["plan"]`: each `chapters[i]` also carries its scenes and the
+    fact keys they use, so coverage evidence can name the chapter a fact was planned for."""
+    data: dict[str, object] = plan.model_dump(mode="json")
+    chapters: list[dict[str, object]] = []
+    for chapter in plan.chapters:
+        scenes = plan.scenes_of(chapter.number)
+        chapters.append(
+            {
+                **chapter.model_dump(mode="json"),
+                "facts_used": sorted({k for s in scenes for k in s.facts_used}),
+                "scenes": [s.model_dump(mode="json") for s in scenes],
+            }
+        )
+    data["chapters"] = chapters
+    return data
 
 
 def before_scene_accept(
@@ -206,30 +227,26 @@ def plan_novel(run: Run, chapters: int) -> NovelPlan:
     ]
     mandatory = [f.key for f in facts if f.mandatory]
     known = [f.key for f in facts]
+    known_births = {c.name: c.birth_date for c in run.repo.list_characters(run.novel_id)}
     feedback: list[str] = []
     for attempt in range(MAX_REPLANS + 1):
         plan = run.roles.plan(documents, chapters=chapters, feedback=feedback)
+        plan = _repair_plan(plan, chapters, known)
+        births = plan_births(plan, known_births)
+        plan = normalise_events(plan, births)
         feedback = check_plan(
             plan,
             chapters=chapters,
             mandatory_keys=mandatory,
             known_keys=known,
             exact_names=run.names(),
-        )
+        ) + chronology_problems(plan, births)
         run.progress(
             f"plan attempt {attempt + 1}: '{plan.title}', {len(plan.chapters)} chapters, "
-            f"{len(feedback)} problems"
+            f"{len(plan.scenes)} scenes, {len(plan.events)} events, {len(feedback)} problems"
         )
-        if not feedback:
-            return plan
-        plan = _repair_plan(plan, chapters, known)
-        feedback = check_plan(
-            plan,
-            chapters=chapters,
-            mandatory_keys=mandatory,
-            known_keys=known,
-            exact_names=run.names(),
-        )
+        for problem in feedback[:10]:
+            run.progress(f"  plan problem: {problem[:200]}")
         if not feedback:
             return plan
     raise StopRunError("plan_limit", "; ".join(feedback)[:1000])
@@ -793,10 +810,13 @@ def generate(
     observer: Observer | None = None,
     chapters: int | None = None,
     progress: Progress | None = None,
+    register: bool = True,
 ) -> RunResult:
     """K4. Plan (once), write every incomplete chapter of the latest non-published version,
-    pre-publish, publish. Resumes automatically from `first_incomplete_chapter`."""
-    register_all()
+    pre-publish, publish. Resumes automatically from `first_incomplete_chapter`.
+    `register=False` leaves the validator registry as the caller set it (tests)."""
+    if register:
+        setup_validators(repo, novel_id)
     run = _make_run(repo, novel_id, client, observer, progress)
     session = run.observer.start_session(novel_id)
     version: NovelVersion | None = None
@@ -823,6 +843,15 @@ def generate(
             return _run_guarded(run, v, lambda: _chapter_loop(run, v.version))
         finally:
             _finish(run, version.version if version else None)
+
+
+def setup_validators(repo: BibleRepository, novel_id: str) -> None:
+    """Register every block's validators (guarded) and this novel's own Lean project."""
+    register_all()
+    row = repo.connection.execute("pragma database_list").fetchone()
+    db_file = str(row[2]) if row is not None and row[2] else ""
+    base = Path(db_file).parent if db_file else Path(tempfile.gettempdir()) / "harness"
+    register_lean_for(novel_id, base)
 
 
 def _open_version(run: Run) -> NovelVersion:
@@ -854,12 +883,14 @@ def change_fact(
     client: ModelClient | None = None,
     observer: Observer | None = None,
     progress: Progress | None = None,
+    register: bool = True,
 ) -> ChangeResult:
     """K4 / R05 / TLA+ `ChangeFact`. Update the fact, create version v+1 from the latest
     published one copying every chapter that does not use the fact, rewrite only those
     chapters (editor over the existing text), then chapter_close, pre_publish, publish.
     The previous version is never touched."""
-    register_all()
+    if register:
+        setup_validators(repo, novel_id)
     run = _make_run(repo, novel_id, client, observer, progress)
     fact = repo.find_fact(novel_id, fact_key)
     if fact is None:
@@ -931,9 +962,12 @@ def resume(
     client: ModelClient | None = None,
     observer: Observer | None = None,
     progress: Progress | None = None,
+    register: bool = True,
 ) -> RunResult:
     """TLA+ `Resume`: the same as `generate` on an existing novel."""
-    return generate(repo, novel_id, client=client, observer=observer, progress=progress)
+    return generate(
+        repo, novel_id, client=client, observer=observer, progress=progress, register=register
+    )
 
 
 __all__ = [

@@ -130,6 +130,13 @@ def chapter_plan_document(plan: NovelPlan, chapter: int, facts: Sequence[Fact]) 
             f"  Resumen: {scene.summary}",
             f"  Hechos a integrar: {used or 'ninguno'}",
         ]
+        for event in plan.events:
+            if event.chapter == chapter and event.scene == scene.scene:
+                ages = ", ".join(f"{a.name} tiene {a.age} años" for a in event.declared_ages)
+                lines.append(
+                    f"  Evento ({event.story_date}, {event.place}): {event.description}"
+                    + (f" [{ages}]" if ages else "")
+                )
     return Document(path=f"plan/chapter-{chapter}.txt", text="\n".join(lines))
 
 

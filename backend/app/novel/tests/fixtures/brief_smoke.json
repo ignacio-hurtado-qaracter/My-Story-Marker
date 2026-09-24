@@ -1,0 +1,35 @@
+{
+  "recipient": {
+    "name": "Marta",
+    "age": 40,
+    "gender": "femenino",
+    "birth_date": "1986-05-14",
+    "relation_to_buyer": "hermana",
+    "traits": ["curiosa", "cabezota", "generosa"],
+    "hobbies": ["nadar en el mar", "hacer fotos analógicas"],
+    "profession": "bióloga marina"
+  },
+  "occasion": "cumpleaños",
+  "buyer_name": "Lucas",
+  "dedication": "Para Marta, que siempre encuentra el camino de vuelta a casa. Feliz cumpleaños.",
+  "people": [
+    {"name": "Lucas", "relation": "hermano pequeño", "traits": ["bromista", "leal"], "birth_date": "1990-09-02"}
+  ],
+  "pets": [
+    {"name": "Toby", "species": "perro", "description": "un mestizo de orejas caídas que odia los petardos"}
+  ],
+  "places": [
+    {"name": "Cabo de Gata", "description": "calas de agua transparente donde Marta aprendió a bucear"}
+  ],
+  "memories": [
+    {"title": "La cámara del abuelo", "description": "A los doce años Marta heredó la cámara Zenit del abuelo y fotografió su primer atardecer", "date": "1998-08-10", "place": "Cabo de Gata", "people": ["Marta"]},
+    {"title": "El rescate de Toby", "description": "Marta y Lucas encontraron a Toby cachorro bajo una barca varada y lo adoptaron", "date": "2019-07-03", "place": "Cabo de Gata", "people": ["Marta", "Lucas"]}
+  ],
+  "genre": "aventura",
+  "tone": "tierno",
+  "length": {"chapters": 10, "words_min": 1000, "words_max": 1500},
+  "language": "es",
+  "forbidden_terms": ["divorcio"],
+  "mandatory_elements": ["un faro"],
+  "free_text": null
+}
