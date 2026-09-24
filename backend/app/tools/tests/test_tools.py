@@ -71,3 +71,19 @@ def test_list_novels_and_get_chapter(repo: BibleRepository) -> None:
     assert isinstance(facts, QueryStoryBibleOutput)
     assert [f.key for f in facts.facts] == ["pet.nala.name"]  # `plan` facts hidden
     assert observer.spans == ["tool:list_novels", "tool:get_chapter"]
+
+
+# spec 017 / AC 3 - the writer's context is assembled through the tools
+def test_writer_context_goes_through_tools(repo: BibleRepository) -> None:
+    from app.novel import context as cx
+
+    observer = NoopObserver()
+    assert cx.summaries_via_tools(repo, "nov-t", 1, 3, observer=observer) == [(1, "Ana sube.")]
+    sheet = cx.character_sheet_document(repo, "nov-t", observer=observer)
+    assert sheet.path == "bible/characters.txt"
+    assert "Ana | rol: protagonista" in sheet.text
+    assert observer.spans == [
+        "tool:get_chapter_summary",
+        "tool:get_chapter_summary",
+        "tool:query_story_bible",
+    ]
