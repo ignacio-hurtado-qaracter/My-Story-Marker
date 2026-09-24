@@ -94,4 +94,40 @@ Steps 2, 3 and 4 touch disjoint files after step 1 and may run in parallel; each
 
 ## Review notes
 
-*(Filled in at step 7.)*
+### AC 12 — visual review (2026-09-24, agent, delegated)
+
+Screenshots from `npm run screenshots` (1280 × 800 and 390 × 844, five routes) compared with
+`main`'s `web/` pages:
+
+- **Carried over:** the Qaracter logo and divider in a white glass header; pill navigation;
+  Inter throughout with `main`'s type scale; soft cards with a 14 px radius and `main`'s
+  shadow; orange uppercase eyebrows; pills; `main`'s detail layout on the scene page
+  (eyebrow, title, key–value card, word-count pill); `main`'s orange-50 → white hero
+  gradient on the book header and the planet card; the planet itself (flat-shaded orange
+  core, wireframe shell, ink rings with satellites, orange particles); the green "live" dot.
+- **Deliberate differences:** text and filled orange use the accessible accent `#AE4E14`
+  instead of `#E5661F` / `#FF7A2F` (FR-TOK-02), so the active pill is a deeper orange with
+  white text; links in text are underlined; no landing page, create form or library (Out);
+  the planet sits in a framed stage on `/graph3d` rather than behind a hero, has no pointer
+  parallax, and has a pause toggle; on phones the logo image hides and the header wraps
+  (the brand text, nav and badge stay).
+- **Fixed during review:** the footer floated mid-screen on short pages (commit "the footer
+  sits at the bottom of short pages").
+
+### AC 13 — placement review (2026-09-24, agent, delegated)
+
+- `tokens.css` and `base.css` live in `src/shared/ui/`, imported once by `app/App.tsx`.
+- Each feature's CSS sits flat beside its components: `app/Layout.css`,
+  `health/StatusBadge.css`, `scenes/scenes.css`, `graph3d/graph3d.css`, and
+  `shared/ui/Heading.css`, `shared/ui/ErrorPanel.css`. No feature imports another feature's
+  CSS (checked by grep of `import './…css'` per folder).
+- No new `shared/ui/` component was created; the shared classes in `base.css` (`.card`,
+  `.pill`, `.eyebrow`, `.btn-ghost`) are used by two or more of `app/`, `scenes/`,
+  `graph3d/` and `shared/ui/ErrorPanel`.
+
+### Leftovers, for a later dependency change
+
+- `@react-three/drei` is no longer imported (the planet has no controls); it stays in
+  `package.json` until a spec removes it.
+- `test/check-bundle.test.ts` (spec 002) names its synthetic lazy chunk `EmptyScene.js`;
+  cosmetic, not tied to the real module.
