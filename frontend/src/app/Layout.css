@@ -77,6 +77,7 @@
 
 .app-nav ul {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.3rem;
   margin: 0;
   padding: 0;
@@ -125,8 +126,16 @@
     display: none;
   }
 
+  /* Four items do not fit beside the brand on a phone: the nav takes its own full-width row
+     (spec 003, NFR3-02: no horizontal scrolling at 320 px). */
   .app-nav {
     margin-left: 0;
+    flex-basis: 100%;
+    order: 3;
+  }
+
+  .app-nav a {
+    padding: 0.4rem 0.7rem;
   }
 }
 

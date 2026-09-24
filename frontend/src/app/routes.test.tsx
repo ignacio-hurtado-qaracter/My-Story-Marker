@@ -1,5 +1,7 @@
-// app/'s route table and providers. Spec 002, FR-SHELL-01 and FR-SHELL-03 (AC 16).
+// app/'s route table and providers. Spec 002, FR-SHELL-01 and FR-SHELL-03 (AC 16); spec 003,
+// FR-IA (revision 2: the cover at `/`, navigation Portada · Índice · Personajes · Lugares).
 import { render, screen, waitFor, within } from '@testing-library/react'
+import { HttpResponse } from 'msw'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useLocation } from 'react-router'
@@ -20,10 +22,15 @@ beforeEach(() => {
     http.get('/health', ({ response }) =>
       response(200).json({ status: 'ok', vector: 'available', embedding_model: 'm', store_root: '/s' }),
     ),
-    // `/` redirects to /scenes, whose table of contents loads these two.
+    // The pages behind the routes these tests visit load these; the tests only look at the shell.
     http.get('/structure/chapters', ({ response }) => response(200).json({ schema_version: 1, chapters: [] })),
     http.get('/scenes', ({ response }) => response(200).json([])),
-    // Spec 003, FR-BOOK: /scenes also loads the book header.
+    http.get('/cast', ({ response }) => response(200).json([])),
+    http.get('/canon/locations', ({ response }) => response(200).json({ kind: 'locations', ids: [] })),
+    http.get('/cast/{id}', ({ response }) =>
+      response.untyped(HttpResponse.json({ error: 'not_found', detail: 'no such character' }, { status: 404 })),
+    ),
+    // The cover loads the premise.
     http.get('/canon/project', ({ response }) =>
       response(200).json({
         schema_version: 1,
@@ -45,16 +52,19 @@ describe('AppRoutes', () => {
     expect(screen.getByRole('link', { name: 'Volver a las escenas' })).toHaveAttribute('href', '/scenes')
 
     const header = screen.getByRole('banner')
-    expect(within(header).getByRole('link', { name: 'My Story Marker' })).toHaveAttribute('href', '/scenes')
+    // Revised by spec 003 (revision 2): the brand leads to the cover; the navigation is new.
+    expect(within(header).getByRole('link', { name: 'My Story Marker' })).toHaveAttribute('href', '/')
     const nav = within(header).getByRole('navigation', { name: 'Principal' })
-    expect(within(nav).getByRole('link', { name: 'Escenas' })).toHaveAttribute('href', '/scenes')
-    expect(within(nav).getByRole('link', { name: 'Grafo 3D' })).toHaveAttribute('href', '/graph3d')
+    expect(within(nav).getByRole('link', { name: 'Portada' })).toHaveAttribute('href', '/')
+    expect(within(nav).getByRole('link', { name: 'Índice' })).toHaveAttribute('href', '/scenes')
+    expect(within(nav).getByRole('link', { name: 'Personajes' })).toHaveAttribute('href', '/characters')
+    expect(within(nav).getByRole('link', { name: 'Lugares' })).toHaveAttribute('href', '/locations')
     expect(await within(header).findByText('ok · vector: available')).toBeInTheDocument()
     expect(within(screen.getByRole('main')).getByRole('heading', { level: 1 })).toBeInTheDocument()
   })
 
-  // spec 002 / AC 16
-  it('redirects / to /scenes', async () => {
+  // spec 002 / AC 16, revised by spec 003 (revision 2): `/` is the cover, not a redirect.
+  it('shows the cover at /', async () => {
     renderWithProviders(
       <>
         <AppRoutes />
@@ -62,8 +72,9 @@ describe('AppRoutes', () => {
       </>,
       { route: '/' },
     )
-    expect(await screen.findByRole('status', { name: 'Ruta actual' })).toHaveTextContent('/scenes')
+    expect(await screen.findByRole('status', { name: 'Ruta actual' })).toHaveTextContent(/^\/$/)
     expect(screen.getByRole('banner')).toBeInTheDocument()
+    expect(within(screen.getByRole('main')).getByRole('heading', { level: 1 })).toBeInTheDocument()
     // Let the badge's request settle so it does not outlive the test.
     expect(await screen.findByText('ok · vector: available')).toBeInTheDocument()
   })
@@ -104,18 +115,29 @@ describe('Layout (spec 003)', () => {
   })
 
   // spec 003 / AC 6
-  it('marks the current route with aria-current="page", and only it', async () => {
-    renderWithProviders(<AppRoutes />, { route: '/scenes' })
+  it.each([
+    ['/', 'Portada'],
+    ['/scenes', 'Índice'],
+    ['/chapters/ch01', 'Índice'],
+    ['/characters/vance', 'Personajes'],
+    ['/locations', 'Lugares'],
+  ])('on %s marks only "%s" with aria-current="page"', async (route, current) => {
+    renderWithProviders(<AppRoutes />, { route })
     const nav = within(screen.getByRole('banner')).getByRole('navigation', { name: 'Principal' })
     await waitFor(() => {
-      expect(within(nav).getByRole('link', { name: 'Escenas' })).toHaveAttribute('aria-current', 'page')
+      expect(within(nav).getByRole('link', { name: current })).toHaveAttribute('aria-current', 'page')
     })
-    expect(within(nav).getByRole('link', { name: 'Grafo 3D' })).not.toHaveAttribute('aria-current')
+    const marked = within(nav)
+      .getAllByRole('link')
+      .filter((link) => link.getAttribute('aria-current') === 'page')
+    expect(marked).toHaveLength(1)
   })
 
   // spec 003 / AC 6
   it('has a footer landmark', () => {
     renderWithProviders(<AppRoutes />, { route: '/nope' })
-    expect(screen.getByRole('contentinfo')).toHaveTextContent('My Story Marker')
+    const footer = screen.getByRole('contentinfo')
+    expect(footer).toHaveTextContent('My Story Marker')
+    expect(within(footer).getByRole('link', { name: 'Vista 3D' })).toHaveAttribute('href', '/graph3d')
   })
 })
