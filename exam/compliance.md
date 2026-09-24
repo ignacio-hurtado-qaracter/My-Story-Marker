@@ -4,7 +4,7 @@ Generado por `python exam/check.py` a partir de `exam/requirements.toml`. No se 
 
 Las comprobaciones son heurísticas: ✅ dice que el artefacto existe, no que sea bueno.
 
-**Obligatorios comprobables cumplidos: 17 de 72.**
+**Obligatorios comprobables cumplidos: 14 de 72.**
 
 Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ existe, revisar a mano
 
@@ -12,11 +12,11 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 
 | Bloque | ✅ | 🟡 | ❌ | 📝 |
 |---|---|---|---|---|
-| Entregables | 3 | 0 | 2 | 3 |
-| Presentación | 1 | 0 | 4 | 0 |
-| Claude Code | 3 | 1 | 2 | 0 |
+| Entregables | 2 | 0 | 3 | 3 |
+| Presentación | 0 | 0 | 5 | 0 |
+| Claude Code | 0 | 1 | 5 | 0 |
 | 1. Configuración | 0 | 0 | 4 | 0 |
-| 2. Lectura | 2 | 0 | 5 | 0 |
+| 2. Lectura | 4 | 0 | 3 | 0 |
 | 3. Harness | 2 | 1 | 2 | 1 |
 | 4. Memoria | 1 | 1 | 2 | 0 |
 | 5a. Programáticos | 0 | 1 | 5 | 0 |
@@ -33,7 +33,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
-| E01 | ✅ | README.md en la raíz del repo | ✓ exists: README.md |
+| E01 | ❌ | README.md en la raíz del repo | ✗ missing: README.md |
 | E02 | ❌ | Brief de ejemplo reproducible, citado desde el README (provisional: ejemplos/brief-ejemplo.json) | ✗ 0 file(s) for ejemplos/brief-ejemplo.* (need 1)<br>✗ /brief-ejemplo/ found 0x in README.md (need 1) |
 | E03 | ✅ | .env.example versionado | ✓ exists: backend/.env.example |
 | E04 | ✅ | Sin API keys ni tokens en ningún fichero versionado | ✓ no match in tracked files |
@@ -46,7 +46,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
-| P01 | ✅ | presentacion/README.md con el contenido y el idioma elegido | ✓ exists: presentacion/README.md<br>✓ /(?i)idioma/ in presentacion/README.md |
+| P01 | ❌ | presentacion/README.md con el contenido y el idioma elegido | ✗ missing: presentacion/README.md<br>✗ /(?i)idioma/ found 0x in presentacion/README.md (need 1) |
 | P02 | ❌ | Deck principal en PDF | ✗ 0 file(s) for presentacion/*.pdf (need 1) |
 | P03 | ❌ | Deck en formato editable (pptx, key, odp) | ✗ 0 file(s) for presentacion/*.pptx \| presentacion/*.key \| presentacion/*.odp (need 1) |
 | P04 | ❌ | Anexos como ficheros individuales con nombre descriptivo (anexo-*.pdf) | ✗ 0 file(s) for presentacion/anexo-*.pdf (need 1) |
@@ -56,9 +56,9 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
-| K01 | ✅ | Comandos personalizados versionados en .claude/commands/ | ✓ 1 file(s) for .claude/commands/*.md (need 1) |
-| K02 | ✅ | Ficheros de memoria versionados en .claude/ (provisional: .claude/memory/) | ✓ 4 file(s) for .claude/memory/*.md (need 1) |
-| K03 | ✅ | Configuración MCP con un servidor de inspección de navegador | ✓ /(?i)(playwright\|chrome)/ in .mcp.json |
+| K01 | ❌ | Comandos personalizados versionados en .claude/commands/ | ✗ 0 file(s) for .claude/commands/*.md (need 1) |
+| K02 | ❌ | Ficheros de memoria versionados en .claude/ (provisional: .claude/memory/) | ✗ 0 file(s) for .claude/memory/*.md (need 1) |
+| K03 | ❌ | Configuración MCP con un servidor de inspección de navegador | ✗ /(?i)(playwright\|chrome)/ found 0x in .mcp.json \| .claude/mcp.json (need 1) |
 | K04 | 🟡 | Skills del desarrollo en el repo y referenciadas desde /docs | ✓ 4 file(s) for .claude/skills/*/SKILL.md (need 1)<br>✗ /\.claude/skills/ found 0x in docs/**/*.md (need 1) |
 | K05 | ❌ | Subagentes y comandos propios documentados en /docs con propósito y resultado | ✗ /(?i)(subagent\|\.claude/commands\|\.claude/agents)/ found 0x in docs/**/*.md (need 1) |
 | K06 | ❌ | Uso real del browser MCP documentado: qué inspeccionó, qué detectó, qué cambió | ✗ /(?i)(playwright mcp\|browser mcp\|chrome mcp)/ found 0x in docs/**/*.md (need 1) |
@@ -76,10 +76,10 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
-| R01 | ✅ | Lector web (frontend) o PDF interactivo | ✓ 23 file(s) for frontend/src/**/*.tsx \| backend/app/**/pdf*.py \| backend/app/**/export*.py (need 1) |
-| R02 | ✅ | Índice de capítulos navegable | ✓ /(?i)(table.?of.?contents\|\btoc\b\|índice)/ in frontend/src/app/routes.test.tsx (+3) |
-| R03 | ❌ | Ficha de personajes y lugares desde la story bible, con enlaces al capítulo donde aparecen | ✗ /(?i)(character.?sheet\|ficha\|glossary\|dramatis)/ found 0x in frontend/src/**/*.tsx \| backend/app/**/*.py (need 1) |
-| R04 | ❌ | Portada con dedicatoria personalizada | ✗ /(?i)dedicat/ found 0x in frontend/src/**/*.tsx \| backend/app/**/*.py (need 1) |
+| R01 | ✅ | Lector web (frontend) o PDF interactivo | ✓ 42 file(s) for frontend/src/**/*.tsx \| backend/app/**/pdf*.py \| backend/app/**/export*.py (need 1) |
+| R02 | ✅ | Índice de capítulos navegable | ✓ /(?i)(table.?of.?contents\|\btoc\b\|índice)/ in frontend/src/app/Layout.tsx (+9) |
+| R03 | ✅ | Ficha de personajes y lugares desde la story bible, con enlaces al capítulo donde aparecen | ✓ /(?i)(character.?sheet\|ficha\|glossary\|dramatis)/ in frontend/src/bible/CharacterPage.test.tsx (+3) |
+| R04 | ✅ | Portada con dedicatoria personalizada | ✓ /(?i)dedicat/ in frontend/src/cover/CoverPage.test.tsx (+2) |
 | R05 | ❌ | Cambio pedido por el lector: identifica capítulos que usan el hecho y regenera solo esos | ✗ /(?i)change.?request/ found 0x in backend/app/**/*.py (need 1) |
 | R06 | ❌ | Se marcan los capítulos cambiados (web) o hay página de novedades (PDF) | ✗ /(?i)(changed_chapters\|novedades\|what.?s.?new)/ found 0x in frontend/src/**/*.tsx \| backend/app/**/*.py (need 1) |
 | R07 | ❌ | Se conserva la versión anterior de la novela | ✗ /(?i)CREATE TABLE\s+(IF NOT EXISTS\s+)?\w*version/ found 0x in backend/app/**/*.sql (need 1) |
