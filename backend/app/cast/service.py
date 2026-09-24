@@ -383,6 +383,30 @@ def dossier(store: Store, character: str, at: int) -> TrimmedDossier:
     return trim_dossier(record, knowledge, changes, relationships, scene_clock(scenes), at)
 
 
+def body_at(store: Store, character: str, at: int) -> dict[str, str]:
+    """Invariant 3, FR-AGENT-06, FR-OPS-06. The character's `immutable_physical` as of `at`:
+    the stored map with every registered physical change dated at or before `at` applied, by
+    the one rule `dossier` uses (`_body_at`).
+
+    Narrower than `dossier` on purpose: it reads only `dossier.md`, `changes.yaml` and the
+    scenes the changes are anchored to, because its callers -- the auditor's view of a
+    participant's body and `promote`'s comparison of a body fact -- need the body and nothing
+    else, and a malformed knowledge file must not decide whether a body fact collides. A
+    missing `dossier.md` or `changes.yaml` is `NotFound` naming it, never an empty body
+    (FR-STORE-06)."""
+    record = repository.read_dossier(store, character)
+    _refuse_foreign_id(
+        path=repository.file_path(character, "dossier"),
+        field="id",
+        expected=character,
+        found=record.id,
+    )
+    changes = repository.read_changes(store, character)
+    own = [change for change in changes.changes if change.character == record.id]
+    scenes = repository.read_scenes(store, (change.scene for change in own))
+    return _body_at(record, own, scene_clock(scenes), at)
+
+
 def read_voice(store: Store, character: str) -> VoiceProfile:
     """IF-03, `GET /cast/{id}/voice`."""
     return repository.read_voice(store, character)
@@ -504,6 +528,7 @@ def save_relationships(
 __all__ = [
     "SceneClock",
     "SceneInstant",
+    "body_at",
     "dossier",
     "list_characters",
     "read_changes",

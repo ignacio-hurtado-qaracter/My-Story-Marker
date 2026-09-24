@@ -34,6 +34,8 @@ from app.commons.permissions import AgentRole
 from app.commons.schemas import (
     DigestOutput,
     EscalationCategory,
+    ExtractOutput,
+    ProposedFactDraft,
     RulingKind,
     SceneDigest,
     SemanticAuditOutput,
@@ -70,6 +72,43 @@ class RoleCall[T: BaseModel]:
     def output(self) -> T:
         """The validated DR-12 output."""
         return self.completion.output
+
+
+@dataclass(frozen=True, slots=True)
+class RejectedFact:
+    """FR-AGENT-05, FR-OPS-06. A fact the canoniser returned that `promote` could not write.
+
+    `attempt` is 1 for the first answer and 2 for the retry; `index` is the fact's position in
+    that answer's `facts`. `reason` says which half of the address failed: an entity that is
+    not one of the listed records, a field that record does not have, or a mapping payload not
+    written `key: value`.
+    """
+
+    attempt: int
+    index: int
+    fact: ProposedFactDraft
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
+class ExtractCall(RoleCall[ExtractOutput]):
+    """FR-AGENT-05, AC 27. The canoniser's call with every fact checked against what `promote`
+    can write (`app.ledger.service.promotable_targets`).
+
+    `output.facts` holds only facts whose address is promotable, so everything the orchestrator
+    queues from it can be promoted or escalated, never refused for its address. When the first
+    answer named any other target, the call was retried once with those targets named in the
+    instruction; `first` is then that first call, as the model answered it, and `completion`,
+    `documents` and `instruction` are the retry's, its output replaced by the valid facts of
+    both answers merged by key (first answer's first). `retried` lists what the first answer
+    got wrong; `rejected` what the retry still got wrong -- never queued, and kept here so no
+    fact is dropped out of sight. `targets` names the entity ids the instruction listed.
+    """
+
+    targets: tuple[str, ...] = ()
+    retried: tuple[RejectedFact, ...] = ()
+    rejected: tuple[RejectedFact, ...] = ()
+    first: RoleCall[ExtractOutput] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -262,7 +301,9 @@ __all__ = [
     "Adjustment",
     "CombinedAudit",
     "DigestResult",
+    "ExtractCall",
     "FindingAdjustment",
+    "RejectedFact",
     "RevisionScope",
     "RoleCall",
     "RollupRequest",

@@ -15,7 +15,8 @@ invented facts"):
   `exceptions`.
 
 Nothing is written: the role returns its output and this test reads it (roles never write,
-FR-TURN-06). The report goes to `last_run.md` before the assertion, as for AC 26.
+FR-TURN-06). The report goes to `last_run.md` before the assertion, as for AC 26. Each step
+prints one line as it ends, so a run under `-s` shows its progress.
 """
 
 from __future__ import annotations
@@ -26,7 +27,7 @@ import pytest
 
 from app.agents.roles import canoniser
 from app.scenes import service as scenes_service
-from tests.live.support import append_section, live_env, mark
+from tests.live.support import Progress, append_section, live_env, mark
 
 pytestmark = pytest.mark.live
 
@@ -42,8 +43,12 @@ def test_a_live_extraction_finds_the_two_invented_facts(
     fixture_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     env = live_env(fixture_root, monkeypatch)
+    progress = Progress("extract")
+    progress.start(f"extraction on scene {SCENE}", "select")
     selection = scenes_service.select_entities(env.store, env.embedder, env.settings, SCENE)
+    progress.step("select", f"{len(selection.entities)} entities", "extract")
     call = canoniser.extract_facts(env.store, env.client, SCENE, selection.entities)
+    progress.step("extract", f"{len(call.output.facts)} fact(s)")
     facts = call.output.facts
     found = {(fact.target_entity, fact.target_field) for fact in facts}
     hits = {label: target in found for label, target in EXPECTED.items()}
@@ -52,7 +57,8 @@ def test_a_live_extraction_finds_the_two_invented_facts(
         (
             f"- Extraction on scene {SCENE} (Draft A): {len(facts)} fact(s), model "
             f"`{call.completion.model_id}`, estimate {call.completion.estimate}, input "
-            f"{call.completion.usage.input_tokens}, cache read "
+            f"{call.completion.usage.input_tokens}, cache creation "
+            f"{call.completion.usage.cache_creation_input_tokens}, cache read "
             f"{call.completion.usage.cache_read_input_tokens}, over_cap "
             f"{call.completion.over_cap}"
         ),
@@ -68,6 +74,16 @@ def test_a_live_extraction_finds_the_two_invented_facts(
         *[
             f"- `{fact.target_entity}`.`{fact.target_field}`: \"{fact.payload}\""
             for fact in facts
+        ],
+        "",
+        (
+            f"Addresses promotion could not write: {len(call.retried)} in the first answer "
+            f"(retried once), {len(call.rejected)} still after the retry (not kept):"
+        ),
+        *[
+            f"- attempt {item.attempt}: `{item.fact.target_entity}`.`{item.fact.target_field}`"
+            f" -- {item.reason}: \"{item.fact.payload}\""
+            for item in (*call.retried, *call.rejected)
         ],
     ]
     append_section("AC 27 - live extraction on Draft A", lines)

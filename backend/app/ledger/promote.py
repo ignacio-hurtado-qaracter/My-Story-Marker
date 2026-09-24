@@ -23,7 +23,14 @@ design (FR-OPS-06 "it never overwrites"):
   so a payload the list lacks is appended and one it already holds is a no-op. A list never
   collides -- adding an item contradicts nothing that is there.
 * **A string mapping** (`immutable_physical`), payload written `key: value`: an absent key is
-  added, the same value is a no-op, a different value is a **collision**.
+  added, the same value is a no-op, a different value is a **collision**. For a character's
+  body the value the payload is compared with is the body **as of the fact's scene** -- the
+  stored map with every registered ChangeEvent at or before `source_scene` applied
+  (`cast_service.body_at`) -- because invariant 3 and `definitions.md` ChangeEvent make the
+  change register part of what the record holds: after a registered change the old value no
+  longer holds, so a fact asserting the new one agrees with the record and a fact asserting
+  the old one does not. What is written is still the stored map, key by key; a change stays
+  in `changes.yaml`.
 
 On a collision `promote` sets `conflict` and `existing_value` on the fact, leaves it
 `pending`, returns an `Escalation`, and writes nothing but `ledger/proposed.yaml`; `canon/` and
@@ -52,11 +59,13 @@ reached canon, and nothing would ever notice.
 from __future__ import annotations
 
 import types
+from collections.abc import Iterable
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Annotated, Final, Union, get_args, get_origin
 
 from pydantic import ValidationError
+from pydantic.fields import FieldInfo
 
 from app.canon import service as canon_service
 from app.canon.service import CanonEntity
@@ -64,7 +73,14 @@ from app.cast import service as cast_service
 from app.cast.models import Character
 from app.commons.errors import InvalidRecord, NotFound, PermissionDenied
 from app.commons.permissions import Actor, AgentRole, may_write
-from app.commons.schemas import FactStatus, ProposedFact, ProposedFile, Ruling, RulingKind
+from app.commons.schemas import (
+    FactStatus,
+    ProposedFact,
+    ProposedFile,
+    Ruling,
+    RulingKind,
+    Scene,
+)
 from app.commons.stores import Store, paths
 from app.commons.stores.provenance import ProvenanceRecord, now
 from app.ledger import repository
@@ -91,10 +107,15 @@ _UNION_ORIGINS: Final[tuple[object, ...]] = (Union, types.UnionType)
 """`Optional[X]` and `X | None` have different runtime origins; both mean the same field."""
 
 
-class _Shape(Enum):
+class FieldShape(StrEnum):
+    """The three shapes a promotable field has, and so the three ways `promote` fills it."""
+
     SCALAR = "scalar"
+    """One string: set when empty, a collision when it differs."""
     LIST = "list"
+    """A list of strings: the payload is appended as one more item; never collides."""
     MAPPING = "mapping"
+    """A string-to-string map: the payload is written `key: value`; a collision per key."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -104,7 +125,10 @@ class _Target:
     path: str
     record: TargetRecord
     attribute: str
-    shape: _Shape
+    shape: FieldShape
+    held: dict[str, str] | None = None
+    """For a character's `immutable_physical`, the body as of the fact's scene (`_body_as_of`);
+    `None` for every other field, and when the as-of body cannot be computed."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -198,7 +222,7 @@ def _unwrap(annotation: object) -> object:
     return annotation
 
 
-def _shape_of(annotation: object) -> _Shape | None:
+def _shape_of(annotation: object) -> FieldShape | None:
     """The field's shape, from its annotation, or `None` when a string payload cannot fill it.
 
     Constrained strings (`EntityId`) are strings: the constraint is enforced when the new value
@@ -206,16 +230,29 @@ def _shape_of(annotation: object) -> _Shape | None:
     """
     bare = _unwrap(annotation)
     if bare is str:
-        return _Shape.SCALAR
+        return FieldShape.SCALAR
     origin = get_origin(bare)
     arguments = tuple(_unwrap(argument) for argument in get_args(bare))
     if origin in _UNION_ORIGINS and set(arguments) == {str, type(None)}:
-        return _Shape.SCALAR
+        return FieldShape.SCALAR
     if origin is list and arguments == (str,):
-        return _Shape.LIST
+        return FieldShape.LIST
     if origin is dict and arguments == (str, str):
-        return _Shape.MAPPING
+        return FieldShape.MAPPING
     return None
+
+
+def field_shape(attribute: str, info: FieldInfo) -> FieldShape | None:
+    """The one test of whether a fact may target a field, and how the field is filled.
+
+    `None` for an identifier or `schema_version` (`_UNPROMOTABLE`) and for a field no single
+    string can fill. `_locate` refuses a fact by this test and `promotable_fields` lists the
+    fields that pass it, so what promotion can write and what extraction is told it may
+    target (FR-AGENT-05) are one computation, never two lists that can drift apart.
+    """
+    if attribute in _UNPROMOTABLE:
+        return None
+    return _shape_of(info.annotation)
 
 
 def _candidate_paths(store: Store, entity: str) -> list[tuple[str, str]]:
@@ -229,6 +266,105 @@ def _candidate_paths(store: Store, entity: str) -> list[tuple[str, str]]:
     if store.exists(dossier):
         candidates.append(("cast", dossier))
     return candidates
+
+
+def _model_of(kind: str) -> type[TargetRecord]:
+    """The record model a `_candidate_paths` kind is read as: a canon kind's, or the dossier's."""
+    return Character if kind == "cast" else canon_service.CANON_MODELS[kind]
+
+
+# --------------------------------------------------------------------------------------
+# What a fact may target -- read-only, derived from the same tests `promote` applies
+# --------------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class PromotableField:
+    """FR-OPS-06, FR-AGENT-05. One field a proposed fact may name as `target_field`.
+
+    `name` is the key the record carries on disk (the alias where the model has one) and
+    `attribute` the model's own name; `promote` resolves either. `meaning` is the field's
+    Pydantic description on one line: the code's statement of what the field holds, not store
+    content.
+    """
+
+    name: str
+    attribute: str
+    shape: FieldShape
+    meaning: str
+
+
+@dataclass(frozen=True, slots=True)
+class PromotableTarget:
+    """FR-OPS-06, FR-AGENT-05. One existing record a proposed fact may name as `target_entity`,
+    and the fields `promote` can fill on it. `record_type` is the model's name (`Location`,
+    `Character`); `path` is the one file `promote` would write."""
+
+    entity: str
+    record_type: str
+    path: str
+    fields: tuple[PromotableField, ...]
+
+    def field(self, wanted: str) -> PromotableField | None:
+        """The field a fact's `target_field` names, by disk name or attribute, as `_locate`
+        resolves it; `None` when `promote` would refuse the name."""
+        return next((item for item in self.fields if wanted in {item.name, item.attribute}), None)
+
+
+def _meaning(info: FieldInfo) -> str:
+    """The field's description, whitespace collapsed to one line."""
+    return " ".join((info.description or "").split())
+
+
+def promotable_fields(model: type[TargetRecord]) -> tuple[PromotableField, ...]:
+    """FR-OPS-06, FR-AGENT-05. Every field of `model` that passes `field_shape`, in the model's
+    declaration order: exactly the fields `_locate` does not refuse."""
+    fields: list[PromotableField] = []
+    for attribute, info in model.model_fields.items():
+        shape = field_shape(attribute, info)
+        if shape is not None:
+            name = info.alias or attribute
+            fields.append(PromotableField(name, attribute, shape, _meaning(info)))
+    return tuple(fields)
+
+
+def promotable_targets(store: Store, entities: Iterable[str]) -> tuple[PromotableTarget, ...]:
+    """FR-OPS-06, FR-AGENT-05. Of `entities`, the ones `promote` can resolve, each once and in
+    the order given, with the fields it can fill on each.
+
+    An identifier is kept when exactly one record holds it -- a canon entity of one of the five
+    kinds, or a character's dossier -- which is `_locate`'s own resolution (`_candidate_paths`).
+    One that no record holds (a lexicon term, an unknown id) or that two kinds both hold is
+    left out, because `promote` refuses a fact addressed to it. Reads existence only; writes
+    nothing.
+    """
+    targets: list[PromotableTarget] = []
+    seen: set[str] = set()
+    for entity in entities:
+        if entity in seen:
+            continue
+        seen.add(entity)
+        candidates = _candidate_paths(store, entity)
+        if len(candidates) != 1:
+            continue
+        [(kind, relative)] = candidates
+        model = _model_of(kind)
+        targets.append(PromotableTarget(entity, model.__name__, relative, promotable_fields(model)))
+    return tuple(targets)
+
+
+def _body_as_of(store: Store, record: Character, scene_id: str) -> dict[str, str] | None:
+    """The character's body as of `scene_id` (`cast_service.body_at`), or `None` when the scene
+    record or the character's `changes.yaml` is absent -- then only the stored map can be
+    compared, which is what promotion did before ChangeEvents were considered. Reads only."""
+    scene_path = paths.scene(scene_id)
+    if not store.exists(scene_path) or not store.exists(paths.cast_file(record.id, "changes")):
+        return None
+    at = store.read(scene_path, Scene).story_time
+    try:
+        return cast_service.body_at(store, record.id, at)
+    except NotFound:
+        return None
 
 
 def _locate(store: Store, fact: ProposedFact, index: int) -> _Target:
@@ -263,14 +399,19 @@ def _locate(store: Store, fact: ProposedFact, index: int) -> _Target:
     for attribute, info in type(record).model_fields.items():
         if wanted not in {attribute, info.alias}:
             continue
-        shape = _shape_of(info.annotation)
-        if attribute in _UNPROMOTABLE or shape is None:
+        shape = field_shape(attribute, info)
+        if shape is None:
             message = (
                 f"{relative} field {wanted!r} cannot be filled by a promoted fact; change it "
                 "through the owning role's PUT route instead"
             )
             raise InvalidRecord(message, file=PROPOSED, field=f"proposed.{index}.target_field")
-        return _Target(relative, record, attribute, shape)
+        held = (
+            _body_as_of(store, record, fact.source_scene)
+            if isinstance(record, Character) and shape is FieldShape.MAPPING
+            else None
+        )
+        return _Target(relative, record, attribute, shape, held)
 
     message = f"{relative} has no field {wanted!r}"
     raise InvalidRecord(message, file=PROPOSED, field=f"proposed.{index}.target_field")
@@ -281,18 +422,27 @@ def _locate(store: Store, fact: ProposedFact, index: int) -> _Target:
 # --------------------------------------------------------------------------------------
 
 
-def _split_mapping_payload(payload: str, index: int) -> tuple[str, str]:
-    """`key: value`, split on the first colon. A payload without both halves asserts nothing a
-    mapping can hold, and guessing a key would be inventing canon."""
+def split_mapping_payload(payload: str) -> tuple[str, str] | None:
+    """`key: value`, split on the first colon, or `None` when either half is missing. Pure; the
+    canoniser's check of a mapping payload (FR-AGENT-05) and `promote` both use it."""
     key, separator, value = payload.partition(":")
     key, value = key.strip(), value.strip()
     if not separator or not key or not value:
+        return None
+    return key, value
+
+
+def _split_mapping_payload(payload: str, index: int) -> tuple[str, str]:
+    """`key: value`, split on the first colon. A payload without both halves asserts nothing a
+    mapping can hold, and guessing a key would be inventing canon."""
+    split = split_mapping_payload(payload)
+    if split is None:
         message = (
             f"the payload {payload!r} targets a mapping field and must be written "
             "`key: value`, with both halves non-empty"
         )
         raise InvalidRecord(message, file=PROPOSED, field=f"proposed.{index}.payload")
-    return key, value
+    return split
 
 
 def _compute(target: _Target, payload: str, index: int) -> _Change:
@@ -301,13 +451,13 @@ def _compute(target: _Target, payload: str, index: int) -> _Change:
     discard a difference silently, which is the one outcome promotion must never have."""
     current: object = getattr(target.record, target.attribute)
 
-    if target.shape is _Shape.SCALAR:
+    if target.shape is FieldShape.SCALAR:
         if current is None or (isinstance(current, str) and not current.strip()):
             return _Change(payload, None)
         held = str(current)
         return _Change(None, None) if held == payload else _Change(payload, held)
 
-    if target.shape is _Shape.LIST:
+    if target.shape is FieldShape.LIST:
         items = [str(item) for item in current] if isinstance(current, list) else []
         return _Change(None, None) if payload in items else _Change([*items, payload], None)
 
@@ -317,11 +467,14 @@ def _compute(target: _Target, payload: str, index: int) -> _Change:
         if isinstance(current, dict)
         else {}
     )
-    if key not in held_map:
+    # A character's body is compared as of the fact's scene; a key the as-of body withholds (a
+    # change that cannot be placed) falls back to the stored value, never to "absent".
+    reference = {**held_map, **target.held} if target.held is not None else held_map
+    if key not in reference:
         return _Change({**held_map, key: value}, None)
-    if held_map[key] == value:
+    if reference[key] == value:
         return _Change(None, None)
-    return _Change({**held_map, key: value}, f"{key}: {held_map[key]}")
+    return _Change({**held_map, key: value}, f"{key}: {reference[key]}")
 
 
 def _updated(target: _Target, value: FieldValue, index: int) -> TargetRecord:
@@ -519,4 +672,14 @@ def rule(
     )
 
 
-__all__ = ["promote", "rule"]
+__all__ = [
+    "FieldShape",
+    "PromotableField",
+    "PromotableTarget",
+    "field_shape",
+    "promotable_fields",
+    "promotable_targets",
+    "promote",
+    "rule",
+    "split_mapping_payload",
+]

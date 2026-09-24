@@ -35,6 +35,12 @@ because the quote is the only thing anchoring a judgement to the page:
 A finding for an invariant FR-AGENT-06 does not delegate is not recorded, as DR-12's
 `SemanticViolation` says, and the same finding twice is recorded once. Every one of these is
 listed in the result's `adjustments`: nothing a model reported disappears without a trace.
+
+The model's explanation is kept on the violation (DR-07 `explanation`), its whitespace
+collapsed to single spaces so a wrapped answer reads as one line: it is what the revise step
+works from once it is read back from `ledger/violations.yaml` (FR-AGENT-02, FR-AGENT-11). It
+takes no part in the id, so a re-audit that words the same finding differently still
+recognises it.
 """
 
 from __future__ import annotations
@@ -119,18 +125,39 @@ def _participant_file(store: Store, participant: str, which: str) -> str | None:
     return scenes_service.render_record(record)
 
 
-def _participant_body(store: Store, participant: str) -> str | None:
+AS_OF_KEY: Final[str] = "immutable_physical_at_this_scene"
+"""The key under which a participant's body as of the scene follows the stored map."""
+
+
+def _participant_body(store: Store, participant: str, at: int) -> str | None:
     """A participant's fixed physical attributes: `cast/{id}/dossier.md#immutable_physical`,
-    the stored map before any ChangeEvent (FR-AGENT-06). Invariant 3 is "an attribute in the
-    prose that differs from `immutable_physical` with no ChangeEvent at or before this scene",
-    so the auditor needs the anchor and the changes both, for every character present -- not
-    only the POV, whose as-of dossier is mandatory. None when the dossier does not exist."""
+    the stored map before any ChangeEvent (FR-AGENT-06), and after it the same attributes as of
+    the scene (`AS_OF_KEY`), every registered change at or before it applied
+    (`cast_service.body_at`).
+
+    Invariant 3 is "an attribute in the prose that differs from `immutable_physical` with no
+    ChangeEvent at or before this scene", so the auditor needs the anchor and the changes both,
+    for every character present -- not only the POV, whose as-of dossier is mandatory. The
+    as-of map is computed by code, by the rule the POV's dossier uses, so the model does not
+    have to apply the change register itself: the first live turns flagged a registered change
+    and missed an unregistered one. It is left out when the changes file is missing, which
+    the caller already lists as skipped. None when the dossier does not exist."""
     try:
         record = cast_service.read_character(store, participant)
     except NotFound:
         return None
     lines = [f"id: {record.id}", "immutable_physical:"]
     lines.extend(f"  {key}: {value}" for key, value in record.immutable_physical.items())
+    try:
+        current = cast_service.body_at(store, participant, at)
+    except NotFound:
+        return "\n".join(lines) + "\n"
+    lines.append(
+        "# The body this character has in this scene: the attributes above with every "
+        "registered change at or before the scene applied."
+    )
+    lines.append(f"{AS_OF_KEY}:")
+    lines.extend(f"  {key}: {value}" for key, value in current.items())
     return "\n".join(lines) + "\n"
 
 
@@ -224,7 +251,7 @@ def _inputs(
     absent: list[SemanticSkip] = []
     for participant in scene.participants:
         body_path = paths.cast_file(participant, "dossier")
-        body_text = _participant_body(store, participant)
+        body_text = _participant_body(store, participant, scene.story_time)
         if body_text is None:
             reason = (
                 f"{body_path} does not exist, so invariant {CHANGES_INVARIANT} was not checked "
@@ -233,7 +260,12 @@ def _inputs(
             absent.append(SemanticSkip(invariant=CHANGES_INVARIANT, reason=reason))
         else:
             body_key = f"{body_path}#immutable_physical"
-            body = RoleInput(key=body_key, path=body_path, text=body_text)
+            body = RoleInput(
+                key=body_key,
+                path=body_path,
+                text=body_text,
+                sources=(paths.cast_file(participant, "changes"),),
+            )
             prunable.append(_Prunable(body, CHANGES_INVARIANT, body_key))
         for which, invariant in (
             ("knowledge", KNOWLEDGE_INVARIANT),
@@ -270,11 +302,18 @@ def locate(body: str, evidence: Evidence) -> Evidence | None:
     return Evidence(quote=quote, offset=nearest)
 
 
+def explanation_of(finding: SemanticViolation) -> str | None:
+    """DR-07, FR-AGENT-06. The finding's explanation as the ledger stores it: whitespace
+    collapsed to single spaces, None when nothing but whitespace is left."""
+    return " ".join(finding.explanation.split()) or None
+
+
 def to_violations(
     scene_id: str, body: str, findings: Sequence[SemanticViolation]
 ) -> tuple[list[Violation], list[FindingAdjustment]]:
-    """FR-AGENT-06. Model findings as DR-07 violations, and every adjustment made to them (see
-    the module docstring for the rules)."""
+    """FR-AGENT-06. Model findings as DR-07 violations, each with its explanation
+    (`explanation_of`), and every adjustment made to them (see the module docstring for the
+    rules)."""
     violations: list[Violation] = []
     adjustments: list[FindingAdjustment] = []
     seen: set[str] = set()
@@ -314,6 +353,7 @@ def to_violations(
                 severity=severity,
                 resolution=None,
                 source=ViolationSource.MODEL,
+                explanation=explanation_of(finding),
             )
         )
     return violations, adjustments
@@ -370,10 +410,12 @@ def audit_semantic(
 
 
 __all__ = [
+    "AS_OF_KEY",
     "REMIT",
     "ROLE",
     "audit_instruction",
     "audit_semantic",
+    "explanation_of",
     "locate",
     "selected_axioms",
     "to_violations",

@@ -39,6 +39,7 @@ from typing import Final
 
 from app.agents.models import DigestResult, RevisionScope, RoleCall
 from app.agents.roles import RoleInput, call_role, system_prompt
+from app.agents.roles.targets import render_targets
 from app.canon import service as canon_service
 from app.commons.config import CONTEXT_TOKEN_CAP, DIGEST_WORD_TARGETS
 from app.commons.errors import InvalidRecord, NotFound
@@ -48,6 +49,7 @@ from app.commons.schemas import (
     DigestLevel,
     DigestOutput,
     ReviseOutput,
+    Scene,
     SceneDigest,
     SelectedEntity,
     Severity,
@@ -57,6 +59,7 @@ from app.commons.schemas import (
 )
 from app.commons.stores import Store, paths
 from app.ledger import service as ledger_service
+from app.ledger.service import PromotableTarget
 from app.manuscript import service as manuscript_service
 from app.scenes import service as scenes_service
 from app.scenes.models import Chapter
@@ -142,18 +145,29 @@ def _draft_input(store: Store, scene_id: str) -> RoleInput:
 # --- write --------------------------------------------------------------------------------
 
 
-def write_instruction(scene_id: str, budget: int, language: str) -> str:
+def write_instruction(
+    scene_id: str, budget: int, language: str, targets: Sequence[PromotableTarget] = ()
+) -> str:
     """FR-AGENT-01. The operation, the budget and the language; the dramatic function is in the
-    scene record, which travels as a document."""
+    scene record, which travels as a document.
+
+    `targets` are the records a proposed fact may address (`write_targets`), listed with their
+    field names and shapes in the compact form of `app.agents.roles.targets`: the first
+    live turn's writer proposed facts for an object that has no record and for a field the
+    record does not have, and `promote` refused both."""
     record = paths.scene(scene_id)
     return "\n".join(
         [
             f"Operation: write a new scene, scene {scene_id}.",
             (
-                f"The scene record is the document labelled {record}. Its goal, conflict, outcome, "
-                "value_change, entry_state and exit_state fields state the scene's dramatic "
-                "function; pov names the point-of-view character and participants everyone else "
-                "present. That function is fixed; everything else is yours."
+                f"The scene record is the document labelled {record}. Its goal, conflict, outcome "
+                "and value_change fields state the scene's dramatic function, which is fixed; "
+                "pov names the point-of-view character and participants everyone else present."
+            ),
+            (
+                "Its entry_state and exit_state say how things are meant to stand when the scene "
+                "opens and closes: reach them only in ways the other records allow, and fall "
+                "short of them rather than break a record. Everything else is yours."
             ),
             f"Word budget: about {budget} words.",
             language_line(language),
@@ -161,7 +175,36 @@ def write_instruction(scene_id: str, budget: int, language: str) -> str:
                 "Return the prose as body, and every detail you invented as proposed_facts (an "
                 "empty list if you invented nothing)."
             ),
+            *(render_targets(targets, meanings=False) if targets else []),
         ]
+    )
+
+
+def write_targets(
+    store: Store, scene: Scene, selected: Sequence[SelectedEntity]
+) -> tuple[PromotableTarget, ...]:
+    """FR-AGENT-01, FR-OPS-06. The records a writer's proposed fact may address: the scene's
+    location, its POV and participants, then every selected entity, kept by
+    `promotable_targets` only when `promote` can resolve them. Identifiers from the scene
+    record and the selected list, both already in the writer's context."""
+    entities = [
+        scene.location,
+        scene.pov,
+        *scene.participants,
+        *(entity.entity_id for entity in selected),
+    ]
+    return ledger_service.promotable_targets(store, entities)
+
+
+def scene_write_instruction(
+    store: Store, scene_id: str, selected: Sequence[SelectedEntity]
+) -> str:
+    """FR-AGENT-01. `write_instruction` for a scene as it stands: its budget, the prose
+    language and `write_targets`. `app.agents.turn.writer_context` builds the same instruction
+    through here, so the assembly step counts exactly what `write` sends."""
+    scene = scenes_service.read_scene(store, scene_id)
+    return write_instruction(
+        scene_id, scene.budget, prose_language(store), write_targets(store, scene, selected)
     )
 
 
@@ -180,7 +223,7 @@ def write(
     entities from the lowest rank (FR-CTX-03); what it removed is on the result.
     """
     scene = scenes_service.read_scene(store, scene_id)
-    instruction = write_instruction(scene_id, scene.budget, prose_language(store))
+    instruction = scene_write_instruction(store, scene_id, selected)
     record = paths.scene(scene_id)
     context = scenes_service.assemble_context(
         store,
@@ -223,14 +266,25 @@ def blocking_violations(store: Store, scene_id: str) -> list[Violation]:
 
 
 def revise_instruction(scene_id: str, findings: int, language: str, *, strict: bool) -> str:
-    """FR-AGENT-02. Change only the flagged spans. `strict` is the stronger instruction of the
-    one retry after a revision that changed too much."""
+    """FR-AGENT-02. Change only what the findings need. `strict` is the stronger instruction of
+    the one retry after a revision that changed too much.
+
+    Each finding reaches the model with its explanation where it has one (DR-07), and the
+    instruction says what resolving it means: the scene no longer does what the explanation
+    describes. The second live turn escalated with a writer that reworded the quoted sentence
+    three times while the scene kept doing what the finding described."""
     lines = [
         f"Operation: revise scene {scene_id}.",
         (
             f"Your draft is the document labelled {paths.draft(scene_id)}, and the {findings} "
             f"blocking finding(s) against it are the document labelled {paths.VIOLATIONS}: each "
-            "gives the invariant, the quoted passage and its character offset in the draft."
+            "gives the invariant, the quoted passage, its character offset in the draft and, "
+            "where it has one, the explanation of why the passage breaks the invariant."
+        ),
+        (
+            "A finding is resolved only when the scene no longer does what its explanation "
+            "describes; rewording the quoted passage while the scene still does it resolves "
+            "nothing."
         ),
         (
             "Change only what each finding needs, as little as possible, and return the whole "
@@ -261,7 +315,9 @@ def revise(
 
     The violations document holds the blocking, unresolved findings of this scene and nothing
     else, rendered as the file renders them: the narrower the brief, the smaller the rewrite it
-    can justify. A scene with none is refused -- there is nothing to revise, and an
+    can justify. Every field is rendered, empty ones as `null`, so each finding's DR-07
+    `explanation` reaches the model where the auditor gave one and reads as absent where it did
+    not (FR-AGENT-02). A scene with none is refused -- there is nothing to revise, and an
     orchestrator that asks has lost track of its own state.
     """
     blocking = blocking_violations(store, scene_id)
@@ -576,7 +632,9 @@ __all__ = [
     "revision_scope",
     "rollup",
     "run_rollup",
+    "scene_write_instruction",
     "split_sentences",
     "write",
     "write_instruction",
+    "write_targets",
 ]

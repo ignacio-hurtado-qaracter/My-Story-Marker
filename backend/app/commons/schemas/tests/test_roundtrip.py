@@ -89,3 +89,42 @@ def test_parse_serialise_parse_is_identity(model: type[BaseModel]) -> None:
         assert second.model_dump(mode="json", by_alias=True) == dumped
 
     check()
+
+
+_VIOLATION = {
+    "id": "model-003-i03-000000000000",
+    "scene": "003",
+    "invariant": 3,
+    "evidence": {"quote": "A sentence of the draft.", "offset": 12},
+    "severity": "blocking",
+    "resolution": None,
+    "source": "model",
+}
+"""A DR-07 violation as a file written before `explanation` existed would hold it."""
+
+
+# spec 001 / AC 4 -- DR-07 `explanation` is optional: a record without it (every file written
+# before the field existed) validates with it empty, a record with it keeps it through the
+# round trip the store makes, a blank one is refused, and the exported schema does not require
+# it.
+def test_a_violation_validates_with_and_without_its_explanation() -> None:
+    without = Violation.model_validate(_VIOLATION)
+    assert without.explanation is None
+    assert without.model_dump(mode="json", by_alias=True)["explanation"] is None
+
+    reason = "The record rules this out and allows only what the body can do."
+    carried = Violation.model_validate({**_VIOLATION, "explanation": reason})
+    assert carried.explanation == reason
+    dumped = carried.model_dump(mode="json", by_alias=True)
+    assert Violation.model_validate(dumped) == carried
+    assert ViolationsFile.model_validate({"violations": [_VIOLATION, dumped]}).violations == [
+        without,
+        carried,
+    ]
+
+    with pytest.raises(ValidationError):
+        Violation.model_validate({**_VIOLATION, "explanation": ""})
+
+    schema = Violation.model_json_schema()
+    assert "explanation" in schema["properties"]
+    assert "explanation" not in schema["required"]

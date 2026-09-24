@@ -13,14 +13,18 @@ other scenes are someone else's and are kept untouched, in place. The rules are 
 both halves of the audit, and each half is judged only by its own checks: a finding is
 reconsidered only when the half that made it (its `source`) ran the check for its invariant.
 
-1. A **resolved** mechanical finding for the scene is kept exactly as it is, and a fresh
-   finding with the same natural key is *not* added beside it. Resolutions are human rulings
-   (IF-04); an audit that re-raised an accepted finding on every run would overrule the human
-   by repetition, and one that dropped it would erase the ruling's history.
-2. An **unresolved** mechanical finding that the fresh audit reproduces is kept, with its id
-   and position, and takes the fresh severity (FR-AUD-02's severity moves when the last
-   scene moves). Recognition is by natural key, not by id, so a prior report written with a
-   hand-made id -- the fixture's `vi_002` -- is recognised and not duplicated.
+1. A **resolved** finding for the scene is kept exactly as it is -- severity and explanation
+   included -- and a fresh finding with the same natural key is *not* added beside it.
+   Resolutions are human rulings (IF-04); an audit that re-raised an accepted finding on every
+   run would overrule the human by repetition, and one that dropped it would erase the
+   ruling's history.
+2. An **unresolved** finding that the fresh audit reproduces is kept, with its id and
+   position, and takes the fresh severity (FR-AUD-02's severity moves when the last scene
+   moves) and the fresh explanation (DR-07: the auditor's reading of the current draft, which
+   is what the revise step works from; the mechanical checks give none in v1). Recognition is
+   by natural key, not by id, so a prior report written with a hand-made id -- the fixture's
+   `vi_002` -- is recognised and not duplicated. Neither the key nor the id contains the
+   explanation, so a finding worded differently on a re-audit is the same finding.
 3. An **unresolved** finding the fresh audit does *not* reproduce is dropped, but only if its
    own half checked its invariant in this run, and checked it whole. That is how a revised
    draft's report says a finding is gone (the reason `PUT /ledger/violations` is a replace);
@@ -94,7 +98,8 @@ def merge(existing: ViolationsFile, report: AuditReport) -> ViolationsFile:
             continue
         reproduced = fresh.get(key)
         if reproduced is not None:
-            merged.append(finding.model_copy(update={"severity": reproduced.severity}))
+            refreshed = {"severity": reproduced.severity, "explanation": reproduced.explanation}
+            merged.append(finding.model_copy(update=refreshed))
             covered.add(key)
         elif (finding.source, finding.invariant) not in checked:
             merged.append(finding)

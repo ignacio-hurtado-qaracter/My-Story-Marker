@@ -36,11 +36,25 @@
     },
     "Violation": {
       "additionalProperties": false,
-      "description": "DR-07. One breach of a domain invariant, reported and not repaired.\n\n**Failure mode** (`architecture.md` Violation): letting the auditor self-correct. An\nauditor with a write into the prose trims precisely the living details that made the\nscene work, because those are exactly the ones that deviate from the plan - the\nunplanned gesture, the line nobody outlined. So this record is a report: it names the\ninvariant, quotes the offending text and stops. Only a human sets `resolution`, through\nthe auditor's route with `X-Actor: human`, and the prose or canon edit that follows goes\nthrough the role that owns that path.\n\n`evidence` is what makes the report arguable rather than assertable. A finding that says\n\"the timeline is wrong\" cannot be checked, agreed with or dismissed; a quote with its\noffset can be looked at, and a wrong one can be shown to be wrong. That matters most for\nthe model-backed half of the audit, where the finding is a judgement and the quote is the\nonly thing anchoring it to the page.\n\n`source` tells the mechanical checks apart from the model. FR-AUD-09 reports the model\nhalf as `skipped` when it fails, so a reader must be able to see which half produced a\nfinding and, by absence, which half never ran. Reading a silent audit as a pass is the\nerror the pair of fields exists to prevent.\n\n**FR-OPS-03.** A violation with a `resolution` set has left the working tier and never\nenters a context again: it is settled, and carrying it forward would spend budget on a\nquestion already answered.",
+      "description": "DR-07. One breach of a domain invariant, reported and not repaired.\n\n**Failure mode** (`architecture.md` Violation): letting the auditor self-correct. An\nauditor with a write into the prose trims precisely the living details that made the\nscene work, because those are exactly the ones that deviate from the plan - the\nunplanned gesture, the line nobody outlined. So this record is a report: it names the\ninvariant, quotes the offending text and stops. Only a human sets `resolution`, through\nthe auditor's route with `X-Actor: human`, and the prose or canon edit that follows goes\nthrough the role that owns that path.\n\n`evidence` is what makes the report arguable rather than assertable. A finding that says\n\"the timeline is wrong\" cannot be checked, agreed with or dismissed; a quote with its\noffset can be looked at, and a wrong one can be shown to be wrong. That matters most for\nthe model-backed half of the audit, where the finding is a judgement and the quote is the\nonly thing anchoring it to the page.\n\n`source` tells the mechanical checks apart from the model. FR-AUD-09 reports the model\nhalf as `skipped` when it fails, so a reader must be able to see which half produced a\nfinding and, by absence, which half never ran. Reading a silent audit as a pass is the\nerror the pair of fields exists to prevent.\n\n`explanation` is the other half of what makes a finding actionable: the quote says *where*,\nthe explanation says *why* that passage breaks the invariant, in the auditor's words. The\nrevise step works from it (FR-AGENT-02), read back from this file (FR-AGENT-11): a writer\nhanded only an invariant number and a sentence can reword the sentence and leave the breach\non the page. Model findings carry it and a re-audit that reproduces the finding refreshes it\n(`ledger.audit.persist`); the mechanical checks leave it empty in v1, and a file written\nbefore the field existed still validates.\nIt is never part of a finding's identity: the id and the natural key stay scene,\ninvariant, source and evidence, so rewording an explanation does not make a new finding.\n\n**FR-OPS-03.** A violation with a `resolution` set has left the working tier and never\nenters a context again: it is settled, and carrying it forward would spend budget on a\nquestion already answered.",
       "properties": {
         "evidence": {
           "$ref": "#/$defs/Evidence",
           "description": "The offending text and its offset, so the finding is pointed at rather than argued about."
+        },
+        "explanation": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Why the quoted passage breaks the invariant, in the auditor's words. Model findings carry it and a re-audit that reproduces the finding refreshes it; the mechanical checks leave it empty in v1. It is what the revise step works from (FR-AGENT-02).",
+          "title": "Explanation"
         },
         "id": {
           "description": "Stable identifier; the turn record names violations by it.",

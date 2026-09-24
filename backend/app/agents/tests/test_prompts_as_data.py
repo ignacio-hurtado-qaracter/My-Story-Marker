@@ -55,12 +55,13 @@ from app.commons.permissions import AgentRole, may_receive
 from app.commons.schemas import (
     ExtractOutput,
     PolishOutput,
+    ReviseOutput,
     Scene,
     SemanticAuditOutput,
     SetupsFile,
     WriterOutput,
 )
-from app.commons.stores import Store
+from app.commons.stores import Store, paths
 
 TRIVIAL = 40
 """A shared run this long, after whitespace is collapsed and case folded, is a copied clause
@@ -402,14 +403,16 @@ def test_every_turn_call_renders_as_labelled_blocks(fixture_store: Store) -> Non
 
 # spec 001 / AC 23, FR-AGENT-11 -- no call carries an earlier call's output except as a document
 # read back from the store it was written to: never in the instruction or the system field, never
-# in the one computed document, and never at all when no store holds it (the auditor's
-# explanation, which DR-07 does not store, reaches no later call).
+# in the one computed document. The auditor's explanation, which DR-07 stores since the revision
+# after the live runs, reaches the revise calls through `ledger/violations.yaml` and through
+# nothing else (FR-AGENT-02): no other document and no other call carries it.
 def test_no_turn_call_carries_an_earlier_output_except_through_a_store(
     fixture_store: Store,
 ) -> None:
     calls = _turn_calls(fixture_store)
     explanation = "The seating contradicts the axiom in force."
     assert any(explanation in _outputs(call) for call in calls)
+    carried = 0
     for index, call in enumerate(calls):
         earlier = {line for previous in calls[:index] for line in _outputs(previous)}
         for line in earlier:
@@ -419,7 +422,11 @@ def test_no_turn_call_carries_an_earlier_output_except_through_a_store(
                 if line in document.text:
                     assert document.path != MECHANICAL_FINDINGS, line
                     assert document.path.split("/")[0] in STORE_FAMILIES, document.path
-                    assert line != explanation
+                    if line == explanation:
+                        assert document.path == paths.VIOLATIONS, document.path
+                        assert call.output_schema == ReviseOutput.__name__, call.output_schema
+                        carried += 1
+    assert carried >= 1, "the explanation reaches revise through ledger/violations.yaml"
 
 
 # spec 001 / AC 23 (Figure 2) -- the writer's instruction names no setup, let alone as required;

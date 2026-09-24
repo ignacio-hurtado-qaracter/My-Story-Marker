@@ -26,6 +26,13 @@ They are kept in their own module because they are the only code in `ledger/` th
 `canon/` or `cast/`, and AC 13's static rule looks for exactly those two function names: a
 reviewer auditing the return edge into canon reads one file. The mechanical audit (IF-05,
 `POST /scenes/{id}/audit`) arrives at step 14.
+
+**What a fact may target** (`promotable_targets`, FR-OPS-06, FR-AGENT-05) is exposed here too,
+read-only, from the same module: the records `promote` can resolve and the fields it can fill
+on each, derived from the tests `promote` itself applies. The canoniser lists them in its
+instruction and checks its facts against them, so extraction and promotion never disagree
+about what can be written. `split_mapping_payload` is the same kind of shared test for a
+mapping payload's `key: value` form.
 """
 
 from __future__ import annotations
@@ -45,7 +52,16 @@ from app.commons.stores import Store
 from app.commons.stores.provenance import ProvenanceRecord
 from app.ledger import repository
 from app.ledger.models import TimelineFile
-from app.ledger.promote import promote, rule
+from app.ledger.promote import (
+    FieldShape,
+    PromotableField,
+    PromotableTarget,
+    promotable_fields,
+    promotable_targets,
+    promote,
+    rule,
+    split_mapping_payload,
+)
 
 
 class ProposedAppend(BaseModel):
@@ -195,13 +211,19 @@ def replace_violations(
 
 
 __all__ = [
+    "FieldShape",
+    "PromotableField",
+    "PromotableTarget",
     "ProposedAppend",
     "append_proposed",
+    "promotable_fields",
+    "promotable_targets",
     "promote",
     "proposed",
     "replace_violations",
     "rule",
     "setups",
+    "split_mapping_payload",
     "threads",
     "timeline",
     "violations",

@@ -44,6 +44,16 @@ class Violation(HarnessModel):
     finding and, by absence, which half never ran. Reading a silent audit as a pass is the
     error the pair of fields exists to prevent.
 
+    `explanation` is the other half of what makes a finding actionable: the quote says *where*,
+    the explanation says *why* that passage breaks the invariant, in the auditor's words. The
+    revise step works from it (FR-AGENT-02), read back from this file (FR-AGENT-11): a writer
+    handed only an invariant number and a sentence can reword the sentence and leave the breach
+    on the page. Model findings carry it and a re-audit that reproduces the finding refreshes it
+    (`ledger.audit.persist`); the mechanical checks leave it empty in v1, and a file written
+    before the field existed still validates.
+    It is never part of a finding's identity: the id and the natural key stay scene,
+    invariant, source and evidence, so rewording an explanation does not make a new finding.
+
     **FR-OPS-03.** A violation with a `resolution` set has left the working tier and never
     enters a context again: it is settled, and carrying it forward would spend budget on a
     question already answered.
@@ -70,6 +80,14 @@ class Violation(HarnessModel):
     source: ViolationSource = Field(
         description="`mechanical` or `model`. FR-AUD-09 reports the model half as `skipped` on"
         " failure, so absence of a finding is never mistaken for a pass.",
+    )
+    explanation: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Why the quoted passage breaks the invariant, in the auditor's words. Model"
+        " findings carry it and a re-audit that reproduces the finding refreshes it; the"
+        " mechanical checks leave it empty in v1. It is what the revise step works from"
+        " (FR-AGENT-02).",
     )
 
 

@@ -55,12 +55,16 @@ def pytest_addoption(parser: Parser) -> None:
 
 
 def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
-    """Skip `live` tests unless `--live` was passed."""
+    """Skip `live` tests unless `--live` was passed.
+
+    By the marker, as the two fixtures below read it, and not by `item.keywords`: a keyword
+    match also takes in every test under `tests/live/`, whose directory name is a keyword, so
+    the offline checks that live there beside the live runs would never run."""
     if config.getoption("--live"):
         return
     skip_live = pytest.mark.skip(reason="needs --live and a logged-in Claude Code CLI (NFR-09)")
     for item in items:
-        if "live" in item.keywords:
+        if item.get_closest_marker("live"):
             item.add_marker(skip_live)
 
 

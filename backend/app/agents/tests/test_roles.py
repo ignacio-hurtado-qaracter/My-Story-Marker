@@ -24,7 +24,7 @@ output a valid script answers with.
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 
 import pytest
@@ -33,8 +33,19 @@ from pydantic import BaseModel
 
 from app.agents import service
 from app.agents.models import Adjustment
-from app.agents.roles import MECHANICAL_FINDINGS, auditor, canoniser, style_editor, writer
+from app.agents.roles import (
+    MECHANICAL_FINDINGS,
+    auditor,
+    canoniser,
+    style_editor,
+    system_prompt,
+    targets,
+    writer,
+)
+from app.canon import service as canon_service
+from app.canon.models import Axiom, Location
 from app.cast import service as cast_service
+from app.cast.models import Character
 from app.commons.errors import InvalidRecord, MalformedModelOutput, ModelRefused, PermissionDenied
 from app.commons.llm import ApiError, FakeModelClient, Outcome, Refusal, Reply
 from app.commons.permissions import Actor, AgentRole
@@ -393,6 +404,203 @@ def test_proposals_merge_by_target_field_and_normalised_payload() -> None:
     assert merged[0].evidence == "the writer's quote"
     assert canoniser.proposal_id("003", written[0]) == canoniser.proposal_id("003", extracted[0])
     assert canoniser.proposal_id("003", written[0]) != canoniser.proposal_id("004", written[0])
+
+
+def extracted(*facts: ProposedFactDraft) -> Reply:
+    return Reply.of(ExtractOutput(facts=list(facts)))
+
+
+def one_line(description: str | None) -> str:
+    return " ".join((description or "").split())
+
+
+VALID_FACT = fact("ax_cold_soak", "exceptions", "a closed exception the prose shows")
+INVENTED_FIELD = fact("pump_vault", "throat_release_location", "behind the diver")
+CORRECTED_FACT = fact("pump_vault", "geometry", "behind the diver")
+
+
+# spec 001 / AC 27, FR-AGENT-05 -- the instruction lists, per record type, the real fields of
+# each received record, derived from the Pydantic models: shape and one-line meaning.
+def test_the_extract_instruction_lists_the_promotable_fields_of_each_record(
+    fixture_store: Store,
+) -> None:
+    client = settle(ROLE_CALLS["extract_facts"])
+    result = canoniser.extract_facts(fixture_store, client, "003", SELECTED_003)
+    [call] = client.calls
+    lines = call.instruction.splitlines()
+    location = next(line for line in lines if line.startswith("Location records:"))
+    axiom = next(line for line in lines if line.startswith("Axiom records:"))
+    assert "pump_vault" in location
+    assert "ax_cold_soak" in axiom
+    expected: list[tuple[type[BaseModel], str, str]] = [
+        (Location, "geometry", "scalar"),
+        (Axiom, "exceptions", "list"),
+        (Character, "immutable_physical", "mapping"),
+        (Character, "competences", "list"),
+    ]
+    for model, attribute, shape in expected:
+        meaning = one_line(model.model_fields[attribute].description)
+        assert f"- {attribute} [{shape}]: {meaning}" in lines
+    for unpromotable in ("id", "schema_version", "access", "arc"):
+        assert not any(line.startswith(f"- {unpromotable} [") for line in lines)
+    assert canoniser.FIELD_RULE in lines
+    assert result.targets == (
+        "ax_brine_dark",
+        "ax_cold_soak",
+        "te_hand_sonar",
+        "pump_vault",
+        "kestrel_deep",
+        "vance",
+        "quiej",
+    ), "the pinned lexicon term has no record of its own and is not listed"
+
+
+# spec 001 / AC 27, FR-AGENT-05 -- the scene's location, POV and participants are listed even
+# when the selection does not name them: they are what the prose is most likely about.
+def test_the_scene_location_and_cast_are_listed_even_when_unselected(fixture_store: Store) -> None:
+    client = FakeModelClient({AgentRole.CANONISER: [extracted()]})
+    result = canoniser.extract_facts(fixture_store, client, "002", SELECTED_002)
+    assert {"pump_vault", "ilan", "quiej", "vance"} <= set(result.targets)
+    assert "lx_soak" not in result.targets
+
+
+# spec 001 / AC 27, FR-OPS-06 -- the canoniser's list is what `ledger.service.promotable_targets`
+# answers, the function promote's own field test is built on: one source, not two lists.
+def test_the_canoniser_lists_what_the_ledger_says_promote_can_write(
+    fixture_store: Store, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    real = ledger_service.promotable_targets
+    asked: list[list[str]] = []
+
+    def spy(store: Store, entities: Iterable[str]) -> tuple[ledger_service.PromotableTarget, ...]:
+        listed = list(entities)
+        asked.append(listed)
+        return real(store, listed)
+
+    monkeypatch.setattr(ledger_service, "promotable_targets", spy)
+    client = settle(ROLE_CALLS["extract_facts"])
+    result = canoniser.extract_facts(fixture_store, client, "003", SELECTED_003)
+    [entities] = asked
+    expected = real(fixture_store, entities)
+    [call] = client.calls
+    assert result.targets == tuple(target.entity for target in expected)
+    assert call.instruction == canoniser.extract_instruction("003", expected)
+
+
+# spec 001 / AC 27, FR-AGENT-05 -- valid facts pass unchanged, in one call, with nothing retried.
+def test_valid_facts_pass_unchanged_in_one_call(fixture_store: Store) -> None:
+    facts = [
+        VALID_FACT,
+        fact("vance", "immutable_physical", "eyes: grey"),
+        fact("quiej", "competences", "reads an indemnity board upside down"),
+        CORRECTED_FACT,
+    ]
+    client = FakeModelClient({AgentRole.CANONISER: [extracted(*facts)]})
+    result = canoniser.extract_facts(fixture_store, client, "003", SELECTED_003)
+    [call] = client.calls
+    assert result.output.facts == facts
+    assert result.retried == ()
+    assert result.rejected == ()
+    assert result.first is None
+    assert result.instruction == call.instruction
+
+
+# spec 001 / AC 27, FR-AGENT-05 -- an invented field triggers exactly one retry, which names it;
+# the valid facts of both answers are kept, merged by key.
+def test_an_invented_field_is_retried_once_with_the_target_named(fixture_store: Store) -> None:
+    client = FakeModelClient(
+        {
+            AgentRole.CANONISER: [
+                extracted(VALID_FACT, INVENTED_FIELD),
+                extracted(VALID_FACT, CORRECTED_FACT),
+            ]
+        }
+    )
+    result = canoniser.extract_facts(fixture_store, client, "003", SELECTED_003)
+    first, second = client.calls
+    assert client.pending() == 0
+    assert "throat_release_location" not in first.instruction
+    assert second.instruction.startswith(first.instruction)
+    assert '"throat_release_location"' in second.instruction
+    assert second.documents == first.documents
+    assert (first.attempts, second.attempts) == (1, 1), "FR-LLM-04's own retry is not involved"
+    assert result.output.facts == [VALID_FACT, CORRECTED_FACT]
+    assert [(item.attempt, item.index, item.fact) for item in result.retried] == [
+        (1, 1, INVENTED_FIELD)
+    ]
+    assert result.rejected == ()
+    assert result.first is not None
+    assert result.first.output.facts == [VALID_FACT, INVENTED_FIELD]
+    assert result.instruction == second.instruction
+
+
+# spec 001 / AC 27, FR-AGENT-05 -- a valid fact of the first answer is kept even when the retry
+# leaves it out: the retry only re-addresses what failed, it cannot lose what was already right.
+def test_a_valid_fact_of_the_first_answer_survives_a_retry_that_omits_it(
+    fixture_store: Store,
+) -> None:
+    client = FakeModelClient(
+        {
+            AgentRole.CANONISER: [
+                extracted(VALID_FACT, INVENTED_FIELD),
+                extracted(CORRECTED_FACT),
+            ]
+        }
+    )
+    result = canoniser.extract_facts(fixture_store, client, "003", SELECTED_003)
+    assert len(client.calls) == 2
+    assert result.output.facts == [VALID_FACT, CORRECTED_FACT]
+    assert result.rejected == ()
+
+
+# spec 001 / AC 27, FR-AGENT-05 -- a fact still unpromotable after the retry is not queued and
+# is reported on the result; there is no third call.
+def test_a_fact_still_invalid_after_the_retry_is_reported_and_not_queued(
+    fixture_store: Store,
+) -> None:
+    unknown = fact("no_such_record", "geometry", "somewhere")
+    client = FakeModelClient(
+        {AgentRole.CANONISER: [extracted(INVENTED_FIELD), extracted(CORRECTED_FACT, unknown)]}
+    )
+    result = canoniser.extract_facts(fixture_store, client, "003", SELECTED_003)
+    assert len(client.calls) == 2
+    assert result.output.facts == [CORRECTED_FACT]
+    [still] = result.rejected
+    assert (still.attempt, still.index, still.fact) == (2, 1, unknown)
+    assert "not one of the listed records" in still.reason
+
+    service.persist_proposals(fixture_store, "003", result.output.facts, role=AgentRole.CANONISER)
+    queued = {
+        (entry.target_entity, entry.target_field)
+        for entry in ledger_service.proposed(fixture_store).proposed
+    }
+    assert ("pump_vault", "geometry") in queued
+    assert ("no_such_record", "geometry") not in queued
+    assert ("pump_vault", "throat_release_location") not in queued
+
+
+# spec 001 / AC 27, FR-OPS-06 -- every address promote would refuse is caught: a record with no
+# file of its own, a field that is not promotable, a mapping payload not written `key: value`.
+@pytest.mark.parametrize(
+    ("bad", "reason"),
+    [
+        (fact("lx_readkey", "definition", "a word"), "not one of the listed records"),
+        (fact("pump_vault", "id", "vault_two"), "not one of those listed for Location"),
+        (fact("pump_vault", "access", "from the gallery"), "not one of those listed"),
+        (fact("vance", "immutable_physical", "grey eyes"), '"key: value"'),
+    ],
+    ids=["term", "identifier", "record-list", "mapping-without-key"],
+)
+def test_each_unpromotable_address_is_named_in_the_retry(
+    fixture_store: Store, bad: ProposedFactDraft, reason: str
+) -> None:
+    client = FakeModelClient({AgentRole.CANONISER: [extracted(bad), extracted()]})
+    result = canoniser.extract_facts(fixture_store, client, "003", SELECTED_003)
+    [retried] = result.retried
+    assert reason in retried.reason
+    assert reason in client.calls[1].instruction
+    assert result.output.facts == []
+    assert result.rejected == ()
 
 
 # --- the auditor ----------------------------------------------------------------------------
@@ -901,3 +1109,355 @@ def test_the_auditor_receives_each_participants_immutable_physical(fixture_store
     assert body.text.startswith("id: quiej\nimmutable_physical:\n")
     for attribute, value in stored.items():
         assert f"  {attribute}: {value}" in body.text
+
+
+def _flat(text: str) -> str:
+    return " ".join(text.split()).casefold()
+
+
+# spec 001 / AC 26, FR-AGENT-06 -- the first live run's auditor judged only the POV's body and
+# raised an invariant-6 finding on prose that broke no rule. The prompt, generically, makes it
+# judge every character present -- a capability their record rules out, not only an attribute
+# stated otherwise -- and keeps a registered change and a merely mentioned rule out of its
+# findings; an invariant-6 finding names the rule it breaks.
+def test_the_auditor_prompt_judges_every_body_and_only_contradicted_rules() -> None:
+    prompt = _flat(system_prompt(AgentRole.AUDITOR))
+    for clause in (
+        "check every character present",
+        "each participant the scene record lists",
+        "as modified by their registered changes",
+        "a capability they lack",
+        "a change that is registered is not a violation",
+        "contradicts the statement of one of the rules",
+        "merely mentions, alludes to or respects is not a finding",
+        "begin the explanation with the id of the rule",
+        "the exact sentence that carries the breach",
+    ):
+        assert clause in prompt, clause
+
+
+# --- which record a fact addresses (the second live round) ---------------------------------
+
+
+def _promotable_field_names() -> dict[str, set[str]]:
+    """Every record type `promote` can target, by the name `PromotableTarget.record_type`
+    carries -- the five canon kinds and the dossier -- with the names of its promotable
+    fields."""
+    names = {
+        model.__name__: {item.name for item in ledger_service.promotable_fields(model)}
+        for model in canon_service.CANON_MODELS.values()
+    }
+    names[Character.__name__] = {
+        item.name for item in ledger_service.promotable_fields(Character)
+    }
+    return names
+
+
+# spec 001 / AC 27 -- the code-owned notes are keyed by the record models themselves: every
+# record note names a promotable record type and every field note a promotable field of it,
+# so a renamed field breaks this test instead of leaving a note about a field that is gone.
+def test_every_target_note_names_a_real_record_type_and_promotable_field() -> None:
+    names = _promotable_field_names()
+    assert set(targets.RECORD_NOTES) == set(names)
+    for record_type, field in targets.FIELD_NOTES:
+        assert field in names[record_type], (record_type, field)
+
+
+# spec 001 / AC 27 -- the live canoniser missed a relaxed rule: the only meaning it had for an
+# axiom's exceptions said what an exception is not. The instruction now says what one record of
+# each type is and how one exception is read, and asks for a pass over every listed record.
+def test_the_extract_instruction_says_what_each_record_is_and_what_an_exception_is(
+    fixture_store: Store,
+) -> None:
+    client = settle(ROLE_CALLS["extract_facts"])
+    canoniser.extract_facts(fixture_store, client, "003", SELECTED_003)
+    [call] = client.calls
+    lines = call.instruction.splitlines()
+    heading = lines.index(next(line for line in lines if line.startswith("Axiom records:")))
+    assert lines[heading + 1] == f"  Each Axiom record is {targets.RECORD_NOTES['Axiom']}."
+    meaning = one_line(Axiom.model_fields["exceptions"].description)
+    field = lines.index(f"- exceptions [list]: {meaning}")
+    note = targets.FIELD_NOTES[("Axiom", "exceptions")]
+    assert lines[field + 1] == f"  How one item is read: {note}"
+    assert targets.ABOUT_RULE in lines
+    assert any(line.startswith("Work through the listed records one at a time") for line in lines)
+
+
+# spec 001 / AC 26, AC 27 -- the canoniser never reads a dossier (Figure 3), so a character it
+# lists is named as not given, and it is asked only for what the scene shows new: the live turn
+# queued a restatement of a registered body change that then held the turn for a ruling.
+def test_the_extract_instruction_names_the_records_the_canoniser_cannot_see(
+    fixture_store: Store,
+) -> None:
+    client = FakeModelClient({AgentRole.CANONISER: [extracted()]})
+    result = canoniser.extract_facts(fixture_store, client, "002", SELECTED_002)
+    [call] = client.calls
+    [line] = [
+        line for line in call.instruction.splitlines() if line.startswith("You are not given")
+    ]
+    named = line.split(": ", 1)[1].split(". ", 1)[0].split(", ")
+    characters = [entity for entity in result.targets if entity in {"ilan", "quiej", "vance"}]
+    assert named == characters
+    assert not any(entity.startswith(("ax_", "pump_")) for entity in named)
+
+
+# spec 001 / AC 26 -- the live writer proposed facts for an object with no record and for a
+# field the record does not have. Its instruction now lists the records and fields a proposal
+# may address, the same list the canoniser gets, and the assembly counts that instruction.
+def test_the_write_instruction_lists_the_records_a_proposal_may_address(
+    fixture_store: Store,
+) -> None:
+    client = settle(ROLE_CALLS["write"])
+    writer.write(fixture_store, client, "003", SELECTED_003)
+    [call] = client.calls
+    scene = scenes_service.read_scene(fixture_store, "003")
+    expected = writer.write_targets(fixture_store, scene, SELECTED_003)
+    assert call.instruction == writer.write_instruction(
+        "003", scene.budget, "English", expected
+    )
+    listed = [target.entity for target in expected]
+    assert listed[0] == scene.location
+    assert scene.pov in listed
+    assert "lx_readkey" not in listed, "a lexicon term has no record of its own"
+    lines = call.instruction.splitlines()
+    for line in targets.render_targets(expected, meanings=False):
+        assert line in lines
+    location = next(line for line in lines if line.startswith("Location records:"))
+    assert "geometry [scalar]" in location
+    assert "access" not in location, "a list of access records is not promotable"
+
+
+# spec 001 / AC 26, FR-AGENT-01 -- the dramatic function the instruction calls fixed is the one
+# FR-AGENT-01 names (goal, conflict, outcome, value_change); entry_state and exit_state are to be
+# reached only in ways the records allow. The instruction comes last, so when it called the
+# states fixed it overrode the system prompt's "the records outrank" rule.
+def test_the_write_instruction_fixes_the_function_but_not_the_states() -> None:
+    instruction = writer.write_instruction("003", 950, "English")
+    function, states = (
+        next(line for line in instruction.splitlines() if line.startswith(prefix))
+        for prefix in ("The scene record is", "Its entry_state and exit_state")
+    )
+    assert "goal, conflict, outcome and value_change" in function
+    assert "which is fixed" in function
+    assert "entry_state" not in function and "exit_state" not in function
+    assert "reach them only in ways the other records allow" in states
+    assert "fall short of them rather than break a record" in states
+    assert "fixed" not in states
+
+
+# spec 001 / AC 26, FR-AGENT-06 -- the auditor gets each participant's body as of the scene,
+# computed by code with the registered changes applied, after the stored map.
+def test_the_auditor_receives_each_participants_body_as_of_the_scene(
+    fixture_store: Store,
+) -> None:
+    client = FakeModelClient([Reply.of(SemanticAuditOutput(violations=[]))])
+    auditor.audit_semantic(fixture_store, client, "002", SELECTED_002, [])
+    [call] = client.calls
+    [body] = [document for document in call.documents if document.path == "cast/quiej/dossier.md"]
+    story_time = scenes_service.read_scene(fixture_store, "002").story_time
+    current = cast_service.body_at(fixture_store, "quiej", story_time)
+    as_of = body.text.split(f"{auditor.AS_OF_KEY}:\n", 1)[1]
+    for attribute, value in current.items():
+        assert f"  {attribute}: {value}" in as_of
+
+
+# --- the auditor's explanation reaches revise (DR-07, after the second live round) ----------
+
+
+def _section(prompt: str, heading: str, following: str) -> str:
+    """The flattened text of one `## ` section of a flattened prompt."""
+    return prompt.split(f"## {heading}", 1)[1].split(f"## {following}", 1)[0]
+
+
+# spec 001 / AC 26, FR-AGENT-06 -- DR-07: each model finding keeps the auditor's explanation,
+# whitespace collapsed; an explanation that is only whitespace is stored empty; and the
+# explanation takes no part in the id, so a re-audit that words the finding differently still
+# recognises it.
+def test_model_findings_keep_their_explanation_outside_the_id(fixture_store: Store) -> None:
+    body = manuscript_service.read_draft(fixture_store, "002").body
+    quote = body[200:240]
+    wrapped = SemanticViolation(
+        invariant=3,
+        evidence=Evidence(quote=quote, offset=200),
+        severity=Severity.BLOCKING,
+        explanation="  The record rules this\n  out;\tit allows only a slower way.  ",
+    )
+    [kept], _ = auditor.to_violations("002", body, [wrapped])
+    assert kept.explanation == "The record rules this out; it allows only a slower way."
+    assert kept.source is ViolationSource.MODEL
+
+    reworded = wrapped.model_copy(update={"explanation": "Another wording of the same reading."})
+    [again], _ = auditor.to_violations("002", body, [reworded])
+    assert again.id == kept.id
+    assert again.explanation == "Another wording of the same reading."
+
+    blank = wrapped.model_copy(update={"explanation": " \n\t "})
+    [empty], _ = auditor.to_violations("002", body, [blank])
+    assert empty.explanation is None
+
+    client = FakeModelClient([Reply.of(SemanticAuditOutput(violations=[wrapped]))])
+    result = auditor.audit_semantic(fixture_store, client, "002", SELECTED_002, [])
+    assert [finding.explanation for finding in result.violations] == [kept.explanation]
+
+
+# spec 001 / AC 26, FR-AGENT-02, FR-AGENT-11 -- the violations document revise receives, read back
+# from ledger/violations.yaml, shows each blocking finding's explanation to the model, as text in
+# the document and not only after parsing, and shows a finding without one as having none.
+def test_revise_shows_each_findings_explanation_to_the_model(fixture_store: Store) -> None:
+    existing = fixture_store.read(paths.VIOLATIONS, ViolationsFile).violations
+    reason = "The record rules this action out; it allows only what the body can do here."
+    explained = violation("model-003-explained", 3, ViolationSource.MODEL).model_copy(
+        update={"explanation": reason}
+    )
+    fixture_store.write(
+        paths.VIOLATIONS,
+        ViolationsFile(violations=[*existing, explained]),
+        role=AgentRole.AUDITOR,
+    )
+    client = settle(ROLE_CALLS["revise"])
+    writer.revise(fixture_store, client, "003", SELECTED_003)
+    [call] = client.calls
+    [sent] = [d.text for d in call.documents if d.path == paths.VIOLATIONS]
+    assert f"explanation: {reason}" in " ".join(sent.split())
+    parsed = ViolationsFile.model_validate(yaml.safe_load(sent)).violations
+    assert [(finding.id, finding.explanation) for finding in parsed] == [
+        ("vi_002", None),
+        ("model-003-explained", reason),
+    ]
+    assert "2 blocking finding(s)" in call.instruction
+
+
+# spec 001 / AC 26, FR-AGENT-02 -- the revise instruction and the writer's prompt say that each
+# finding carries its explanation where it has one, and that a finding is resolved only when the
+# scene no longer does what the explanation describes; both keep "as little as possible", and
+# the strict retry stays the stronger instruction.
+def test_revise_is_told_to_resolve_what_the_explanation_describes() -> None:
+    for strict in (False, True):
+        flat = _flat(writer.revise_instruction("003", 1, "English", strict=strict))
+        assert "where it has one, the explanation of why the passage breaks" in flat
+        assert "resolved only when the scene no longer does what its explanation describes" in flat
+        assert "rewording the quoted passage while the scene still does it resolves nothing" in flat
+        assert "change only what each finding needs, as little as possible" in flat
+        assert ("rejected" in flat) is strict
+    revising = _section(_flat(system_prompt(AgentRole.WRITER)), "revising a scene", "writing a")
+    for clause in (
+        "the quoted passage, the character offset of that passage in the draft",
+        "where it has one, an explanation of why the passage breaks the invariant",
+        "resolved only when the scene no longer does what the explanation describes",
+        "rewording the quoted passage while the scene still does it resolves nothing",
+        "change only what each finding needs, as little as possible",
+    ):
+        assert clause in revising, clause
+
+
+# spec 001 / AC 26, FR-AGENT-01 -- the first draft is told that the records outrank the scene
+# record's entry and exit states: a body does only what its record, with its registered changes,
+# allows in the scene's conditions, and a stated state the records rule out is reached another
+# way or not at all.
+def test_the_writer_prompt_puts_the_records_above_the_scene_states() -> None:
+    writing = _section(_flat(system_prompt(AgentRole.WRITER)), "writing a new scene", "revising")
+    for clause in (
+        "the records outrank the scene record's entry and exit states.",
+        "does only what their body allows",
+        "together with its registered changes",
+        "in the conditions the scene puts them in",
+        "the rules of the world hold throughout",
+        "find a way the records allow, or let the scene fall short of that state",
+        "never break a record to reach it",
+    ):
+        assert clause in writing, clause
+
+
+# spec 001 / AC 26, FR-AGENT-06 -- one rule for a breach over several sentences (the sentence
+# where it first shows, then each later one, one finding per sentence) in place of two that
+# disagreed; a sentence is quoted for what it shows itself, so a registered change shown during
+# another breach is not; and an explanation the writer can act on: the record or rule, and the
+# limit it sets, never a course of action.
+def test_the_auditor_prompt_reports_each_sentence_and_an_actionable_explanation() -> None:
+    prompt = _flat(system_prompt(AgentRole.AUDITOR))
+    assert (
+        "report the sentence where it first shows, and then each later sentence that shows the "
+        "same breach again, one finding per sentence"
+    ) in prompt
+    assert "quote the one in which" not in prompt
+    assert "name the record or the rule that rules the passage out" in prompt
+    assert "quote a sentence only for what that sentence itself shows" in prompt
+    assert "a sentence that shows a registered change as it is registered is never quoted" in prompt
+    assert "state the limit the record or rule sets" in prompt
+    assert "never as replacement text or a course of action for the scene" in prompt
+    assert "allows instead" not in prompt
+
+
+# spec 001 / AC 26, FR-AGENT-01, FR-AGENT-02 -- the writer's rules the clause checks above leave
+# unpinned: a limit or an absence in a record forbids every action that needs what is missing,
+# and a revision reads each finding's explanation first, since an unresolved finding comes back.
+def test_the_writer_prompt_keeps_its_limit_and_explanation_rules() -> None:
+    prompt = _flat(system_prompt(AgentRole.WRITER))
+    writing = _section(prompt, "writing a new scene", "revising")
+    assert (
+        "a limit or an absence in a record forbids every action that would need what is "
+        "missing, however briefly or casually the scene would show it"
+    ) in writing
+    revising = _section(prompt, "revising a scene", "writing a")
+    assert "read the explanation first: it says what the scene does that it must not" in revising
+    assert "resolves nothing, and the finding comes back" in revising
+
+
+# spec 001 / AC 27, FR-AGENT-01 -- the writer's prompt points each proposed fact at the address
+# list its instruction carries: one of the listed records, through that record's listed fields.
+def test_the_writer_prompt_addresses_each_invention_to_a_listed_record_and_field() -> None:
+    writing = _section(_flat(system_prompt(AgentRole.WRITER)), "writing a new scene", "revising")
+    for clause in (
+        (
+            "the instruction lists the records a proposed fact may address and the fields each one "
+            "can fill"
+        ),
+        "address every invention to one of those records, using only its listed fields",
+        (
+            "for something new that has no record of its own, the listed record it belongs to "
+            "or is found in"
+        ),
+    ):
+        assert clause in writing, clause
+
+
+# spec 001 / AC 26, FR-AGENT-06 -- the auditor's rules the clause checks above leave unpinned:
+# for invariant 3, what a limit rules out, the as-of list as the body, the scene's conditions,
+# an unaided action, harm done in the scene and what is only imagined; for invariant 6, what is
+# not a contradiction and which part of the statement the page shows false; for reporting, one
+# sentence per finding, why an unquoted sentence may be left, and the explanation as what the
+# writer revises from.
+def test_the_auditor_prompt_keeps_its_body_rule_and_reporting_rules() -> None:
+    prompt = _flat(system_prompt(AgentRole.AUDITOR))
+    for clause in (
+        (
+            "read each attribute for what it rules out as well as what it states: a limit or an "
+            "absence written into the record forbids every action that would need it"
+        ),
+        "what a character only fears, plans or imagines is not something their body does",
+        (
+            "where a participant's record also lists their attributes as they stand in this scene, "
+            "that list is the body to judge against"
+        ),
+        "judge each thing the body does against the conditions the scene puts it in",
+        "the surroundings decide what an unaided body can survive or do there",
+        (
+            "neither the character's body nor the scene gives them is a violation, even when the "
+            "prose presents it as effort, courage or luck"
+        ),
+        (
+            "changes that attribute, and is a violation unless a registered change at this scene "
+            "records it"
+        ),
+        (
+            "a breach that unfolds over several sentences is reported from the sentence where it "
+            "first shows"
+        ),
+        "a use of what the rule permits or a cost of the rule being paid",
+        "say which part of its statement the page shows false",
+        "one finding quotes one sentence",
+        "a sentence that still shows the breach and is not quoted may be left as it is",
+        "the explanation is what the writer revises from, so make it something they can act on",
+        "say what the passage has happen that the record or rule forbids",
+    ):
+        assert clause in prompt, clause

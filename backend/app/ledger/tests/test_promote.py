@@ -24,6 +24,7 @@ from pydantic import BaseModel
 from app.canon import service as canon_service
 from app.canon.models import Axiom, Location, Technology
 from app.cast import service as cast_service
+from app.cast.models import Character
 from app.commons.errors import InvalidRecord, NotFound, PermissionDenied
 from app.commons.permissions import Actor, AgentRole
 from app.commons.schemas import FactStatus, ProposedFact, RulingKind
@@ -599,3 +600,160 @@ def test_a_blank_reason_over_http_is_a_422(
     )
     assert response.status_code == 422
     assert _hashes(fixture_store) == before
+
+
+# --------------------------------------------------------------------------------------
+# What a fact may target: one computation for promote and for extraction (FR-AGENT-05)
+# --------------------------------------------------------------------------------------
+
+TARGET_OF_EACH_KIND: dict[str, str] = {
+    "axioms": "ax_cold_soak",
+    "technology": "te_hand_sonar",
+    "locations": "pump_vault",
+    "factions": "kestrel_coop",
+    "history": "hi_exchanger_fire",
+    "cast": "vance",
+}
+"""One existing record per kind `promote` can write, from the fixture tree."""
+
+
+def _model_of(kind: str) -> type[BaseModel]:
+    return Character if kind == "cast" else canon_service.CANON_MODELS[kind]
+
+
+@pytest.mark.parametrize("kind", sorted(TARGET_OF_EACH_KIND))
+def test_promotable_fields_are_exactly_the_fields_promote_does_not_refuse(
+    fixture_store: Store, kind: str
+) -> None:
+    # spec 001 / AC 27, FR-OPS-06 - every field of the record's model is tried through promote:
+    # the address is refused for exactly the fields `promotable_fields` leaves out, so what the
+    # canoniser is told it may target and what promote can write are the same set
+    entity = TARGET_OF_EACH_KIND[kind]
+    model = _model_of(kind)
+    [target] = service.promotable_targets(fixture_store, [entity])
+    listed = {field.attribute for field in target.fields}
+    assert target.record_type == model.__name__
+    assert listed, "every record kind has fields a fact can fill"
+
+    refused_address: set[str] = set()
+    for number, (attribute, info) in enumerate(model.model_fields.items()):
+        name = info.alias or attribute
+        shape = next((field.shape for field in target.fields if field.attribute == attribute), None)
+        payload = "key: value" if shape is service.FieldShape.MAPPING else "a promoted value"
+        fact_id = f"pf_shape_{number}"
+        _queue(fixture_store, _fact(fact_id, entity, name, payload))
+        try:
+            _promote(fixture_store, fact_id)
+        except InvalidRecord as refusal:
+            if str(refusal.context.get("field", "")).endswith(".target_field"):
+                refused_address.add(attribute)
+    assert refused_address == set(model.model_fields) - listed
+    assert {"id", "schema_version"} <= refused_address
+
+
+def test_promotable_targets_resolve_identifiers_as_promote_does(fixture_store: Store) -> None:
+    # spec 001 / AC 27, FR-OPS-06 - the order given, each once; a lexicon term (no record of its
+    # own) and an unknown id are left out, because promote refuses a fact addressed to either
+    targets = service.promotable_targets(
+        fixture_store, ["pump_vault", "lx_soak", "vance", "no_such_entity", "pump_vault"]
+    )
+    assert [(target.entity, target.path, target.record_type) for target in targets] == [
+        ("pump_vault", PUMP_VAULT, "Location"),
+        ("vance", VANCE, "Character"),
+    ]
+    [location, _] = targets
+    geometry = location.field("geometry")
+    assert geometry is not None
+    assert geometry.shape is service.FieldShape.SCALAR
+    described = Location.model_fields["geometry"].description or ""
+    assert geometry.meaning == " ".join(described.split())
+    assert location.field("id") is None
+    assert location.field("access") is None, "a list of records is not a string list"
+
+
+def test_an_identifier_two_kinds_hold_is_neither_listed_nor_promoted(fixture_store: Store) -> None:
+    # spec 001 / AC 27, FR-OPS-06 - an id that two record kinds both hold is ambiguous: promote
+    # refuses a fact addressed to it, so the list of what a fact may target leaves it out too
+    twin = fixture_store.root / paths.canon_entity("technology", "pump_vault")
+    twin.write_bytes((fixture_store.root / PUMP_VAULT).read_bytes())
+    listed = service.promotable_targets(fixture_store, ["pump_vault", "vance"])
+    assert [target.entity for target in listed] == ["vance"]
+    _queue(fixture_store, _fact("pf_twin", "pump_vault", "geometry", "a second exit"))
+    with pytest.raises(InvalidRecord) as refusal:
+        _promote(fixture_store, "pf_twin")
+    assert str(refusal.value.context.get("field", "")).endswith(".target_entity")
+
+
+def test_a_field_the_catalogue_lists_is_one_promote_writes(fixture_store: Store) -> None:
+    # spec 001 / AC 27 - a listed field is promoted, not refused: the fixture's F2 address
+    [axiom] = service.promotable_targets(fixture_store, ["ax_cold_soak"])
+    exceptions = axiom.field("exceptions")
+    assert exceptions is not None
+    assert exceptions.shape is service.FieldShape.LIST
+    _queue(fixture_store, _fact("pf_listed", "ax_cold_soak", exceptions.name, F2_PAYLOAD))
+    assert isinstance(_promote(fixture_store, "pf_listed"), Promoted)
+
+
+@pytest.mark.parametrize(
+    ("payload", "split"),
+    [("eyes: grey", ("eyes", "grey")), ("eyes grey", None), (": grey", None), ("eyes:", None)],
+)
+def test_the_mapping_payload_test_is_shared(payload: str, split: tuple[str, str] | None) -> None:
+    # spec 001 / AC 27 - the canoniser checks a mapping payload with the split promote uses
+    assert service.split_mapping_payload(payload) == split
+
+
+# --------------------------------------------------------------------------------------
+# A character's body is compared as of the fact's scene, with registered changes applied
+# --------------------------------------------------------------------------------------
+
+
+def _registered(store: Store, character: str, attribute: str) -> str:
+    """The value the character's change register gives `attribute`, read from the fixture copy
+    rather than spelt here, so the test holds for whatever the register says."""
+    changes = cast_service.read_changes(store, character).changes
+    return next(change.to_value for change in changes if change.attribute == attribute)
+
+
+def _body_fact(identifier: str, payload: str, scene: str) -> ProposedFact:
+    return _fact(identifier, "ilan", "immutable_physical", payload).model_copy(
+        update={"source_scene": scene}
+    )
+
+
+def test_a_body_fact_equal_to_a_registered_change_is_settled_with_no_write(
+    fixture_store: Store,
+) -> None:
+    # spec 001 / AC 13, AC 26 - the first live turn ended awaiting_ruling on a false conflict:
+    # a fact restating the registered left-hand change collided with the stored base value.
+    # After the change's scene the record holds the new value, so the fact agrees with it.
+    changed = _registered(fixture_store, "ilan", "left_hand")
+    _queue(fixture_store, _body_fact("pf_hand_now", f"left_hand: {changed}", "006"))
+    before = _hashes(fixture_store)
+
+    result = _promote(fixture_store, "pf_hand_now")
+
+    assert isinstance(result, Promoted)
+    assert result.changed is False
+    assert _changed(before, _hashes(fixture_store)) == {paths.PROPOSED}
+
+
+def test_a_body_fact_restating_the_value_a_change_replaced_collides_with_the_new_one(
+    fixture_store: Store,
+) -> None:
+    # spec 001 / AC 13 - the stored base value no longer holds after a registered change: a
+    # fact asserting it is a collision, and the value it collides with is the as-of one, so
+    # the person ruling compares the fact with what the character's body actually is.
+    base = cast_service.read_character(fixture_store, "ilan").immutable_physical["left_hand"]
+    changed = _registered(fixture_store, "ilan", "left_hand")
+    assert base != changed
+    _queue(fixture_store, _body_fact("pf_hand_old", f"left_hand: {base}", "006"))
+    before = _hashes(fixture_store)
+
+    result = _promote(fixture_store, "pf_hand_old")
+
+    assert isinstance(result, Escalation)
+    assert result.existing_value == f"left_hand: {changed}"
+    assert _changed(before, _hashes(fixture_store)) == {paths.PROPOSED}
+    stored = cast_service.read_character(fixture_store, "ilan").immutable_physical
+    assert stored["left_hand"] == base, "the stored map is never rewritten by a comparison"

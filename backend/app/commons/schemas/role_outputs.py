@@ -225,8 +225,9 @@ class SemanticViolation(HarnessModel):
     explanation: str = Field(
         min_length=1,
         description=(
-            "Why the quoted span breaks that invariant, in one or two sentences. The "
-            "reviewer of an escalation reads this to decide whether the finding is right."
+            "Why the quoted span breaks that invariant, in one or two sentences. It is stored "
+            "with the finding (DR-07): the writer revises from it, and the reviewer of an "
+            "escalation reads it to decide whether the finding is right."
         ),
     )
 

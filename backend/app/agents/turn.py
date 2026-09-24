@@ -383,7 +383,7 @@ def writer_context(
     writer's system prompt, its instruction and the scene record counted in the mandatory part.
     Built here too because the assembly step and `dry_run` must stop where the call would."""
     scene = scenes_service.read_scene(store, scene_id)
-    instruction = writer.write_instruction(scene_id, scene.budget, writer.prose_language(store))
+    instruction = writer.scene_write_instruction(store, scene_id, selected)
     return scenes_service.assemble_context(
         store,
         scene_id,

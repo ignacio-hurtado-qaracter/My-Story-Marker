@@ -30,7 +30,7 @@ from app.commons.schemas import (
     ViolationSource,
 )
 from app.commons.stores import Store, paths
-from app.ledger.audit import audit_scene, merge
+from app.ledger.audit import audit_scene, merge, with_semantic
 
 AUDITOR = {"X-Agent-Role": "auditor"}
 NOT_AUDITORS = [role for role in AgentRole if role is not AgentRole.AUDITOR]
@@ -309,3 +309,87 @@ def test_a_forbidden_role_is_refused_before_a_broken_file_is_read(
     )
     assert response.status_code == 403
     assert tree_hash(fixture_store) == before
+
+
+# spec 001 / AC 16, DR-07 -- a reproduced model finding takes the fresh explanation as it takes
+# the fresh severity, keeping its id and place; a resolved one keeps its own, byte for byte, and
+# neither is added again beside itself. The explanation is not part of the id.
+def test_a_reproduced_finding_takes_the_fresh_explanation(fixture_store: Store) -> None:
+    def model_finding(
+        identifier: str,
+        quote: str,
+        explanation: str,
+        resolution: ViolationResolution | None = None,
+    ) -> Violation:
+        return Violation(
+            id=identifier,
+            scene="003",
+            invariant=3,
+            evidence=Evidence(quote=quote, offset=10),
+            severity=Severity.BLOCKING,
+            resolution=resolution,
+            source=ViolationSource.MODEL,
+            explanation=explanation,
+        )
+
+    open_finding = model_finding("vi_open", "An open passage.", "The earlier reading.")
+    settled = model_finding(
+        "vi_settled",
+        "A settled passage.",
+        "The reading a human ruled on.",
+        ViolationResolution.ACCEPT_WITH_REASON,
+    )
+    fresh_open = open_finding.model_copy(
+        update={
+            "id": "model-003-fresh-open",
+            "severity": Severity.REVIEWABLE,
+            "explanation": "The reading of the current draft.",
+        }
+    )
+    fresh_settled = settled.model_copy(
+        update={"id": "model-003-fresh-settled", "resolution": None, "explanation": "New words."}
+    )
+    report = with_semantic(
+        audit_scene(fixture_store, "003", semantic=False),
+        violations=[fresh_open, fresh_settled],
+        checked=[1, 3, 6, 8],
+        skipped=[],
+    )
+    merged = merge(ViolationsFile(violations=[open_finding, settled]), report).violations
+
+    assert merged[0] == open_finding.model_copy(
+        update={"severity": Severity.REVIEWABLE, "explanation": "The reading of the current draft."}
+    )
+    assert merged[1] == settled
+    assert merged[1].model_dump(mode="json") == settled.model_dump(mode="json")
+    ids = [finding.id for finding in merged]
+    assert "model-003-fresh-open" not in ids
+    assert "model-003-fresh-settled" not in ids
+
+
+# spec 001 / AC 16, DR-07 -- refreshing replaces the explanation, it does not top it up: a
+# reproduced finding whose fresh report carries none (a model answer that was only whitespace)
+# takes none, so the reading of an earlier draft never survives as if it were the current one.
+def test_a_reproduced_finding_without_a_fresh_explanation_keeps_no_stale_one(
+    fixture_store: Store,
+) -> None:
+    stale = Violation(
+        id="vi_stale",
+        scene="003",
+        invariant=3,
+        evidence=Evidence(quote="A passage of an earlier draft.", offset=10),
+        severity=Severity.BLOCKING,
+        resolution=None,
+        source=ViolationSource.MODEL,
+        explanation="The reading of an earlier draft.",
+    )
+    fresh = stale.model_copy(update={"id": "model-003-fresh", "explanation": None})
+    report = with_semantic(
+        audit_scene(fixture_store, "003", semantic=False),
+        violations=[fresh],
+        checked=[1, 3, 6, 8],
+        skipped=[],
+    )
+    merged = merge(ViolationsFile(violations=[stale]), report).violations
+    [kept] = [finding for finding in merged if finding.source is ViolationSource.MODEL]
+    assert kept == stale.model_copy(update={"explanation": None})

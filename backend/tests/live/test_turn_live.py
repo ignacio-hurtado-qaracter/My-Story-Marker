@@ -14,14 +14,19 @@ touched), is what the fixture README's "The tempting scene - 006" section sets u
 
 * the axiom `ax_brine_dark` is in the turn's selected list (it is pinned), so the auditor can
   hold the prose to it;
-* a sentence that sees past four metres across the brine, if the writer wrote one, is flagged
-  as invariant 6 with `source: model`;
+* the invariant-6 model findings are counted for a reader to judge against the draft, not
+  asserted: whether the writer broke the axiom depends on what it wrote, and a count of any
+  invariant-6 finding says nothing about whether the right sentence was caught (the auditor's
+  own live test, `test_audit_live.py`, plants the breaches and asserts on them);
 * Ilan going under, swimming or breathing the brine -- his lungs are unmodified and no
   ChangeEvent says otherwise -- is flagged as invariant 3 with `source: model`;
 * his steel graft hand, a *registered* change (scene 002, before 006), is NOT flagged;
 * the turn ends `merged` or `awaiting_ruling`, and its record shows the real model ids the CLI
-  reported, cache-read tokens, every step's estimate below 100k and every real count below 100k
-  once CLI_OVERHEAD_TOKENS is subtracted (FR-CTX-06).
+  reported, input, cache-creation and cache-read tokens, every step's estimate below 100k and
+  every real count below 100k once CLI_OVERHEAD_TOKENS is subtracted (FR-CTX-06).
+
+The turn is driven step by step (`turn.begin_turn`, `TurnRun.events`), and each step prints one
+line as it ends, so a run under `-s` shows its progress.
 
 The two semantic findings depend on what a real model writes: an obedient writer leaves nothing
 to flag, and then their absence is not a miss. The report is written first, with the path of
@@ -40,7 +45,7 @@ from app.commons.llm.tokens import CLI_OVERHEAD_TOKENS
 from app.commons.schemas import TurnOutcome, Violation, ViolationSource
 from app.commons.stores import paths
 from app.ledger import service as ledger_service
-from tests.live.support import append_section, live_env, mark
+from tests.live.support import Progress, append_section, live_env, mark
 
 pytestmark = pytest.mark.live
 
@@ -70,7 +75,17 @@ def test_a_live_turn_on_the_tempting_scene(
     fixture_root: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     env = live_env(fixture_root, monkeypatch)
-    record = turn.run_turn(env.store, env.client, env.embedder, env.settings, SCENE)
+    progress = Progress("turn")
+    with turn.begin_turn(env.store, env.client, env.embedder, env.settings, SCENE) as run:
+        progress.start(f"turn {run.record.id} on scene {SCENE}", run.record.next_step.value)
+        for event in run.events():
+            if event.kind == "step" and event.step is not None:
+                name = event.step.value + (f" #{event.iteration}" if event.iteration else "")
+                status = event.status.value if event.status is not None else "none"
+                progress.step(name, status, event.next_step.value)
+            else:
+                progress.step("outcome", event.outcome.value)
+        record = run.record
     violations = ledger_service.violations(env.store).violations
 
     calls = [step for step in record.steps if step.call is not None]
@@ -111,19 +126,26 @@ def test_a_live_turn_on_the_tempting_scene(
         "| Check | Result |",
         "|---|---|",
         f"| `{PINNED_AXIOM}` in the selected list | {mark(selected)} |",
-        f"| Axiom violation flagged (inv 6, model) | {mark(bool(axiom))} |",
+        (
+            f"| Invariant-6 model findings (a count to judge against the draft; not "
+            f"asserted) | {len(axiom)} |"
+        ),
         f"| Unregistered body change flagged (inv 3, model, not the hand) | {mark(bool(lungs))} |",
         f"| Registered change (the graft hand) NOT flagged | {mark(not graft)} |",
         f"| Outcome merged or awaiting_ruling | {mark(ended_well)} |",
         f"| Every call reports a real model id | {mark(real_ids)} |",
         f"| Every estimate <= 100k and real - {CLI_OVERHEAD_TOKENS} <= 100k | {mark(under_cap)} |",
         "",
-        "| Step | Role | Model id | Estimate | Input | Cache read | Output | over_cap |",
-        "|---|---|---|---|---|---|---|---|",
+        (
+            "| Step | Role | Model id | Estimate | Input | Cache creation | Cache read | Output "
+            "| over_cap |"
+        ),
+        "|---|---|---|---|---|---|---|---|---|",
         *[
             f"| {step.step.value} | {step.role} | {step.call.model_id} | {step.call.estimate} | "
-            f"{step.call.input_tokens} | {step.call.cache_read_input_tokens} | "
-            f"{step.call.output_tokens} | {step.call.over_cap} |"
+            f"{step.call.input_tokens} | {step.call.cache_creation_input_tokens} | "
+            f"{step.call.cache_read_input_tokens} | {step.call.output_tokens} | "
+            f"{step.call.over_cap} |"
             for step in calls
             if step.call is not None
         ],
