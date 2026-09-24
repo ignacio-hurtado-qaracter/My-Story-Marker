@@ -2,3 +2,6 @@
 playwright-report/
 test-results/
 .vite/
+# Spec 003, AC 11: screenshots for the visual review are generated, never committed.
+screenshots/out/
+screenshots/results/

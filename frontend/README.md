@@ -34,6 +34,7 @@ default); set `VITE_BACKEND_URL` to point elsewhere. Start the backend as its
 | `npm run check:api` | Fail if the committed types are stale against the schema |
 | `npm run check:bundle` | After a build: no three.js in the initial bundle, and at most 250 KB gzipped |
 | `npm run e2e` | Playwright against the real backend on a temp copy of its fixture (needs `uv` or `backend/.venv`, and `npx playwright install chromium` once) |
+| `npm run screenshots` | Screenshots of every route at 1280 and 390 px into `screenshots/out/` (git-ignored), for visual review; not part of the gate |
 | `npm run gate` | Everything CI runs, in CI's order; the summary names failures and skips |
 
 ## The API contract

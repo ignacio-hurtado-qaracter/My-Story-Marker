@@ -23,6 +23,8 @@
   "include": [
     "vite.config.ts",
     "playwright.config.ts",
+    "playwright.screenshots.config.ts",
+    "screenshots",
     "e2e",
     "scripts",
     "src/shared/api/contract.test.ts",

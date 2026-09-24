@@ -14,6 +14,7 @@
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
     "e2e": "playwright test",
+    "screenshots": "playwright test --config playwright.screenshots.config.ts",
     "gen:api": "node scripts/openapi.mjs",
     "check:api": "node scripts/check-api.mjs",
     "check:bundle": "node scripts/check-bundle.mjs",
