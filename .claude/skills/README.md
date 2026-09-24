@@ -11,6 +11,7 @@ third-party one.
 | `sqlite/` | Written for this repository | No, ours | This repo | 2026-09-21 |
 | `sqlite-vec/` | MCPmarket installer payload, skill files only (see below) | No, third party | Not stated | 2026-09-21 |
 | `verification/` | Written for this repository, around a third-party reference sheet (see below) | No, ours | This repo | 2026-09-21 |
+| `gift-novel-run/` | Created in this repository (spec 016, block B12) | No, ours | This repo | 2026-09-24 |
 
 ## FastAPI
 
@@ -138,3 +139,12 @@ The line it may not cross is the load. The page now states that split, the two h
 constraints that come with it (the extension is optional; 384 dimensions fixed), and why
 unreproducible selection is an accepted risk rather than a defect. The docs did not change;
 the skill had been arguing with them.
+
+## gift-novel-run
+
+The harness's own reusable skill (exam § 3, requirement H02), created in this repository
+under spec 016. It runs and inspects one generation end to end: brief validation,
+generation, checkpoints, validator results in the SQLite story bible, the Langfuse trace,
+the web reader through Playwright MCP (`.mcp.json`) and the PDF export. It wraps
+operations other blocks provide and changes nothing itself. Its steps name the CLI and
+tables of plan 004's contracts; refresh them when blocks B3 and B10 merge.
