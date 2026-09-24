@@ -1,0 +1,456 @@
+{
+ "brief": "evals/briefs/b4-temporal.json",
+ "attempts": [
+  {
+   "attempt": 1,
+   "plan_check": [],
+   "lean_passed": false,
+   "lean_failed_invariants": [
+    "noAfterExit"
+   ],
+   "diagnose": {
+    "noAfterExit": [
+     "El evento e3 del capítulo 2 (2008-09-13) hace aparecer a Trueno, que ya había salido de la historia (death) el 2005-11-03 en e2 (capítulo 2)."
+    ]
+   },
+   "events": [
+    {
+     "id": "e1",
+     "seq": 1,
+     "story_date": "1994-06-15",
+     "place_id": "Bilbao",
+     "participants": [
+      "Andrés Olmedo",
+      "Trueno"
+     ],
+     "kind": "normal",
+     "declared_ages": {
+      "Andrés Olmedo": 14
+     },
+     "chapter": 2,
+     "description": "Con 10 años, Andrés Olmedo gana la carrera de bicicletas del barrio con una bici prestada. Trueno corre a su lado, leal y feliz."
+    },
+    {
+     "id": "e2",
+     "seq": 2,
+     "story_date": "2005-11-03",
+     "place_id": "Jardín de la casa",
+     "participants": [
+      "Trueno",
+      "Andrés Olmedo"
+     ],
+     "kind": "death",
+     "declared_ages": {},
+     "chapter": 2,
+     "description": "Trueno muere de viejo bajo el manzano. Andrés lo entierra en el mismo lugar."
+    },
+    {
+     "id": "e3",
+     "seq": 3,
+     "story_date": "2008-09-13",
+     "place_id": "Valencia",
+     "participants": [
+      "Andrés Olmedo",
+      "Marta",
+      "Trueno",
+      "Julia"
+     ],
+     "kind": "normal",
+     "declared_ages": {},
+     "chapter": 2,
+     "description": "La boda de Andrés Olmedo y Marta. Trueno lleva los anillos atados al collar. Julia lee un poema durante la ceremonia."
+    },
+    {
+     "id": "e4",
+     "seq": 4,
+     "story_date": "2015-07-18",
+     "place_id": "Casa de Andrés y Marta",
+     "participants": [
+      "Julia",
+      "Andrés Olmedo",
+      "Marta"
+     ],
+     "kind": "normal",
+     "declared_ages": {},
+     "chapter": 2,
+     "description": "Julia se encarga de la parrilla en la barbacoa familiar pero quema todas las sardinas. Todos ríen del desastre."
+    },
+    {
+     "id": "e5",
+     "seq": 5,
+     "story_date": "2015-07-19",
+     "place_id": "Bilbao",
+     "participants": [
+      "Andrés Olmedo",
+      "Marta"
+     ],
+     "kind": "normal",
+     "declared_ages": {},
+     "chapter": 2,
+     "description": "Andrés y Marta van a un concierto al aire libre en Bilbao y bailan bajo la lluvia."
+    },
+    {
+     "id": "e6",
+     "seq": 6,
+     "story_date": "2026-09-24",
+     "place_id": "Casa de Andrés y Marta",
+     "participants": [
+      "Andrés Olmedo",
+      "Marta"
+     ],
+     "kind": "normal",
+     "declared_ages": {},
+     "chapter": 1,
+     "description": "Andrés despierta el 24 de septiembre, aniversario número 18 de su matrimonio."
+    },
+    {
+     "id": "e7",
+     "seq": 7,
+     "story_date": "2026-09-24",
+     "place_id": "Casa de Andrés y Marta",
+     "participants": [
+      "Andrés Olmedo",
+      "Marta"
+     ],
+     "kind": "normal",
+     "declared_ages": {},
+     "chapter": 1,
+     "description": "Marta prepara un desayuno especial. La pareja bromea sobre los años compartidos."
+    },
+    {
+     "id": "e8",
+     "seq": 8,
+     "story_date": "2026-09-24",
+     "place_id": "Casa de Andrés y Marta",
+     "participants": [
+      "Andrés Olmedo",
+      "Marta"
+     ],
+     "kind": "normal",
+     "declared_ages": {},
+     "chapter": 1,
+     "description": "Andrés y Marta revisan un álbum de fotos antiguas, recordando momentos clave de dieciocho años de matrimonio."
+    },
+    {
+     "id": "e9",
+     "seq": 9,
+     "story_date": "2026-09-24",
+     "place_id": "Casa de Andrés y Marta",
+     "participants": [
+      "Julia",
+      "Andrés Olmedo",
+      "Marta"
+     ],
+     "kind": "normal",
+     "declared_ages": {},
+     "chapter": 3,
+     "description": "Julia llama desde Canadá para felicitar a Andrés y Marta en su aniversario."
+    },
+    {
+     "id": "e10",
+     "seq": 10,
+     "story_date": "2026-09-24",
+     "place_id": "Casa de Andrés y Marta",
+     "participants": [
+      "Andrés Olmedo",
+      "Marta"
+     ],
+     "kind": "normal",
+     "declared_ages": {},
+     "chapter": 3,
+     "description": "Andrés reflexiona sobre dieciocho años de matrimonio, sus recuerdos con Trueno, Julia lejana, y el futuro aún por vivir con Marta."
+    },
+    {
+     "id": "e11",
+     "seq": 11,
+     "story_date": "2026-09-25",
+     "place_id": "Jardín de la casa",
+     "participants": [
+      "Andrés Olmedo",
+      "Marta"
+     ],
+     "kind": "normal",
+     "declared_ages": {},
+     "chapter": 3,
+     "description": "Andrés y Marta cenan bajo las estrellas en el jardín, celebrando su aniversario número 18."
+    }
+   ]
+  }
+ ],
+ "lean_caught_in_plan": true,
+ "generation": {
+  "status": "stopped_error",
+  "detail": "repair_limit: - judge_novel: Suspende (continuidad < 3; bloqueante: [alta; cap. 1, 2, 3] Contradicción temporal irresoluble: Trueno aparece en la boda de 2008 a pesar de haber muerto en 2005. El text del cap. 3 reproduce ambas afirmaciones sin aclaración, lo que rompe la lógica de la narrativa.; bloqueante: contradicción: [alta; cap. 1, 2, 3] Trueno murió el 3 de noviembre de 2005 (brief; cap. 3: 'Trueno había muerto en noviembre de 2005, bajo el manzano del jardín'), pero el brief y el cap. 3 también afirman que llevó los anillos en la boda del 13 de septiembre de 2008 (brief; cap. 3: 'la boda en Valencia en 2008...Trueno portando los anillos'). Cronológicamente es imposible.). Corregir continuidad (2/5): La novela sufre de una contradicción cronológica grave: el cap. 3 afirma que Trueno 'había muerto en noviembre de 2005' pero también que en la boda de 2008 'Trueno portaba los anillos'. Esto es imposible y no se resuelve en el texto. Para el editor: La novela tiene una estructura emotiva bien construida alrededor del aniversario de 18 años, con prosa agradable y personalización natural de los datos del brief. El tono nostálgico es efectivo y el cierre satisfactorio. Sin embargo, hay una contradicción cronológica crítica que suspende la publicación: Trueno no puede estar vivo en la boda de 2008 si murió en 2005. Esto debe resolverse antes de aprobar la novela, ya sea ajustando las fechas del brief (p.ej., que Trueno muera después de la boda), aclarando explícitamente que es un recuerdo/presencia simbólica, o realizando cambios coherentes en los capítulos. Una vez resuelta esta contradicción fundamental, la novela estaría lista para publicar. Evidencia: continuidad: 2/5 — La novela sufre de una contradicción cronológica grave: el cap. 3 afirma que Trueno 'había muerto en noviembre de 2005' pero también que en la boda de 2008 'Trueno portaba los anillos'. Esto es imposible y no se resuelve en el texto.; tono: 4/5 — El tono nostálgico está bien sostenido en los tres c"
+ },
+ "validators": [
+  {
+   "name": "chapter_length",
+   "point": "chapter_close",
+   "chapter": 1,
+   "passed": true,
+   "explanation": "Longitud correcta: 1239 palabras (rango 1000-1500)."
+  },
+  {
+   "name": "exact_names",
+   "point": "chapter_close",
+   "chapter": 1,
+   "passed": true,
+   "explanation": "Todos los nombres aparecen exactamente como en la biblia."
+  },
+  {
+   "name": "fact_usage_recorder",
+   "point": "chapter_close",
+   "chapter": 1,
+   "passed": true,
+   "explanation": "Registrados 12 hechos usados en el capítulo 1."
+  },
+  {
+   "name": "forbidden_words_chapter",
+   "point": "chapter_close",
+   "chapter": 1,
+   "passed": true,
+   "explanation": "sin términos prohibidos"
+  },
+  {
+   "name": "judge_chapter",
+   "point": "chapter_close",
+   "chapter": 1,
+   "passed": true,
+   "explanation": "Aprobado (media 5.00). El capítulo cumple perfectamente con el plan y el brief. La integración de datos personales es orgánica y no forzada. Mantener en futuros capítulos: la riqueza sensorial (detalles de luz, textura, temperatura, olor), el ritmo pausado que refleja la introspección de Andrés, y la naturalidad con que emergen los recuerdos sin parecer añadidos. El cierre con Marta comunicándose sin palabras tras dieciocho años juntos es especialmente efectivo. Conservar este nivel de cuidado narrativo para que la personalización se sienta siempre integral a la trama y no como decoración.\""
+  },
+  {
+   "name": "no_placeholders",
+   "point": "chapter_close",
+   "chapter": 1,
+   "passed": true,
+   "explanation": "Sin marcadores anonimizados."
+  },
+  {
+   "name": "prose_repetition",
+   "point": "chapter_close",
+   "chapter": 1,
+   "passed": true,
+   "explanation": "Sin repeticiones ni clichés."
+  },
+  {
+   "name": "chapter_length",
+   "point": "chapter_close",
+   "chapter": 2,
+   "passed": true,
+   "explanation": "Longitud correcta: 1198 palabras (rango 1000-1500)."
+  },
+  {
+   "name": "exact_names",
+   "point": "chapter_close",
+   "chapter": 2,
+   "passed": true,
+   "explanation": "Todos los nombres aparecen exactamente como en la biblia."
+  },
+  {
+   "name": "fact_usage_recorder",
+   "point": "chapter_close",
+   "chapter": 2,
+   "passed": true,
+   "explanation": "Registrados 14 hechos usados en el capítulo 2."
+  },
+  {
+   "name": "forbidden_words_chapter",
+   "point": "chapter_close",
+   "chapter": 2,
+   "passed": true,
+   "explanation": "sin términos prohibidos"
+  },
+  {
+   "name": "judge_chapter",
+   "point": "chapter_close",
+   "chapter": 2,
+   "passed": true,
+   "explanation": "Aprobado (media 3.75). El capítulo está narrativamente sólido: la integración de los recuerdos es fluida, las transiciones entre presente y pasado son naturales, y el tono nostálgico está bien mantenido. Las escenas (garaje, jardín, parrilla) tienen peso y los personajes actúan coherentemente.\n\nSin embargo, **debes corregir el error de fecha antes de finalizar**: el brief especifica la carrera como 1994-06-15, pero el texto la pone en 1990. Si debe ser 1994, tendrás que cambiar la edad a 14 años (o si realmente era a los 10 años, la fecha debe ser 1990). Revisa la intención original y haz cons"
+  },
+  {
+   "name": "no_placeholders",
+   "point": "chapter_close",
+   "chapter": 2,
+   "passed": true,
+   "explanation": "Sin marcadores anonimizados."
+  },
+  {
+   "name": "prose_repetition",
+   "point": "chapter_close",
+   "chapter": 2,
+   "passed": true,
+   "explanation": "Sin repeticiones ni clichés."
+  },
+  {
+   "name": "chapter_length",
+   "point": "chapter_close",
+   "chapter": 3,
+   "passed": true,
+   "explanation": "Longitud correcta: 1041 palabras (rango 1000-1500)."
+  },
+  {
+   "name": "exact_names",
+   "point": "chapter_close",
+   "chapter": 3,
+   "passed": true,
+   "explanation": "Todos los nombres aparecen exactamente como en la biblia."
+  },
+  {
+   "name": "fact_usage_recorder",
+   "point": "chapter_close",
+   "chapter": 3,
+   "passed": true,
+   "explanation": "Registrados 13 hechos usados en el capítulo 3."
+  },
+  {
+   "name": "forbidden_words_chapter",
+   "point": "chapter_close",
+   "chapter": 3,
+   "passed": true,
+   "explanation": "sin términos prohibidos"
+  },
+  {
+   "name": "judge_chapter",
+   "point": "chapter_close",
+   "chapter": 3,
+   "passed": true,
+   "explanation": "Aprobado (media 4.50). El capítulo está muy bien logrado. Conserva: la metáfora de las \\\"pedaladas\\\" como hilo conductor, el equilibrio del ritmo (silencio, energía, reflexión), la integración natural de recuerdos en el álbum, el diálogo desenfadado de Julia. Áreas de ajuste menor: la escena 3 (reflexión sobre fotos) es algo larga; si fuera más sintética (2-3 momentos clave en lugar de todos) sería más impactante. La vida de Julia en Canadá aparece muy brevemente (\\\"nieve\\\", \\\"planes\\\"); una anécdota específica haría el diálogo más memorable. El final reflexivo funciona bien, aunque un detalle"
+  },
+  {
+   "name": "no_placeholders",
+   "point": "chapter_close",
+   "chapter": 3,
+   "passed": true,
+   "explanation": "Sin marcadores anonimizados."
+  },
+  {
+   "name": "prose_repetition",
+   "point": "chapter_close",
+   "chapter": 3,
+   "passed": true,
+   "explanation": "Sin repeticiones ni clichés."
+  },
+  {
+   "name": "brief_schema",
+   "point": "hook",
+   "chapter": null,
+   "passed": true,
+   "explanation": "brief válido contra brief.v1.json y las reglas de definitions"
+  },
+  {
+   "name": "brief_coverage",
+   "point": "pre_publish",
+   "chapter": null,
+   "passed": true,
+   "explanation": "Los 9 hechos obligatorios del brief aparecen en la novela."
+  },
+  {
+   "name": "judge_novel",
+   "point": "pre_publish",
+   "chapter": null,
+   "passed": false,
+   "explanation": "Suspende (continuidad < 3; bloqueante: [alta; cap. 1, 2, 3] Contradicción temporal irresoluble: Trueno aparece en la boda de 2008 a pesar de haber muerto en 2005. El text del cap. 3 reproduce ambas afirmaciones sin aclaración, lo que rompe la lógica de la narrativa.; bloqueante: contradicción: [alta; cap. 1, 2, 3] Trueno murió el 3 de noviembre de 2005 (brief; cap. 3: 'Trueno había muerto en noviembre de 2005, bajo el manzano del jardín'), pero el brief y el cap. 3 también afirman que llevó los anillos en la boda del 13 de septiembre de 2008 (brief; cap. 3: 'la boda en Valencia en 2008...Truen"
+  },
+  {
+   "name": "lean_chronology",
+   "point": "pre_publish",
+   "chapter": null,
+   "passed": false,
+   "explanation": "La cronología de la historia es incoherente (noAfterExit). El evento e3 del capítulo 2 (2008-09-13) hace aparecer a Trueno, que ya había salido de la historia (death) el 2005-11-03 en e2 (capítulo 2). Corrige el capítulo afectado para que fechas, lugares y edades concuerden."
+  },
+  {
+   "name": "schema_brief",
+   "point": "pre_publish",
+   "chapter": null,
+   "passed": true,
+   "explanation": "Brief válido."
+  },
+  {
+   "name": "visual_check",
+   "point": "pre_publish",
+   "chapter": null,
+   "passed": true,
+   "explanation": "skipped: VISUAL_CHECK not enabled"
+  },
+  {
+   "name": "forbidden_words_scene",
+   "point": "scene_accept",
+   "chapter": 1,
+   "passed": true,
+   "explanation": "sin términos prohibidos"
+  },
+  {
+   "name": "no_placeholders",
+   "point": "scene_accept",
+   "chapter": 1,
+   "passed": true,
+   "explanation": "Sin marcadores anonimizados."
+  },
+  {
+   "name": "schema_role_output",
+   "point": "scene_accept",
+   "chapter": 1,
+   "passed": true,
+   "explanation": "Salida conforme a SceneDraft."
+  },
+  {
+   "name": "forbidden_words_scene",
+   "point": "scene_accept",
+   "chapter": 2,
+   "passed": true,
+   "explanation": "sin términos prohibidos"
+  },
+  {
+   "name": "no_placeholders",
+   "point": "scene_accept",
+   "chapter": 2,
+   "passed": true,
+   "explanation": "Sin marcadores anonimizados."
+  },
+  {
+   "name": "schema_role_output",
+   "point": "scene_accept",
+   "chapter": 2,
+   "passed": true,
+   "explanation": "Salida conforme a SceneDraft."
+  },
+  {
+   "name": "forbidden_words_scene",
+   "point": "scene_accept",
+   "chapter": 3,
+   "passed": true,
+   "explanation": "sin términos prohibidos"
+  },
+  {
+   "name": "no_placeholders",
+   "point": "scene_accept",
+   "chapter": 3,
+   "passed": true,
+   "explanation": "Sin marcadores anonimizados."
+  },
+  {
+   "name": "schema_role_output",
+   "point": "scene_accept",
+   "chapter": 3,
+   "passed": true,
+   "explanation": "Salida conforme a SceneDraft."
+  }
+ ],
+ "chapters": [
+  {
+   "chapter": 1,
+   "title": "Dieciocho años",
+   "summary": "24 de septiembre de 2026, por la mañana. Andrés Olmedo despierta en Valencia recordando que es el aniversario número 18 de su matrimonio con Marta. Ella le ha preparado un desayuno especial —zumo recién exprimido, tostadas con mermelada casera— y durante la comida rememoran juntos el primer viaje a Bilbao en bicicleta, cuando Marta dudaba si realmente la amaba. Después, se retiran al sofá con un álbum de fotos antiguas. Las imágenes los transportan a través de los años: la boda en Valencia en 2008 con Trueno portando los anillos, Julia en la ceremonia antes de emigrar a Canadá, viajes a Bilbao bajo la lluvia, y la caótica barbacoa de 2015. Cada fotografía es un puente hacia la nostalgia compartida, un recordatorio de dieciocho años de vida y pedaladas juntos."
+  },
+  {
+   "chapter": 2,
+   "title": "La tarde de los recuerdos",
+   "summary": "El mismo 24 de septiembre de 2026, por la tarde. Andrés desciende al garaje donde su bicicleta antigua desencadena el vívido recuerdo de su victoria infantil en la carrera de bicicletas de Bilbao a los diez años, con Trueno corriendo a su lado. Bajo el manzano del jardín, revive la muerte del perro en noviembre de 2005 en Bilbao y la boda de 2008 en Valencia donde Trueno llevó los anillos mientras Julia leía un poema. Mientras prepara la parrilla con Marta, evocan juntos el caótico evento de 2015 donde Julia quemó las sardinas, y el concierto bajo la lluvia en Bilbao donde bailaron. Los carbones brillan perfectos mientras la tarde cede a la noche que les pertenecerá."
+  },
+  {
+   "chapter": 3,
+   "title": "La pedalada que continúa",
+   "summary": "El mismo 24 de septiembre de 2026, por la noche. Tras la preparación de la barbacoa, Andrés y Marta cenan bajo las estrellas en el jardín trasero de su casa en Valencia, en la terraza donde han compartido tantos momentos íntimos. El brindis de Marta —«Por dieciocho años de pedaladas juntos»— condensa la historia de su matrimonio. La llamada inesperada de Julia desde Toronto interrumpe la cena: su hermana, que se mudó a Canadá en 2010 en busca de aventura, no quería dejar pasar el aniversario sin una voz que los felicitara desde la distancia. Tras colgar, Andrés y Marta revisan los álbumes fotográficos en el sofá, donde conviven los recuerdos de Trueno, la boda de 2008 y Julia joven. Andrés comprende que el viaje de dieciocho años no termina aquí: aún hay mucho camino por recorrer juntos."
+  }
+ ]
+}
