@@ -115,6 +115,39 @@ def test_brief_coverage_in_memory(repo: BibleRepository) -> None:
     assert repo.chapters_using_fact(memory.id, version=1) == [2]  # backfilled
 
 
+# tuning iteration 1 (spec 008 / AC 3): memories match on normalised content words.
+def test_memory_coverage_content_words(repo: BibleRepository) -> None:
+    from app.validators.programmatic.coverage import fact_in_text
+    from app.validators.programmatic.text import normalise
+
+    novel = repo.create_novel()
+    brief = {
+        "recipient": {"name": "Martina"},
+        "memories": [
+            {
+                "title": "El caracol campeón",
+                "description": "Martina organizó una carrera de caracoles en el huerto y el "
+                "más lento ganó porque los demás se fueron a comer lechuga.",
+            }
+        ],
+    }
+    fact = repo.add_fact(
+        novel.id,
+        key="memory.el-caracol-campeon",
+        value="El caracol campeón: Martina organizó una carrera de caracoles en el huerto.",
+        kind="memory",
+        source="interview",
+        mandatory=True,
+    )
+    # the title's words, plural and without accents: covered (before: exact phrase only)
+    assert fact_in_text(fact, normalise("Los CARACOLES de Martina corrían."), brief)
+    # the description's details (≥ 30 %), no title word: covered
+    told = "La carrera en el huerto: el más lento ganó, los demás comían lechuga."
+    assert fact_in_text(fact, normalise(told), brief)
+    # only the recipient's name: not covered
+    assert not fact_in_text(fact, normalise("Martina organizó una merienda."), brief)
+
+
 def _registered_names() -> set[str]:
     register_validators()
     names = {v.name for point in ValidationPoint for v in validators_for(point)}

@@ -8,8 +8,16 @@ and the mandatory coverage so far. Matching (``fact_values`` + ``text.fact_rende
 
 - name facts (key ``*.name`` or kind recipient/person/pet) match when any token of the
   name (≥ 3 letters, not a particle) appears as a word — "Lucía" renders "Lucía Pérez";
-- memories match on their **title** (from the brief when available) by the key-term rule
-  of ``text``: ≥ 50 % of the title's key terms in the chapter;
+- memories (tuning iteration 1) match on normalised **content words** — casefolded,
+  accents stripped and plurals folded by ``app.policy.normalise`` (``caracoles`` renders
+  ``caracol``); content words are ≥ 4 letters, not stopwords, not digits and not a name of
+  the brief (recipient, people, pets, places) nor a generic title word ("primera",
+  "última"…), so a name alone never proves a memory. A
+  memory is rendered when the chapter contains **at least half (and at least one) of the
+  title's content words**, *or* **at least 30 % of the description's content words**. The
+  title and description come from the brief when available, else from the fact value
+  (``"<title>: <description>"``). Before, a title of ≤ 3 words had to appear as an exact
+  phrase ("El caracol campeón"), which failed chapters that told the memory in full;
 - every other value: ≤ 3 words as a phrase, longer by the key-term rule.
 
 Non-mandatory ``trait`` and ``occasion`` facts are not tracked (they are adjectives, not
@@ -28,10 +36,14 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Final
 
 from app.bible.models import Fact
+from app.policy.normalise import normalise as fold
+from app.policy.normalise import term_variants
 from app.validators.programmatic.text import (
+    STOPWORDS,
     as_mapping,
     fact_rendered,
     memory_title,
@@ -45,6 +57,105 @@ _NAME_KINDS: Final = frozenset({"recipient", "person", "pet"})
 _PARTICLES: Final = frozenset({"de", "del", "la", "las", "los", "el", "y"})
 
 
+MEMORY_TITLE_SHARE: Final = 0.5
+MEMORY_DESCRIPTION_SHARE: Final = 0.3
+_MIN_CONTENT_LETTERS: Final = 4
+#: Words too common in memory titles to prove anything on their own.
+_GENERIC: Final = frozenset(
+    [
+        "primer",
+        "primera",
+        "primero",
+        "ultima",
+        "ultimo",
+        "gran",
+        "grande",
+        "nuevo",
+        "nueva",
+        "dias",
+        "noche",
+        "tarde",
+        "vez",
+    ]
+)
+
+
+@lru_cache(maxsize=64)
+def _text_keys(normalised_text: str) -> frozenset[str]:
+    """Every singular candidate of every word of the text (policy normaliser)."""
+    keys: set[str] = set()
+    for token in set(fold(normalised_text).split()):
+        keys |= term_variants(token)
+    return frozenset(keys)
+
+
+def _brief_names(brief: Mapping[str, object] | None) -> frozenset[str]:
+    """Folded tokens of every name in the brief: never content words of a memory."""
+    if brief is None:
+        return frozenset()
+    names: list[str] = []
+    recipient = as_mapping(brief.get("recipient"))
+    if recipient is not None and isinstance(recipient.get("name"), str):
+        names.append(str(recipient["name"]))
+    for field in ("people", "pets", "places"):
+        items = brief.get(field)
+        if isinstance(items, Sequence) and not isinstance(items, str):
+            for item in items:
+                entry = as_mapping(item)
+                if entry is not None and isinstance(entry.get("name"), str):
+                    names.append(str(entry["name"]))
+    return frozenset(t for name in names for t in fold(name).split())
+
+
+def content_words(value: str, exclude: frozenset[str] = frozenset()) -> set[str]:
+    """Folded words of ≥ 4 letters that are not stopwords, digits or excluded names."""
+    return {
+        token
+        for token in fold(value).split()
+        if len(token) >= _MIN_CONTENT_LETTERS
+        and token.isalpha()
+        and token not in STOPWORDS
+        and token not in _GENERIC
+        and token not in exclude
+    }
+
+
+def _present(word: str, keys: frozenset[str]) -> bool:
+    return bool(term_variants(word) & keys)
+
+
+def memory_parts(fact: Fact, brief: Mapping[str, object] | None) -> tuple[str, str]:
+    """(title, description) of a memory fact: the brief's when found, else the value's."""
+    title = memory_title(fact.key, fact.value, brief)
+    memories = brief.get("memories") if brief is not None else None
+    if isinstance(memories, Sequence) and not isinstance(memories, str):
+        for item in memories:
+            entry = as_mapping(item)
+            if entry is not None and entry.get("title") == title:
+                description = entry.get("description")
+                return title, description if isinstance(description, str) else ""
+    rest = fact.value[len(title) :] if fact.value.startswith(title) else fact.value
+    return title, rest.lstrip(" :—.")
+
+
+def memory_rendered(
+    title: str, description: str, normalised_text: str, names: frozenset[str] = frozenset()
+) -> bool:
+    """The memory rule of the module docstring (tuning iteration 1)."""
+    keys = _text_keys(normalised_text)
+    title_words = content_words(title, names)
+    if title_words:
+        found = sum(_present(w, keys) for w in title_words)
+        if found >= 1 and found >= MEMORY_TITLE_SHARE * len(title_words):
+            return True
+    described = content_words(description, names)
+    if described:
+        found = sum(_present(w, keys) for w in described)
+        if found >= 1 and found >= MEMORY_DESCRIPTION_SHARE * len(described):
+            return True
+    return False
+
+
 def _is_name(fact: Fact) -> bool:
     return fact.key.endswith(".name") or (fact.kind in _NAME_KINDS and len(words(fact.value)) <= 4)
 
@@ -55,8 +166,10 @@ def fact_in_text(fact: Fact, normalised_text: str, brief: Mapping[str, object] |
         present = set(normalised_text.split())
         tokens = [normalise(t) for t in words(fact.value)]
         return any(t in present for t in tokens if len(t) >= 3 and t not in _PARTICLES)
-    value = memory_title(fact.key, fact.value, brief) if fact.kind == "memory" else fact.value
-    return fact_rendered(value, "", normalised=normalised_text)
+    if fact.kind == "memory":
+        title, description = memory_parts(fact, brief)
+        return memory_rendered(title, description, normalised_text, _brief_names(brief))
+    return fact_rendered(fact.value, "", normalised=normalised_text)
 
 
 def tracked_facts(ctx: ValidationContext) -> list[Fact]:
@@ -180,4 +293,15 @@ class BriefCoverage:
         )
 
 
-__all__ = ["BriefCoverage", "FactUsageRecorder", "fact_in_text", "planned_chapter", "tracked_facts"]
+__all__ = [
+    "MEMORY_DESCRIPTION_SHARE",
+    "MEMORY_TITLE_SHARE",
+    "BriefCoverage",
+    "FactUsageRecorder",
+    "content_words",
+    "fact_in_text",
+    "memory_parts",
+    "memory_rendered",
+    "planned_chapter",
+    "tracked_facts",
+]
