@@ -10,7 +10,7 @@ sobre el propio repositorio y sobre la API del harness, en el marco del programa
 | Base analizada | `proyecto-desde-cero` @ `c245d3a` (rama de trabajo `security/review`) |
 | Cómo repetirla | skill [`security-review-harness`](../.claude/skills/security-review-harness/SKILL.md) y los scripts de [`security/`](../security/) |
 | Alcance | historial de git, dependencias Python y npm, texto libre del brief, peticiones de cambio del lector, API `/novels` e `/interview`, tools y servidor MCP, hooks de Claude Code |
-| Fuera de alcance | login y cuentas de usuario (X03, no implementado), despliegue en producción, pentest de red |
+| Fuera de alcance | despliegue en producción, pentest de red (el login X03 se añadió después, spec 018, y cierra SEC-01) |
 
 Ninguna prueba abrió la base de datos real (`HARNESS_DB`): había una novela generándose
 contra ella. Todas construyen una base temporal y se ejecutaron con
@@ -24,26 +24,27 @@ contra ella. Todas construyen una base temporal y se ejecutaron con
 |---|---|---|---|---|
 | crítica | 0 | – | – | – |
 | alta | 0 | – | – | – |
-| media | 5 | 4 | 1 | 0 |
-| baja | 5 | 0 | 2 | 3 |
+| media | 5 | 5 | 0 | 0 |
+| baja | 5 | 1 | 2 | 2 |
 | info | 5 | – | 5 | – |
 
-Las cuatro medias corregibles se corrigieron, cada una en su commit y con un test que falla
-sin el cambio. La quinta (SEC-01, sin autenticación) es la ausencia de login, que el
-enunciado deja como opcional (X03): se acepta para la demo local y se propone el arreglo.
+Las cinco medias están corregidas, cada una en su commit y con un test que falla sin el
+cambio. La última, SEC-01 (sin autenticación), se cerró con el login de SQLite del opcional
+X03 ([spec 018](../specs/018-login/018-login.md), commit `ad2c6b1`), que cierra también la
+parte de dueño de SEC-08.
 
 ## Tabla de hallazgos
 
 | Id | Área | Descripción | Severidad | Estado |
 |---|---|---|---|---|
-| SEC-01 | Exfiltración / API | Sin autenticación: cualquier cliente de la API o del MCP lista y lee todas las novelas y puede pedir cambios en cualquiera | media | aceptado (X03 no implementado; demo local en `127.0.0.1`) |
+| SEC-01 | Exfiltración / API | Sin autenticación: cualquier cliente de la API o del MCP lista y lee todas las novelas y puede pedir cambios en cualquiera | media | corregido (`ad2c6b1`, spec 018) |
 | SEC-02 | Secrets | `.gitignore` solo ignoraba `backend/.env`; el `.env` raíz (con `LANGFUSE_SECRET_KEY`) se habría podido commitear | media | corregido (`21f2985`) |
 | SEC-03 | Prompt injection | El pre-scan del texto libre no veía leetspeak, letras separadas, guiones, caracteres de ancho cero, falsificación de delimitadores ni peticiones de otra novela (10/17 detectados) | media | corregido (`3dce82b`) |
 | SEC-04 | Integridad / exfiltración | Una petición de cambio podía apuntar al hecho interno `plan.v1` y sobrescribir el plan; además el plan entero se listaba al EDITOR | media | corregido (`1a72af5`) |
 | SEC-05 | Prompt injection | Las peticiones de cambio del lector (`POST /novels/{id}/changes`) no pasaban ningún escaneo: su texto acababa como valor de un hecho en el prompt del writer | media | corregido (`4998416`) |
 | SEC-06 | Prompt injection | Inyección de segundo orden: los hechos extraídos del texto libre (`source=free_text`) sí llegan a los prompts de los roles | baja | aceptado (datos delimitados + bandera del extractor) |
 | SEC-07 | Prompt injection | Dos listas de marcadores divergentes; `PolicyEngine.check_free_text` no se invoca en ningún flujo de producción | baja | pendiente |
-| SEC-08 | Integridad / API | Sin dueño de la novela, `/interview/briefs` y `/interview/turn` escriben resultados y decisiones bajo cualquier `novel_id`; un brief válido sobre una novela ya ingerida da 500 | baja | pendiente |
+| SEC-08 | Integridad / API | Sin dueño de la novela, `/interview/briefs` y `/interview/turn` escriben resultados y decisiones bajo cualquier `novel_id`; un brief válido sobre una novela ya ingerida da 500 | baja | corregido (`ad2c6b1`, spec 018) |
 | SEC-09 | API | `/health` revela `store_root`; el `detail` de un job fallido incluye el texto de la excepción | baja | aceptado (local, sin trazas ni rutas absolutas por defecto) |
 | SEC-10 | Dependencias | `.mcp.json` ejecuta `npx -y @playwright/mcp@latest` sin fijar versión | baja | pendiente |
 | SEC-11 | Hooks | `policy_guard.py` es heurístico: un script Python en fichero o una ruta construida en variables no se detectan | info | aceptado (defensa en profundidad) |
@@ -86,20 +87,21 @@ flowchart LR
   PS2 --> RC[resolve_change<br/>sin hechos internos SEC-04]
   RC --> DB
   DB -->|hechos de ESTA novela<br/>como Documents delimitados| R[Planner / Writer / Editor / Judge]
-  API[Cliente API o MCP<br/>sin login SEC-01] -->|lectura por novel_id| DB
+  API[Cliente API o MCP<br/>con login, spec 018] -->|solo novelas del usuario<br/>owner_id| DB
 ```
 
 Cómo leerlo: el texto del cliente nunca entra en una instrucción. El texto libre crudo se
 queda en el brief guardado y solo pasa al extractor como documento; lo que llega a la story
 bible son hechos candidatos. La petición del lector pasa ahora el mismo pre-scan antes de
 convertirse en un hecho. Los roles reciben solo los documentos de su novela. La flecha de
-la API marca el único camino entre novelas: la ausencia de login.
+la API era el único camino entre novelas (la ausencia de login, SEC-01); desde la spec 018
+cada petición ve solo las novelas de su usuario.
 
 ---
 
 ## Detalle de los hallazgos
 
-### SEC-01 — Sin autenticación ni autorización (media, aceptado)
+### SEC-01 — Sin autenticación ni autorización (media, corregido en `ad2c6b1`)
 
 **Qué pasa.** Ninguna ruta de `/novels`, `/interview` ni tool del MCP pide identidad.
 `exfiltration_probe.py` lo confirma: `GET /novels` devuelve las dos novelas de la base
@@ -124,6 +126,20 @@ enviar, así que la petición es literalmente `/novels/B`, que es este mismo hal
 alcance en el enunciado. El backend se arranca con `uvicorn app.main:app`, que escucha en
 `127.0.0.1` por defecto, y el frontend lo usa a través del proxy de Vite. En esa demo local
 de un solo usuario no hay un segundo cliente al que proteger.
+
+**Corrección** ([spec 018](../specs/018-login/018-login.md), X03). Migración `1700_auth`:
+tabla `app_user` (email único, hash bcrypt) y columna `novel.owner_id`; las novelas previas y
+las que crea la CLI pertenecen al usuario integrado `local`, con el que nadie puede iniciar
+sesión. `POST /auth/register` y `/auth/login` devuelven un JWT HS256 firmado con
+`AUTH_SECRET`; con `AUTH_REQUIRED=1` (por defecto) las rutas de `/novels` e `/interview`
+exigen `Authorization: Bearer`. Todas usan `BibleRepository.scoped_to(usuario)`, y cada ruta
+`/novels/{id}` resuelve la novela por esa vista, así que la de otro usuario responde 404 igual
+que una inexistente. Los briefs, resultados de validación y decisiones de política (audit
+log) pertenecen al dueño de su novela por join. El servidor MCP se ejecuta como
+`STORY_MAKER_USER` (o `local`). Commits: `0487a4c` (datos), `b669e95` (`/auth`), `ad2c6b1`
+(rutas), `4dcacc3` (MCP y tests). Tests: `backend/app/auth/tests/test_auth.py` (lista,
+capítulo, PDF, petición de cambio y brief de otro usuario → 404; `list_novels` del MCP
+filtrado). La propuesta original era:
 
 **Arreglo propuesto** (spec propio, porque cambia la API y el modelo de datos): tabla
 `user` con contraseña bcrypt, columna `owner_id` en `novel`, `validator_result` y
@@ -238,7 +254,7 @@ Tras SEC-03 el pre-scan ya reutiliza la normalización del motor. Propuesta: una
 en `app.policy` que el pre-scan importe, con `check_free_text` como punto único de registro.
 Es un cambio de diseño del bloque B5 y merece su propio spec.
 
-### SEC-08 — Escrituras bajo cualquier `novel_id` en la entrevista (baja, pendiente)
+### SEC-08 — Escrituras bajo cualquier `novel_id` en la entrevista (baja, corregido en `ad2c6b1`)
 
 Consecuencia de SEC-01 por el lado de la escritura: `POST /interview/briefs` con un brief
 inválido y el `novel_id` de otra novela guarda un `brief_schema` fallido en los resultados
@@ -247,6 +263,10 @@ de esa novela (`api_hardening_probe.py`: 422 y el resultado queda escrito);
 válido sobre una novela ya ingerida lanza `ValueError` sin capturar, que llega como 500.
 No se pierde ni se lee contenido de otra novela. Arreglo: el dueño de SEC-01, y mientras
 tanto una excepción propia (`BriefAlreadyIngested`) respondida como 409.
+
+**Corrección** (spec 018): `/interview/briefs` y `/interview/turn` responden 404 a un
+`novel_id` de otro usuario antes de escribir nada, la novela nueva se crea con el usuario
+como dueño, y un brief repetido sobre una novela ya ingerida responde 409 en vez de 500.
 
 ### SEC-09 — Información en `/health` y en jobs fallidos (baja, aceptado)
 
