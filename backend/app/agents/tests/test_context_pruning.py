@@ -134,6 +134,7 @@ def test_the_auditor_prunes_its_ranked_inputs_and_lists_them_as_skipped(
     assert [document.path for document in prunable] == [
         "canon/axioms/ax_brine_dark.md",
         "canon/axioms/ax_calving_window.md",
+        "cast/quiej/dossier.md",
         "cast/quiej/knowledge.yaml",
         "cast/quiej/changes.yaml",
     ]
@@ -153,11 +154,12 @@ def test_the_auditor_prunes_its_ranked_inputs_and_lists_them_as_skipped(
     assert bare.call.removed == (
         "axiom:ax_brine_dark",
         "axiom:ax_calving_window",
+        "cast/quiej/dossier.md#immutable_physical",
         "cast/quiej/knowledge.yaml",
         "cast/quiej/changes.yaml",
     )
     assert bare.call.truncated_at == "axiom:ax_brine_dark"
-    assert [skip.invariant for skip in bare.skipped] == [6, 6, 1, 3]
+    assert [skip.invariant for skip in bare.skipped] == [6, 6, 3, 1, 3]
     assert "axiom ax_brine_dark" in bare.skipped[0].reason
 
 

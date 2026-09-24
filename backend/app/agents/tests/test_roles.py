@@ -34,6 +34,7 @@ from pydantic import BaseModel
 from app.agents import service
 from app.agents.models import Adjustment
 from app.agents.roles import MECHANICAL_FINDINGS, auditor, canoniser, style_editor, writer
+from app.cast import service as cast_service
 from app.commons.errors import InvalidRecord, MalformedModelOutput, ModelRefused, PermissionDenied
 from app.commons.llm import ApiError, FakeModelClient, Outcome, Refusal, Reply
 from app.commons.permissions import Actor, AgentRole
@@ -413,6 +414,7 @@ def test_audit_semantic_sends_the_mandatory_part_then_the_ranked_inputs(
         MECHANICAL_FINDINGS,
         "canon/axioms/ax_brine_dark.md",
         "canon/axioms/ax_calving_window.md",
+        "cast/quiej/dossier.md",
         "cast/quiej/knowledge.yaml",
         "cast/quiej/changes.yaml",
     ]
@@ -881,3 +883,21 @@ def test_a_short_value_that_is_not_a_name_is_refused(value: str) -> None:
 )
 def test_a_language_name_is_accepted(value: str) -> None:
     assert writer.is_language_name(value)
+
+
+# spec 001 / FR-AGENT-06, AC 26 -- invariant 3 needs every present character's fixed body, not
+# only the POV's: the auditor receives each participant's stored immutable_physical beside their
+# changes.yaml, so it can tell an unregistered change from a registered one (for 006, ilan's
+# unmodified lungs from his graft hand). Scene 002 is the fixture scene with a draft and a
+# participant (quiej).
+def test_the_auditor_receives_each_participants_immutable_physical(fixture_store: Store) -> None:
+    client = FakeModelClient([Reply.of(SemanticAuditOutput(violations=[]))])
+    auditor.audit_semantic(fixture_store, client, "002", SELECTED_002, [])
+    [call] = client.calls
+    paths_sent = [document.path for document in call.documents]
+    assert paths_sent.index("cast/quiej/dossier.md") < paths_sent.index("cast/quiej/changes.yaml")
+    [body] = [document for document in call.documents if document.path == "cast/quiej/dossier.md"]
+    stored = cast_service.read_character(fixture_store, "quiej").immutable_physical
+    assert body.text.startswith("id: quiej\nimmutable_physical:\n")
+    for attribute, value in stored.items():
+        assert f"  {attribute}: {value}" in body.text

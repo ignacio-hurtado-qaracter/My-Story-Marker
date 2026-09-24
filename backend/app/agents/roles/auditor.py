@@ -119,6 +119,21 @@ def _participant_file(store: Store, participant: str, which: str) -> str | None:
     return scenes_service.render_record(record)
 
 
+def _participant_body(store: Store, participant: str) -> str | None:
+    """A participant's fixed physical attributes: `cast/{id}/dossier.md#immutable_physical`,
+    the stored map before any ChangeEvent (FR-AGENT-06). Invariant 3 is "an attribute in the
+    prose that differs from `immutable_physical` with no ChangeEvent at or before this scene",
+    so the auditor needs the anchor and the changes both, for every character present -- not
+    only the POV, whose as-of dossier is mandatory. None when the dossier does not exist."""
+    try:
+        record = cast_service.read_character(store, participant)
+    except NotFound:
+        return None
+    lines = [f"id: {record.id}", "immutable_physical:"]
+    lines.extend(f"  {key}: {value}" for key, value in record.immutable_physical.items())
+    return "\n".join(lines) + "\n"
+
+
 def selected_axioms(selected: Sequence[SelectedEntity]) -> tuple[list[str], list[str]]:
     """The selected axioms, pinned first and then the rest in rank order, each once.
 
@@ -208,6 +223,18 @@ def _inputs(
     ]
     absent: list[SemanticSkip] = []
     for participant in scene.participants:
+        body_path = paths.cast_file(participant, "dossier")
+        body_text = _participant_body(store, participant)
+        if body_text is None:
+            reason = (
+                f"{body_path} does not exist, so invariant {CHANGES_INVARIANT} was not checked "
+                f"for {participant}"
+            )
+            absent.append(SemanticSkip(invariant=CHANGES_INVARIANT, reason=reason))
+        else:
+            body_key = f"{body_path}#immutable_physical"
+            body = RoleInput(key=body_key, path=body_path, text=body_text)
+            prunable.append(_Prunable(body, CHANGES_INVARIANT, body_key))
         for which, invariant in (
             ("knowledge", KNOWLEDGE_INVARIANT),
             ("changes", CHANGES_INVARIANT),
