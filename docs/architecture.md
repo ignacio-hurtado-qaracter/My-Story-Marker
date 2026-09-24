@@ -15,6 +15,13 @@ grows**. The harness treats it as **a normative knowledge base (the canon) plus 
 artifact (the prose)**. Canon is small, curated and authoritative. Prose is large,
 disposable and subordinate.
 
+Above both sits the **brief**: the commission of one gift novel for a named recipient
+(see [`definitions.md`](./definitions.md#brief)). The brief is the root. Canon is the
+planner's answer to it, prose is the writer's rendering of canon, and the personalisation
+the brief asks for reaches the page only through the facts it yields. The brief is the one
+thing a person writes; everything below it is produced, checked and versioned by the
+harness.
+
 Two consequences follow, and everything else in this document is downstream of them.
 
 **The manuscript is never loaded into context.** Not in summary form beyond what is
@@ -81,9 +88,14 @@ which is why they are documented here rather than in `definitions.md`.
 
 The prose of one scene, versioned. Subordinate to canon.
 
-Versioning is git's, not the record's: the tree is a working tree and the diffs between
-commits *are* the continuity record, so a `version` field on the record would be a second,
-weaker answer to a question git already answers exactly.
+Versioning lives in the [authoritative database](#authoritative-database), not in git
+and not in the file. In the gift-novel pipeline the accepted prose of a chapter is stored
+as a row of `chapter_version` — text, hash and summary — under one `novel_version`, and a
+row is **never overwritten**: a regeneration writes a new version that copies the unchanged
+chapters and replaces only the regenerated ones, and the previous version is kept. A
+chapter is *changed* in a version when its text hash differs from the parent version's.
+The legacy per-scene file tree (`manuscript/NNN.md`) is still versioned by git, but the
+gift-novel pipeline does not write it; one text has one source of truth.
 
 | Field | Meaning |
 |---|---|
@@ -158,6 +170,39 @@ automatic correction.
 
 **Failure mode.** Letting the auditor self-correct. It trims precisely the living details
 that made the scene work, because those are the ones that deviate from the plan.
+
+### NovelVersion · ChapterVersion
+
+One published or attempted state of a gift novel, and the chapters it is made of. Rows in
+the authoritative database; nothing is deleted.
+
+| Field | Meaning |
+|---|---|
+| `version` | Sequential per novel; version 1 is the first generation |
+| `parent_version` | The version this one was derived from by `change_fact`; empty for version 1 |
+| `status` | `draft` (being generated) · `published` (pre-publish passed) · `blocked` (pre-publish failed after its repair round) |
+| `changed_chapters[]` | Chapters whose text hash differs from the parent's; drives the reader's marks and the PDF's "novedades" page |
+| `note` | The change request that produced it, in the reader's words |
+| `chapter_version.text` · `hash` · `summary` · `title` | The chapter's prose, its content hash, and its chapter digest |
+
+**Failure mode.** Overwriting a published version to apply a change. The recipient loses
+the book they were given, and nobody can say what changed.
+
+### ValidatorResult · PolicyDecision
+
+What each named validator concluded, and what each guardrail decided. Rows in the
+authoritative database, one per run, never edited.
+
+| Field | Meaning |
+|---|---|
+| `name` | The validator or policy, e.g. `chapter_length`, `forbidden_terms`, `judge_rubric`, `lean_chronology` |
+| `point` | `scene_accept` · `chapter_close` · `pre_publish` · `hook` |
+| `passed` · `score` | Verdict and optional score in 0–1, also sent to Langfuse |
+| `evidence` · `explanation` | What was found and where; why it passes or fails |
+| `decision` (policy only) | `allow` · `rewrite` · `stop`, with the matched term and its scope |
+
+The registry and the points are described in
+[`verification.md`](./verification.md#validator-registry-and-execution-points).
 
 ---
 
@@ -239,6 +284,42 @@ When canon changes retroactively — and it will — returns which already-writt
 depended on the previous fact. Without this operation, every late decision forces a
 re-read of the entire book, which in practice means late decisions stop being made.
 
+### `change_fact(novel, fact, new_value) → novel_version`
+
+The reader's change request. The reader selects a fragment or a fact on the page and states
+the change ("the dog is called Nala"). The operation:
+
+1. updates the fact's value in the brief (a fact never has two values at once);
+2. finds the affected chapters through the fact's usage per scene — this is `reconcile` for
+   a brief fact;
+3. creates a new `novel_version` whose parent is the current one, **copying every unchanged
+   chapter row** and regenerating only the chapters that use the fact, each through the
+   chapter loop of [Figure 5](#figure-5--one-novel-generation) with the previous chapter's
+   digest as context, so continuity holds across the boundary;
+4. re-runs chapter-close and pre-publish validators, and marks the regenerated chapters
+   whose hash changed as `changed_chapters`.
+
+The previous version is never touched. A change that fails pre-publish leaves the new
+version `blocked` and the previous one still the published one.
+
+### `publish_version(novel, version) → published`
+
+Moves a version from `draft` to `published` once every pre-publish validator has passed.
+It is the only operation that sets `published`, and it refuses a version with a failing or
+missing pre-publish result. The reader always shows the latest published version.
+
+### Read-only tools for the model
+
+Models hold no write tools. Two read-only tools are served to model-backed roles over a local
+MCP server, each with a JSON Schema for its input and output:
+
+- `query_story_bible(novel, kind, name?)` — characters, places, facts and chronology events
+  from the authoritative database;
+- `get_chapter_summary(novel, chapter)` — the chapter digest of the current version.
+
+Every tool call is a `tool:<tool>` span in the trace. A tool that could write would widen a
+role's permissions and is forbidden by Figure 3.
+
 ---
 
 ## Memory and context budget
@@ -262,6 +343,7 @@ flowchart TB
   end
   subgraph T3["Normative — curated, exact"]
     CAN[("canon/ · cast/ · structure/")]
+    DB[("Authoritative DB<br/>brief · facts · story bible<br/>versions · results")]
   end
   IDX[["Entity index<br/>sqlite-vec · derived · rebuildable"]]
 
@@ -274,6 +356,8 @@ flowchart TB
   CAN -->|load as-of| CTX
   DIG -->|load| CTX
   LED -->|load| CTX
+  DB -->|facts assigned to the scene| CTX
+  CTX -->|chapter_version · fact_usage · results| DB
 ```
 
 ### Reading it
@@ -312,11 +396,49 @@ loads selected entities in ranking order and stops at the cap; a call that would
 is stopped and traced, never silently truncated (see the budget guardrail in
 [`verification.md`](./verification.md#guardrails--a-structural--t-behavioural)).
 
+**The authoritative database is a source, and it is not the index.** It holds what must
+be exact and must survive: the brief and its facts, the story bible, the chronology, every
+version of every chapter, the forbidden-term lists, and every validator and policy result.
+It is never rebuilt from anything; the entity index may be rebuilt from it and from the
+file stores. See [Authoritative database](#authoritative-database).
+
 **Selection is not reproducible; loading is.** Two runs of `select_entities` over the same
 stores may rank differently. This is accepted and registered in
 [`verification.md`](./verification.md#accepted-risks-u-register), and it is why the
 selected identifiers are written to the trace: what entered a context is always
 recoverable, even when why it was chosen is not.
+
+### Authoritative database
+
+One SQLite database per installation, at the path in `HARNESS_DB` (default
+`data/harness.sqlite`, git-ignored), **beside** the derived index under `.index/` and never
+confused with it. It has its own numbered migrations, in per-block ranges so that parallel
+work never collides. Every table is keyed by `novel_id`, and one repository class in
+`backend/app/bible/` is the only code that touches it; every write names the role
+performing it, as Figure 3 requires.
+
+| Table | Holds | Written by |
+|---|---|---|
+| `novel` | One row per gift novel | interviewer |
+| `brief` | The validated brief, as its JSON document | interviewer |
+| `fact` | `key`, `value`, `kind`, `source ∈ {interview, free_text, planner}`, `mandatory` | interviewer (interview, free_text) · planner (planner) · `change_fact` (value) |
+| `fact_usage` | `fact_id`, `chapter`, `scene`: one row per scene that uses a fact | canoniser, at scene acceptance |
+| `character` | `name`, `role`, `birth_date`, `description` | planner |
+| `place` | `name`, `description` | planner |
+| `chronology_event` | `seq`, `story_date`, `chapter`, `scene`, `place_id`, `description`, `kind ∈ {normal, death, departure}` | canoniser, projected from accepted scenes |
+| `event_participant` | `event_id`, `character_id` | canoniser |
+| `novel_version` | `version`, `parent_version`, `status ∈ {draft, published, blocked}`, `changed_chapters`, `note` | orchestrator |
+| `chapter_version` | `version`, `chapter`, `title`, `text`, `hash`, `summary` | writer · editor (style pass) |
+| `checkpoint` | `version`, `chapter`, `status` | orchestrator |
+| `forbidden_term` | `scope ∈ {global, novel}`, `term` | a human (global, by migration) · interviewer (novel: vetoed topics) |
+| `policy_decision` | Each guardrail decision with its matched term, scope and outcome | editor (auditor half) |
+| `validator_result` | Each validator run: name, point, passed, score, evidence, explanation | editor (auditor half) · judge |
+
+Versions are rows and are never overwritten: `chapter_version` rows are inserted, never
+updated, and a regeneration copies the unchanged ones into the new version. The prose of the
+gift novel lives here and nowhere else (the legacy file stores are not written by this
+pipeline). The orchestrator is not a model-backed role: it writes only the run's
+bookkeeping (`novel_version`, `checkpoint`) and holds no permission over content.
 
 ---
 
@@ -338,6 +460,7 @@ flowchart TB
     direction LR
     D["dossier(pov, at=T)<br/>trimmed to knowledge in force"]
     J["Literal tail<br/>previous 500 words"]
+    BF["Brief facts assigned<br/>to the scene, as data"]
   end
 
   subgraph SELECTED["Loaded from the selection — in ranking order, up to the cap"]
@@ -394,6 +517,12 @@ approaching, so the writer *can* collect one if the scene affords it. It does no
 the writer to collect a specific one, because a payoff forced into an unsuitable scene
 reads worse than a late payoff.
 
+**Brief facts enter by identifier, as data.** The planner assigns facts to scenes; the
+facts assigned to this scene are loaded from the authoritative database and delimited as
+data, never as instruction, because some of them come from text the person ordering pasted
+(`source: free_text`). They are offered to be rendered naturally, not listed: a fact
+dropped into the prose as a checklist item fails the judge's personalisation criterion.
+
 **The literal tail is the only verbatim prose in the context.** Everything else about the
 manuscript arrives as summary. This is the compromise between tonal continuity and context
 budget, and 500 words is roughly where it stops paying.
@@ -406,11 +535,17 @@ budget, and 500 words is roughly where it stops paying.
 flowchart LR
   subgraph AG["Agents"]
     direction TB
-    WB["World<br/>builder"]
-    ARC["Architect"]
+    IV["Interviewer"]
+    subgraph PL["Planner"]
+      WB["World<br/>builder"]
+      ARC["Architect"]
+    end
     WR["Writer"]
-    ST["Style<br/>editor"]
-    AU["Auditor"]
+    subgraph ED["Editor"]
+      ST["Style<br/>editor"]
+      AU["Auditor"]
+    end
+    JU["Judge"]
     CN["Canoniser"]
   end
 
@@ -420,15 +555,26 @@ flowchart LR
     STRUCT[("structure/ · scenes/")]
     MS[("manuscript/")]
     LEDGER[("ledger/")]
+    BRF[("db: brief · fact<br/>forbidden_term (novel)")]
+    BIB[("db: story bible<br/>character · place · fact (planner)<br/>fact_usage · chronology")]
+    CHV[("db: chapter_version")]
+    RES[("db: validator_result<br/>policy_decision")]
   end
 
+  IV ==> BRF
   WB ==> CANON
+  WB ==> BIB
   CN ==> CANON
+  CN ==> BIB
   ARC ==> STRUCT
   WR ==> MS
+  WR ==> CHV
   ST ==> MS
+  ST ==> CHV
   AU ==> LEDGER
+  AU ==> RES
   WR ==> LEDGER
+  JU ==> RES
 
   CANON -.-> ARC
   CANON -.-> WR
@@ -439,6 +585,15 @@ flowchart LR
   MS -.-> AU
   MS -.-> CN
   LEDGER -.-> CN
+  BRF -.-> ARC
+  BRF -.-> WR
+  BRF -.-> JU
+  BIB -.-> WR
+  BIB -.-> AU
+  BIB -.-> JU
+  CHV -.-> AU
+  CHV -.-> JU
+  CHV -.-> CN
 ```
 
 Thick edges are writes, dotted edges are reads.
@@ -446,11 +601,23 @@ Thick edges are writes, dotted edges are reads.
 | Agent | Signature | Canon | Structure | Prose | In | Out | Responsibility |
 |---|---|---|---|---|---|---|---|
 | Architect | `plan(canon, structure, intent) → scene records` | read | **write** | — | `canon/project.md` · `canon/axioms/` · `canon/factions/` · `canon/history/` · `canon/locations/` · `cast/{id}/dossier.md` · `ledger/setups.yaml` · `ledger/threads.yaml` | `structure/arcs.yaml` · `structure/chapters.yaml` · `scenes/NNN.yaml` | Scene records, tension curve, budgets |
-| World builder | `build(intent, structure) → canon records` | **write** | read | — | `canon/project.md` · `canon/` · `structure/` | `canon/axioms/*.md` · `canon/technology/*.md` · `canon/locations/*.md` · `canon/factions/*.md` · `canon/history/*.md` · `canon/lexicon.yaml` · `canon/time.yaml` | Axioms, technology, locations, lexicon |
-| Writer | `write(assembled_context) → Draft, ProposedFact[]`<br/>`revise(draft, Violation[]) → Draft` | read only | read | **write** | `assemble_context(scene)` (Figure 2): the fixed block (`canon/project.md` · `canon/style.md`), the POV's `cast/{id}/` as-of and the previous scene's tail, plus whatever `select_entities` ranked within the cap from `cast/` · `canon/` · `ledger/setups.yaml` · `manuscript/digests/`, the selected ids being recorded in the turn trace; on revision also `ledger/violations.yaml` | `manuscript/NNN.md` · `manuscript/digests/NNN.md` · `ledger/proposed.yaml` | One scene per turn, from assembled context |
-| Style editor | `polish(draft, style) → Draft` | read | — | **write** | `manuscript/NNN.md` · `canon/style.md` · `canon/lexicon.yaml` · `cast/{id}/voice.md` | `manuscript/NNN.md` | Voice, rhythm, metrics, forbidden tics |
-| Auditor | `audit(scene) → Violation[]` | read | read | read | `manuscript/NNN.md` · `scenes/NNN.yaml` · the turn's selected-entity list (the axioms it names are the ones in force for invariant 6) · `canon/axioms/` · `canon/time.yaml` · `canon/lexicon.yaml` · `cast/{id}/dossier.md` · `cast/{id}/knowledge.yaml` · `cast/{id}/changes.yaml` · `cast/relationships.yaml` · `ledger/timeline.yaml` | `ledger/violations.yaml` | Runs invariants, issues violations |
-| Canoniser | `promote(fact) → canon` | **write** | — | read | `ledger/proposed.yaml` · `manuscript/NNN.md` · `canon/` | `canon/` · `cast/` · `ledger/proposed.yaml` | Extracts what canon does not yet specify; promotes it add-only, never overwriting |
+| World builder | `build(intent, structure) → canon records` | **write** | read | — | `canon/project.md` · `canon/` · `structure/` | `canon/axioms/*.md` · `canon/technology/*.md` · `canon/locations/*.md` · `canon/factions/*.md` · `canon/history/*.md` · `canon/lexicon.yaml` · `canon/time.yaml` · db `character` · `place` · `fact` (source `planner`) | Axioms, technology, locations, lexicon; in the gift novel, its cast and places |
+| Writer | `write(assembled_context) → Draft, ProposedFact[]`<br/>`revise(draft, Violation[]) → Draft` | read only | read | **write** | `assemble_context(scene)` (Figure 2): the fixed block (`canon/project.md` · `canon/style.md`), the POV's `cast/{id}/` as-of and the previous scene's tail, plus whatever `select_entities` ranked within the cap from `cast/` · `canon/` · `ledger/setups.yaml` · `manuscript/digests/`, the selected ids being recorded in the turn trace; on revision also `ledger/violations.yaml` | `manuscript/NNN.md` · `manuscript/digests/NNN.md` · `ledger/proposed.yaml` · db `chapter_version` (gift novel) | One scene per turn, from assembled context |
+| Style editor | `polish(draft, style) → Draft` | read | — | **write** | `manuscript/NNN.md` · `canon/style.md` · `canon/lexicon.yaml` · `cast/{id}/voice.md` | `manuscript/NNN.md` · db `chapter_version` (gift novel) | Voice, rhythm, metrics, forbidden tics |
+| Auditor | `audit(scene) → Violation[]` | read | read | read | `manuscript/NNN.md` · `scenes/NNN.yaml` · the turn's selected-entity list (the axioms it names are the ones in force for invariant 6) · `canon/axioms/` · `canon/time.yaml` · `canon/lexicon.yaml` · `cast/{id}/dossier.md` · `cast/{id}/knowledge.yaml` · `cast/{id}/changes.yaml` · `cast/relationships.yaml` · `ledger/timeline.yaml` | `ledger/violations.yaml` · db `validator_result` · `policy_decision` | Runs invariants and the programmatic validators, issues violations, logs guardrail decisions |
+| Canoniser | `promote(fact) → canon` | **write** | — | read | `ledger/proposed.yaml` · `manuscript/NNN.md` · `canon/` | `canon/` · `cast/` · `ledger/proposed.yaml` · db `fact_usage` · `chronology_event` · `event_participant` | Extracts what canon does not yet specify; promotes it add-only, never overwriting; projects each accepted scene's fact usage and chronology |
+| Interviewer | `interview(answers, free_text) → Brief` | — | — | — | the person's answers · pasted free text, delimited as data · db `forbidden_term` (global) | db `novel` · `brief` · `fact` (source `interview`, `free_text`) · `forbidden_term` (scope `novel`, from vetoed topics) | Collects the brief, validates it, asks again on a missing field or a contradiction |
+| Judge | `judge(chapter \| novel, rubric) → ValidatorResult[]` | read | read | read | db `chapter_version` · `brief` · `fact` · story bible · the rubric | db `validator_result` | Scores the rubric with a justification per criterion; writes nothing else |
+
+The exam's six pipeline roles are **compositions of these permission rows**, not new
+permissions. The **planner** is the architect and the world builder invoked by a model: its
+canon and cast go out under the world builder's row, its chapter and scene plan (3 scenes per
+chapter by default, facts assigned to scenes, budgets) under the architect's. The **editor**
+is the style editor and the auditor: one pass per chapter polishes under the style editor's
+row and audits under the auditor's. The writer and the canoniser are unchanged. Only two
+rows are new: the **interviewer**, which writes the brief, and the **judge**, which writes
+validator results. The **orchestrator** is backend code, not a role: it holds no model and
+writes only the run's bookkeeping (`novel_version`, `checkpoint`).
 
 `In` and `Out` are a stricter statement than the permission columns: a store an agent is
 allowed to read is not necessarily in its context on a given turn. **Anything not listed
@@ -480,9 +647,11 @@ and from the canoniser during drafting. The writer, which is the agent generatin
 tokens and therefore the most opportunities for error, has none. It can *propose* facts by
 writing to `ledger/`; it cannot commit them. This single constraint is what prevents the
 prose from rewriting the world to justify itself, which is the failure that ends most
-long-form generation attempts.
+long-form generation attempts. The story bible in the authoritative database is canon
+too, and it has the same two writers: the world builder (as the planner) and the canoniser.
 
-**The auditor writes only to `ledger/`.** It cannot touch canon, structure or prose. Its
+**The auditor writes only to its reports** — `ledger/` and, in the gift novel, the
+validator results and policy decisions. It cannot touch canon, structure or prose. Its
 output is a report and nothing else: the decision about what to do with it belongs to a
 human or to the architect, so the auditor cannot act on its own findings.
 
@@ -509,6 +678,17 @@ context; `revise` is scoped to the flagged spans and must not regenerate the sce
 **The style editor reads canon and writes prose**, never the reverse: a voice decision
 taken there does not become a rule, which would have to go through the world builder.
 
+**Two new write edges, both narrow.** The interviewer is the only role that reads the
+free text the person pasted, and it can write only the brief and its facts: an injected
+instruction in that text can at worst become a wrong fact, which the brief validation and
+the person see, never a write to canon or prose. The judge reads everything a reader would
+and writes only its scores; it cannot repair a chapter, so a low score is a report routed to
+the editor, exactly as a violation is.
+
+**Validators and guardrails write as the auditor.** Programmatic validators and the
+forbidden-term policy are the auditor's mechanical checks, so their results and decisions
+land in the auditor's report tables and nowhere else.
+
 Roles are separations of permission, not necessarily separate processes. A small setup can
 run several of these as distinct prompts against the same model; what must not collapse is
 the permission boundary.
@@ -528,11 +708,12 @@ sequenceDiagram
   K-->>O: prompt trimmed to instant T
   O->>W: write the scene
   W-->>O: draft + facts it invented
-  O->>A: audit(draft, canon)
+  O->>A: audit(draft, canon) + scene_accept validators
+  Note over A: schema · forbidden terms (normalised)
 
-  alt blocking violations
+  alt blocking violations or a forbidden term
     A-->>O: report with evidence and severity
-    O->>W: revise only what was flagged
+    O->>W: revise only what was flagged (at most MAX_SCENE_RETRIES = 2)
     Note over W: the auditor never edits on its own
   else clean
     A-->>O: no violations
@@ -547,8 +728,15 @@ sequenceDiagram
 
 ### Reading it
 
-This is the loop that runs roughly two hundred times over a novel, so its cost and its
-failure behaviour dominate everything.
+This is the loop that runs roughly two hundred times over a long novel, and 30–50 times
+over a gift novel (10 chapters of 3–5 scenes), so its cost and its failure behaviour
+dominate everything. It is the inner step of [Figure 5](#figure-5--one-novel-generation).
+
+**Scene acceptance is bounded.** The `scene_accept` validators (role-output schema and the
+forbidden-term guardrail) run with the audit. A failure sends the scene back to the writer
+with the evidence, at most `MAX_SCENE_RETRIES = 2` times; when the retries are exhausted the
+generation stops with `STOPPED_ERROR` and the reason (`forbidden_word_limit`,
+`schema_limit`, `audit_limit`), and nothing is published.
 
 **Revision is scoped to what was flagged.** Handing the writer the full violation report
 and asking for a rewrite produces a different scene, usually a blander one. The
@@ -576,6 +764,70 @@ not look for that, and `reconcile()` is what names the already-written scenes th
 on the changed record. Building the harness without it is viable for a first draft and
 painful from the second onward.
 
+## Figure 5 — One novel generation
+
+```mermaid
+stateDiagram-v2
+  [*] --> CONFIGURED : brief validated
+  CONFIGURED --> PLANNED : planner writes story bible and chapter plan
+  PLANNED --> WRITING : c = first incomplete chapter
+  WRITING --> WRITING : next scene, Figure 4
+  WRITING --> EDITING : 3 scenes accepted
+  EDITING --> CLOSING : editor pass
+  CLOSING --> WRITING : chapter_close fails, rewrite the flagged scene
+  CLOSING --> CHECKPOINT : chapter_close passes
+  CHECKPOINT --> WRITING : c < N
+  CHECKPOINT --> PRE_PUBLISH : c = N
+  PRE_PUBLISH --> PUBLISHED : every validator passes
+  PRE_PUBLISH --> BLOCKED : a validator fails
+  BLOCKED --> PRE_PUBLISH : editor repairs, one round
+  WRITING --> STOPPED_ERROR : scene retries exhausted
+  CLOSING --> STOPPED_ERROR : chapter retries exhausted
+  BLOCKED --> STOPPED_ERROR : repair round already used
+  PUBLISHED --> [*]
+  STOPPED_ERROR --> [*]
+```
+
+### Reading it
+
+This is the flow the pipeline implements and the TLA+ model checks, state for state.
+
+**Configuration and planning happen once.** `CONFIGURED` means the brief passed its
+validation (see [`definitions.md`](./definitions.md#brief)). The planner then writes the
+story bible — cast, places, planner facts — and the plan: N chapters (10 by default), 3
+scenes each by default, every mandatory fact assigned to at least one scene.
+
+**A chapter is written, edited and closed.** Each scene goes through Figure 4, with its
+bounded scene retries. When the chapter's scenes are accepted, the editor makes one pass
+over the chapter (style and audit), and the `chapter_close` validators run: length of
+1,000–1,500 words, exact names, the judge's rubric, brief coverage so far. A failure goes
+back to the scene holding the evidence, is rewritten and re-edited, at most
+`MAX_CHAPTER_RETRIES = 2` times.
+
+**A checkpoint is written only for a closed chapter.** `CHECKPOINT(c)` records that
+chapter *c* is complete: scenes accepted, digest written, chapter-close validators passed.
+A run that stops or crashes **resumes at the first incomplete chapter**, keeping that
+chapter's accepted scenes; completed chapters are never rewritten and never lost.
+
+**Publication is gated.** `pre_publish` runs brief coverage over the whole novel, the Lean 4
+proof of the chronology, and the visual check of the reader through a browser MCP. If all
+pass, `publish_version` sets the version `published`. If one fails, the version is
+`BLOCKED` and the failures go back to the editor as feedback for **one repair round** of the
+chapters they name; a second failure ends the run in `STOPPED_ERROR`, leaving the version
+`blocked` and any earlier published version untouched. Every run ends in `PUBLISHED` or
+`STOPPED_ERROR`; there is no third ending.
+
+**A regeneration is the same flow on fewer chapters.** `change_fact` creates a new version,
+copies the unchanged chapters, and enters `WRITING` only for the chapters that use the
+changed fact; from there the flow is identical, including `pre_publish`.
+
+**Validators run at named hook points.** The pipeline calls `before_scene_accept`,
+`before_chapter_close` and `before_publish`; each runs every validator registered for its
+point and records the result. Two Claude Code hooks in `.claude/settings.json` call the same
+code when a person or an agent edits a chapter by hand: one runs the chapter validators, one
+runs the forbidden-term policy. One implementation, two triggers. The registry is in
+[`verification.md`](./verification.md#validator-registry-and-execution-points).
+
 ---
 
 ## Storage layout
@@ -586,7 +838,7 @@ prose for what the model must feel. Stable identifiers are mandatory, because re
 breaks the graph.
 
 ```
-CLAUDE.md                     protocol, invariants, per-role permissions
+CLAUDE.md                     entry point for Claude Code; rules in AGENTS.md
 canon/
   project.md                  premise, thesis, genre contract
   style.md                    style bible + canonical samples
@@ -618,9 +870,15 @@ ledger/
   violations.yaml             auditor reports
 ```
 
-`CLAUDE.md` is where the turn protocol and the permission table live, since it is the file
-every agent sees. The invariants themselves are stated in `definitions.md` and referenced
-from there.
+The turn protocol and the permission table live in this document and are enforced in
+`backend/`; `CLAUDE.md` points at them through `AGENTS.md`. The invariants themselves are
+stated in `definitions.md` and referenced from there.
+
+The gift-novel pipeline adds one store beside the tree: the
+[authoritative database](#authoritative-database) at `HARNESS_DB` (default
+`data/harness.sqlite`), which holds the brief, the story bible, the chronology, every
+chapter version and every validator and policy result. It is governed by Figure 3 like the
+tree, and it is not under `.index/`.
 
 Next to the tree, and excluded from version control, sits `.index/`: the entity index,
 the embedding-model cache, and the backend's operational records, one file per writing turn
@@ -638,7 +896,7 @@ to Langfuse.
 ## Repository and application stack
 
 The harness state described above (`canon/`, `structure/`, `scenes/`, `manuscript/`,
-`ledger/`) is the source of truth. The application that serves and edits it lives in a
+`ledger/`, and the authoritative database) is the source of truth. The application that serves and edits it lives in a
 single **monorepo**, split into two top-level folders:
 
 ```
@@ -650,9 +908,26 @@ frontend/    React · three.js
 writes the harness stores — canon, structure, scenes, manuscript, ledger — so the
 permission boundaries in Figure 3 are enforced at this layer, not in the client.
 
-**`frontend/`** is a React application, with three.js for any 3D or spatial
-visualisation (e.g. navigating locations, the entity graph, or the timeline). It talks to
-`backend/` over its API and holds no direct access to the stores.
+**`frontend/`** is a React application whose **first purpose is the reader** (below).
+three.js remains for secondary 3D or spatial views (locations, the entity graph, the
+timeline). It talks to `backend/` over its API and holds no direct access to the stores.
+
+### The reader
+
+The recipient reads the novel in the web reader first; a PDF is exported from the backend.
+
+- **Cover** with the brief's personalised dedication.
+- **Chapter index**, navigable, with the chapters changed in the latest version marked.
+- **Character and place sheets** read from the story bible, each linking to the chapters
+  that use it, derived from fact usage per scene.
+- **Change request**: the reader selects a fragment or a fact on the page and states the
+  change; the backend runs `change_fact` and publishes a new version, keeping the previous.
+- **Changed-chapter marks**: a chapter is marked when its text hash differs from the parent
+  version's.
+- **PDF export** of the published version, with a "novedades" page listing what changed
+  since the parent version.
+
+The reader always shows the latest published version, never a draft or a blocked one.
 
 This split is a repository and deployment decision, orthogonal to the agent/store model
 above: agents still read and write through the stores in `Storage layout`, and
@@ -685,6 +960,7 @@ backend/
       permissions/            agent roles, the permission check itself
       schemas/                shared Pydantic models and JSON Schemas
       db/                     SQLite connection, migrations, FTS5 + vector setup
+      observability/          Langfuse observer (or a no-op), spans, scores, prompt versions
       errors/                 error types and the exception handlers
       config.py
     canon/                    one feature =…
@@ -698,6 +974,9 @@ backend/
     manuscript/
     ledger/
     agents/
+    bible/                    the authoritative database: migrations and its one repository
+    novel/                    the gift-novel pipeline (Figure 5) and its CLI
+    validators/               the validator registry and its execution points
   tests/                      cross-feature and end-to-end tests only
 ```
 
