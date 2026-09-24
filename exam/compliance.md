@@ -4,7 +4,7 @@ Generado por `python exam/check.py` a partir de `exam/requirements.toml`. No se 
 
 Las comprobaciones son heurísticas: ✅ dice que el artefacto existe, no que sea bueno.
 
-**Obligatorios comprobables cumplidos: 69 de 72.**
+**Obligatorios comprobables cumplidos: 68 de 72.**
 
 Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ existe, revisar a mano
 
@@ -12,7 +12,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 
 | Bloque | ✅ | 🟡 | ❌ | 📝 |
 |---|---|---|---|---|
-| Entregables | 4 | 0 | 1 | 3 |
+| Entregables | 3 | 0 | 2 | 3 |
 | Presentación | 4 | 0 | 1 | 0 |
 | Claude Code | 6 | 0 | 0 | 0 |
 | 1. Configuración | 4 | 0 | 0 | 0 |
@@ -27,7 +27,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 | 6. Observabilidad | 3 | 0 | 0 | 0 |
 | 7. Guardrails | 5 | 0 | 0 | 1 |
 | Docs de proceso | 6 | 0 | 0 | 0 |
-| Opcionales | 2 | 0 | 2 | 0 |
+| Opcionales | 4 | 0 | 0 | 0 |
 
 ## Entregables
 
@@ -36,7 +36,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 | E01 | ✅ | README.md en la raíz del repo | ✓ exists: README.md |
 | E02 | ✅ | Brief de ejemplo reproducible, citado desde el README (provisional: ejemplos/brief-ejemplo.json) | ✓ 1 file(s) for ejemplos/brief-ejemplo.* (need 1)<br>✓ /brief-ejemplo/ in README.md |
 | E03 | ✅ | .env.example versionado | ✓ exists: .env.example |
-| E04 | ✅ | Sin API keys ni tokens en ningún fichero versionado | ✓ no match in tracked files |
+| E04 | ❌ | Sin API keys ni tokens en ningún fichero versionado | ✗ matches in security/hooks_probe.sh |
 | E05 | ❌ | Novela de ejemplo completa de 10 capítulos en PDF | ✗ missing: ejemplos/novela-ejemplo.pdf |
 | E06 | 📝✅ | CLAUDE.md en la raíz, cuidado y legible (se puntúa) | ✓ exists: CLAUDE.md |
 | E07 | 📝 | Repositorio MyFactory: commit final enlazado | — |
@@ -59,15 +59,15 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 | K01 | ✅ | Comandos personalizados versionados en .claude/commands/ | ✓ 4 file(s) for .claude/commands/*.md (need 1) |
 | K02 | ✅ | Ficheros de memoria versionados en .claude/ (provisional: .claude/memory/) | ✓ 2 file(s) for .claude/memory/*.md (need 1) |
 | K03 | ✅ | Configuración MCP con un servidor de inspección de navegador | ✓ /(?i)(playwright\|chrome)/ in .mcp.json |
-| K04 | ✅ | Skills del desarrollo en el repo y referenciadas desde /docs | ✓ 5 file(s) for .claude/skills/*/SKILL.md (need 1)<br>✓ /\.claude/skills/ in docs/process/README.md (+2) |
+| K04 | ✅ | Skills del desarrollo en el repo y referenciadas desde /docs | ✓ 6 file(s) for .claude/skills/*/SKILL.md (need 1)<br>✓ /\.claude/skills/ in docs/process/README.md (+3) |
 | K05 | ✅ | Subagentes y comandos propios documentados en /docs con propósito y resultado | ✓ /(?i)(subagent\|\.claude/commands\|\.claude/agents)/ in docs/process/README.md (+4) |
-| K06 | ✅ | Uso real del browser MCP documentado: qué inspeccionó, qué detectó, qué cambió | ✓ /(?i)(playwright mcp\|browser mcp\|chrome mcp)/ in docs/architecture.md (+9) |
+| K06 | ✅ | Uso real del browser MCP documentado: qué inspeccionó, qué detectó, qué cambió | ✓ /(?i)(playwright mcp\|browser mcp\|chrome mcp)/ in docs/architecture.md (+10) |
 
 ## 1. Configuración
 
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
-| C01 | ✅ | Agente entrevistador: nombre, edad, rasgos, recuerdos, género, tono, extensión y temas vetados | ✓ /(?i)interview/ in backend/app/bible/models.py (+22) |
+| C01 | ✅ | Agente entrevistador: nombre, edad, rasgos, recuerdos, género, tono, extensión y temas vetados | ✓ /(?i)interview/ in backend/app/auth/tests/test_auth.py (+24) |
 | C02 | ✅ | Brief estructurado y validado con schema | ✓ 1 file(s) for backend/schemas/brief*.json (need 1) |
 | C03 | ✅ | Detecta datos que faltan y al menos un tipo de contradicción (edad frente a género o tono) | ✓ /(?i)contradict/ in backend/app/interview/brief.py (+4) |
 | C04 | ✅ | Texto libre pegado por el usuario tratado como no confiable, con hechos extraídos | ✓ /(?i)untrusted/ in backend/app/interview/__init__.py (+8) |
@@ -76,7 +76,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
-| R01 | ✅ | Lector web (frontend) o PDF interactivo | ✓ 36 file(s) for frontend/src/**/*.tsx \| backend/app/**/pdf*.py \| backend/app/**/export*.py (need 1) |
+| R01 | ✅ | Lector web (frontend) o PDF interactivo | ✓ 39 file(s) for frontend/src/**/*.tsx \| backend/app/**/pdf*.py \| backend/app/**/export*.py (need 1) |
 | R02 | ✅ | Índice de capítulos navegable | ✓ /(?i)(table.?of.?contents\|\btoc\b\|índice)/ in backend/app/export/pdf.py (+12) |
 | R03 | ✅ | Ficha de personajes y lugares desde la story bible, con enlaces al capítulo donde aparecen | ✓ /(?i)(character.?sheet\|ficha\|glossary\|dramatis)/ in backend/app/export/pdf.py (+5) |
 | R04 | ✅ | Portada con dedicatoria personalizada | ✓ /(?i)dedicat/ in backend/app/bible/__init__.py (+17) |
@@ -89,7 +89,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
 | H01 | 🟡 | Tres roles como mínimo (planner, writer, editor/critic) invocados por un orquestador | ✗ /(?i)def plan(_(novel\|chapters?\|scenes\|structure\|story))?\(/ found 0x in backend/app/agents/**/*.py (need 1)<br>✓ /(?i)def write\w*\(/ in backend/app/agents/roles/writer.py (+4)<br>✓ /(?i)def (critique\|audit\|edit\|polish\|judge)\w*\(/ in backend/app/agents/roles/auditor.py (+4) |
-| H02 | 📝✅ | Una skill reutilizable propia del harness | ✓ 5 file(s) for .claude/skills/*/SKILL.md (need 1) |
+| H02 | 📝✅ | Una skill reutilizable propia del harness | ✓ 6 file(s) for .claude/skills/*/SKILL.md (need 1) |
 | H03 | ✅ | Hook de validación de capítulo | ✓ /(?i)chapter/ in .claude/hooks/README.md (+5) |
 | H04 | ✅ | Hook de policy | ✓ /(?i)policy/ in .claude/hooks/README.md (+4) |
 | H05 | ✅ | Tools con schema validado | ✓ /(?i)(def toolset_for\|tool_schema\|input_schema)/ in backend/app/commons/permissions/toolsets.py (+5) |
@@ -153,8 +153,8 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
-| O01 | ✅ | Una traza por generación, una sesión por novela (entrevista y regeneraciones incluidas) | ✓ /(?i)session_id/ in backend/app/bible/models.py (+14) |
-| O02 | ✅ | Span con nombre por rol y por tool; tokens, coste y latencia por llamada, capítulo y novela | ✓ /(?i)langfuse/ in backend/app/bible/repository.py (+18) |
+| O01 | ✅ | Una traza por generación, una sesión por novela (entrevista y regeneraciones incluidas) | ✓ /(?i)session_id/ in backend/app/auth/tests/test_auth.py (+15) |
+| O02 | ✅ | Span con nombre por rol y por tool; tokens, coste y latencia por llamada, capítulo y novela | ✓ /(?i)langfuse/ in backend/app/bible/repository.py (+19) |
 | O03 | ✅ | Prompts versionados en Langfuse | ✓ /(?i)get_prompt/ in backend/app/commons/observability/langfuse_observer.py (+1) |
 
 ## 7. Guardrails
@@ -175,7 +175,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 | D01 | ✅ | Spec inicial: qué se decidió construir y por qué, antes del código | ✓ 3 file(s) for docs/process/spec-inicial*.md \| specs/001-*/001-*.md (need 1) |
 | D02 | ✅ | Trade-offs: cada decisión relevante con opciones, criterios y elección | ✓ 1 file(s) for docs/process/trade-offs*.md \| docs/process/adr/*.md (need 1) |
 | D03 | ✅ | Explainers: uno por concepto del curso aplicado en el proyecto | ✓ 21 file(s) for docs/process/explainers/*.md (need 3) |
-| D04 | ✅ | Diagramas: arquitectura del harness, máquina de estados TLA+, esquema SQLite, tabla de validadores | ✓ /flowchart/ in docs/architecture.md (+3)<br>✓ /stateDiagram/ in docs/process/README.md (+2)<br>✓ /erDiagram/ in docs/process/README.md (+1)<br>✓ /(?i)validator/ in docs/process/diagramas.md (+8) |
+| D04 | ✅ | Diagramas: arquitectura del harness, máquina de estados TLA+, esquema SQLite, tabla de validadores | ✓ /flowchart/ in docs/architecture.md (+4)<br>✓ /stateDiagram/ in docs/process/README.md (+2)<br>✓ /erDiagram/ in docs/process/README.md (+1)<br>✓ /(?i)validator/ in docs/process/diagramas.md (+8) |
 | D05 | ✅ | Registro de iteraciones: qué cambió tras cada eval, contraejemplo TLC o fallo Lean, y por qué | ✓ 1 file(s) for docs/process/iteraciones*.md \| docs/process/iterations*.md (need 1) |
 | D06 | ✅ | Red-team log: casos adversariales, qué validador los detectó y cómo se resolvió | ✓ 1 file(s) for docs/process/red-team*.md (need 1) |
 
@@ -183,7 +183,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
-| X01 | ✅ | Servidor MCP de solo lectura (FastMCP) para consultar y descargar novelas *(opcional)* | ✓ /(?i)fastmcp/ in backend/app/mcp_server/server.py (+1) |
+| X01 | ✅ | Servidor MCP de solo lectura (FastMCP) para consultar y descargar novelas *(opcional)* | ✓ /(?i)fastmcp/ in backend/app/auth/tests/test_auth.py (+2) |
 | X02 | ✅ | Linters de prosa (repeticiones, frases largas, clichés de IA, consistencia de narrador) *(opcional)* | ✓ /(?i)(cliche\|readability\|repetition)/ in backend/app/ledger/audit/persist.py (+2) |
-| X03 | ❌ | Login con SQLite (hash bcrypt, JWT) y aislamiento de novelas por usuario *(opcional)* | ✗ /(?i)(bcrypt\|argon2)/ found 0x in backend/pyproject.toml (need 1) |
-| X04 | ❌ | Informe de seguridad en docs/security-report.md *(opcional)* | ✗ missing: docs/security-report.md |
+| X03 | ✅ | Login con SQLite (hash bcrypt, JWT) y aislamiento de novelas por usuario *(opcional)* | ✓ /(?i)(bcrypt\|argon2)/ in backend/pyproject.toml |
+| X04 | ✅ | Informe de seguridad en docs/security-report.md *(opcional)* | ✓ exists: docs/security-report.md |

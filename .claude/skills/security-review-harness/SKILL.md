@@ -54,7 +54,7 @@ summary of its output in the report's "Método" section.
 5. **Exfiltration between novels.** `cd backend && uv run python ../security/exfiltration_probe.py`.
    Two novels in a temp DB; every reader route, every tool and the MCP wrapper with hostile
    `novel_id`s and `query`s; a change job of another novel; a change aimed at the internal
-   `plan` fact; the MCP connection must refuse writes. Only `no-auth` (accepted, SEC-01) may
+   `plan` fact; the MCP connection must refuse writes. `no-auth` (SEC-01) was corrected by spec 018 (login); only an unauthenticated local run (AUTH_REQUIRED=0) may
    remain.
 6. **Hooks.** `bash security/hooks_probe.sh` — `.claude/hooks/policy_guard.py` must block
    `.env` writes, key-shaped values and direct writes to `harness.sqlite`, and allow code
