@@ -20,6 +20,7 @@ dependencies = [
     "sse-starlette==3.4.11",
     "langfuse==4.15.6",
     "reportlab==5.0.1",
+    "fastmcp==4.0.9",
 ]
 
 [dependency-groups]

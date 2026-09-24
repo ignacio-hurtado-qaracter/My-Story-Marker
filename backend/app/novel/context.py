@@ -11,10 +11,12 @@ from dataclasses import dataclass
 
 from pydantic import JsonValue
 
-from app.bible import Fact
+from app.bible import BibleRepository, Fact
 from app.commons.llm import Document
+from app.commons.observability import Observer
 from app.novel.models import NovelPlan, PlanScene
 from app.novel.plan_check import parse_iso
+from app.tools import GET_CHAPTER_SUMMARY, QUERY_STORY_BIBLE, ToolNotFoundError
 
 TAIL_WORDS = 250
 DEFAULT_WORDS_MIN = 1000
@@ -145,6 +147,72 @@ def summaries_document(summaries: Sequence[tuple[int, str]]) -> Document:
     return Document(path="manuscript/previous-summaries.txt", text=text)
 
 
+# --------------------------------------------------------------------------------------
+# Tool-backed context (spec 017, H05): the bible reaches the writer and the editor through
+# the validated read-only tools, each call a `tool:<name>` span.
+# --------------------------------------------------------------------------------------
+
+
+def summaries_via_tools(
+    repo: BibleRepository, novel_id: str, version: int, chapter: int, *, observer: Observer
+) -> list[tuple[int, str]]:
+    """`(chapter, summary)` of every earlier chapter of `version` that has a summary, read
+    with `get_chapter_summary`; a chapter not written yet is skipped."""
+    out: list[tuple[int, str]] = []
+    for number in range(1, chapter):
+        try:
+            got = GET_CHAPTER_SUMMARY.run(
+                repo,
+                {"novel_id": novel_id, "version": version, "chapter": number},
+                observer=observer,
+            )
+        except ToolNotFoundError:
+            continue
+        if got.summary:
+            out.append((number, got.summary))
+    return out
+
+
+def previous_summary_via_tool(
+    repo: BibleRepository, novel_id: str, version: int, chapter: int, *, observer: Observer
+) -> str:
+    """The summary of chapter `chapter - 1`, or the first-chapter marker."""
+    if chapter <= 1:
+        return "(es el primer capítulo)"
+    try:
+        got = GET_CHAPTER_SUMMARY.run(
+            repo,
+            {"novel_id": novel_id, "version": version, "chapter": chapter - 1},
+            observer=observer,
+        )
+    except ToolNotFoundError:
+        return "(es el primer capítulo)"
+    return got.summary
+
+
+def character_sheet_document(
+    repo: BibleRepository, novel_id: str, *, observer: Observer
+) -> Document:
+    """The character sheet, read with `query_story_bible(kind="characters")`."""
+    got = QUERY_STORY_BIBLE.run(
+        repo, {"novel_id": novel_id, "kind": "characters"}, observer=observer
+    )
+    lines = [
+        " | ".join(
+            part
+            for part in (
+                c.name,
+                f"rol: {c.role}" if c.role else "",
+                f"nacimiento: {c.birth_date}" if c.birth_date else "",
+                c.description,
+            )
+            if part
+        )
+        for c in got.characters
+    ]
+    return Document(path="bible/characters.txt", text="\n".join(lines) or "(sin personajes)")
+
+
 def tail(text: str, words: int = TAIL_WORDS) -> str:
     parts = text.split()
     return " ".join(parts[-words:])
@@ -187,14 +255,17 @@ __all__ = [
     "brief_lengths",
     "brief_summary_document",
     "chapter_plan_document",
+    "character_sheet_document",
     "exact_names",
     "facts_document",
     "forbidden_document",
     "names_document",
     "parse_iso",
     "previous_scene_tail",
+    "previous_summary_via_tool",
     "recipient_name",
     "summaries_document",
+    "summaries_via_tools",
     "synopsis_document",
     "tail",
     "text_document",

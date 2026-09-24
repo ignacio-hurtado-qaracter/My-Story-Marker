@@ -358,14 +358,6 @@ def record_plan_usage(run: Run, plan: NovelPlan, version: int) -> None:
 # --------------------------------------------------------------------------------------
 
 
-def _summaries_before(run: Run, version: int, chapter: int) -> list[tuple[int, str]]:
-    return [
-        (c.chapter, c.summary)
-        for c in run.repo.list_chapters(run.novel_id, version)
-        if c.chapter < chapter and c.summary
-    ]
-
-
 def _previous_chapter(run: Run, version: int, chapter: int) -> ChapterVersion | None:
     return run.repo.get_chapter(run.novel_id, version, chapter - 1) if chapter > 1 else None
 
@@ -382,7 +374,10 @@ def write_scene(run: Run, version: int, chapter: int, scene: int, written: dict[
     base_docs = [
         cx.brief_summary_document(run.brief),
         cx.synopsis_document(plan),
-        cx.summaries_document(_summaries_before(run, version, chapter)),
+        cx.summaries_document(
+            cx.summaries_via_tools(run.repo, run.novel_id, version, chapter, observer=run.observer)
+        ),
+        cx.character_sheet_document(run.repo, run.novel_id, observer=run.observer),
         cx.chapter_plan_document(plan, chapter, facts),
         cx.text_document("manuscript/previous-tail.txt", tail or "(inicio de la novela)"),
         cx.forbidden_document(run.forbidden()),
@@ -425,13 +420,15 @@ def _clean(text: str) -> str:
 
 def _editor_docs(run: Run, version: int, chapter: int) -> list[Document]:
     plan = run.require_plan()
-    previous = _previous_chapter(run, version, chapter)
     return [
         cx.brief_summary_document(run.brief),
         cx.chapter_plan_document(plan, chapter, run.facts()),
+        cx.character_sheet_document(run.repo, run.novel_id, observer=run.observer),
         cx.text_document(
             "manuscript/previous-chapter-summary.txt",
-            previous.summary if previous else "(es el primer capítulo)",
+            cx.previous_summary_via_tool(
+                run.repo, run.novel_id, version, chapter, observer=run.observer
+            ),
         ),
         cx.forbidden_document(run.forbidden()),
         cx.names_document(run.names()),
