@@ -68,7 +68,11 @@ invariant.
   git-ignored) defines `def story : Story`, one theorem per invariant proved `by decide`
   (`story_temporalOrder`, `story_agesCoherent`, `story_noBilocation`, `story_noAfterExit`)
   and `story_ok : validStory story = true`. A false invariant makes `decide` fail, so
-  `lake build` fails and the error names the theorem.
+  `lake build` fails and the error names the theorem. *Clarified in implementation:* the
+  proofs use `decide +kernel` (plain `decide` hits `maxRecDepth` past ~100 events); the
+  exporter lists events by `seq` (duplicate `seq` is rejected) so `temporalOrder` checks
+  adjacent pairs, lifted to all pairs by a proof; each event carries a precomputed `day`
+  that Lean re-checks against its date (`datesConsistent`).
 - **Identifiers.** Ids and names are never spliced as Lean identifiers: ids become
   `String` literals escaped by the exporter; names appear only in escaped string
   literals. The module name is fixed, so a hostile `novel_id` cannot change the file path.
