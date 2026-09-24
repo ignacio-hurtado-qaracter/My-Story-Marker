@@ -1,4 +1,4 @@
-# Punto de situación · sesión "Examen final storyMaker" · 2026-09-23
+# Punto de situación · sesión "Examen final storyMaker" · actualizado 2026-09-24
 
 Documento de trabajo para retomar desde otro dispositivo. **No forma parte de `docs/`** ni
 del diseño: es un traspaso de contexto. Recoge dónde estamos, qué se habló y decidió en la
@@ -18,9 +18,9 @@ sesión, las respuestas que se dieron y el enunciado completo del examen.
 
 2. Abre Claude Code en esa carpeta y empieza con este mensaje:
 
-   > Lee `ignore.md` y todos los ficheros de `.claude/memory/`. Después lee
-   > `exam/process-0/round-1-rescope.md` y `round-2-rescope.md`, ejecuta
-   > `python exam/check.py` y dime qué queda abierto antes de redactar la spec 003.
+   > Lee `ignore.md` y todos los ficheros de `.claude/memory/`. Después lee las tres rondas
+   > de `exam/process-0/`, ejecuta `python exam/check.py` y dime qué queda abierto antes de
+   > redactar la spec 004.
 
 3. La memoria automática de Claude Code **no viaja**: vive en el perfil de usuario de cada
    máquina. Por eso hay una copia curada en `.claude/memory/`, que Claude no carga solo;
@@ -45,9 +45,9 @@ El enunciado del examen llegó con la spec 001 del backend a medio implementar. 
 qué falta frente al enunciado y se montó un espacio de trabajo paralelo (worktree
 `My-Story-Marker-docs`, rama `exam/rescope`) para refactorizar documentación y todo lo que
 no es código sin pisar a la sesión del backend. Ya existe un comprobador automático de
-cumplimiento, el andamiaje de entregables y dos rondas del Proceso 0 respondidas. **El
-siguiente paso es cerrar seis preguntas transversales y redactar la spec 003**, la spec
-general de brechas y hoja de ruta por bloques.
+cumplimiento, el andamiaje de entregables y tres rondas del Proceso 0. **El siguiente paso
+es contestar la ronda 3 (preguntas 2, 10, 26, 29, 30 y 31) y redactar la spec 004**, que
+confronta lo que dice `docs/` con el enunciado del examen.
 
 ---
 
@@ -58,8 +58,8 @@ general de brechas y hoja de ruta por bloques.
 | Rama | Qué es | Quién trabaja |
 |---|---|---|
 | `main` | El proyecto anterior (Story Creator: tres agentes, cuatro novelas, web estática). Sin ancestro común con las ramas nuevas | Nadie; se conservará con un tag `legacy-story-creator` |
-| `spec/001-backend` | Backend de la spec 001 (pasos 1-16 hechos) y spec 002 de frontend aprobada | Sesiones del backend y del frontend |
-| `spec/002-frontend-foundation` | Plan 002 del frontend en borrador | Sesión del frontend |
+| `spec/001-backend` | Backend de la spec 001, spec 002 de frontend y, desde el 2026-09-24, spec 003 de rediseño visual del frontend | Sesiones del backend y del frontend |
+| `spec/002-frontend-foundation` | Plan 002 del frontend | Sesión del frontend |
 | `exam/rescope` | Esta rama: reencuadre para el examen | Esta sesión |
 
 ### Carpetas en la máquina original
@@ -84,6 +84,7 @@ git diff --stat spec/001-backend...exam/rescope
 | `exam/compliance.md` | Informe generado: 12 de 72 obligatorios comprobables cumplidos |
 | `exam/process-0/round-1-rescope.md` | Ronda 1 del Proceso 0, con respuestas |
 | `exam/process-0/round-2-rescope.md` | Ronda 2 del Proceso 0, con respuestas |
+| `exam/process-0/round-3-rescope.md` | Ronda 3: la spec pasa a 004 y se centra en confrontar `docs/` con el enunciado |
 | `.claude/commands/exam-gap.md` | Comando `/exam-gap`: regenera el informe y propone el siguiente bloque |
 | `.claude/memory/` | Copia curada de la memoria de Claude Code |
 | `.mcp.json` | Servidor Playwright MCP fijado a 0.0.82, para inspección visual |
@@ -119,6 +120,12 @@ git diff --stat spec/001-backend...exam/rescope
 11. **Nuevo enfoque del usuario:** spec general de brechas y hoja de ruta, y una spec por
     bloque.
 12. **Publicación** de `exam/rescope` en GitHub, copia de la memoria y este documento.
+13. **2026-09-24.** La sesión del frontend toma la spec 003 (rediseño visual). A las 09:12
+    UTC alguien, probablemente el usuario para ver la interfaz antigua, hizo `checkout` de
+    `main` en la carpeta del worktree. No se perdió nada; la carpeta volvió a
+    `exam/rescope` y la protección local ahora bloquea cualquier cambio de rama allí.
+14. **Reenfoque del usuario:** la spec pasa a ser la **004** y se centra en **confrontar
+    `docs/` con el enunciado**. Ronda 3 del Proceso 0.
 
 ---
 
@@ -131,7 +138,8 @@ git diff --stat spec/001-backend...exam/rescope
 | 7 | Un capítulo tiene **varias escenas** (se rechazó la correspondencia 1:1) | 1 |
 | 8 | Roles: **entrevistador** nuevo (escribe solo el brief), **planner** = architect invocado por modelo (escribe bajo world builder y architect, sin ampliar permisos), **writer**, **editor** = style editor + auditor, **juez** de solo lectura que escribe solo resultados | 1 |
 | 9 | **Lector web en React** con cambio desde la página, y **exportación a PDF** desde el backend | 1 |
-| 4 | Las specs de esta rama empiezan en **003** y siempre toman el siguiente número libre | 2 |
+| 4 | Las specs de esta rama toman siempre el siguiente número libre. La 003 es del frontend, así que la primera de esta rama es la **004** | 2, 3 |
+| 1 | Intención: la spec 004 **confronta `docs/` con el enunciado** requisito a requisito, decide cómo resolver cada contradicción o ausencia y lista las ediciones de `docs/`. Los huecos solo de código van a las specs de bloque | 3 |
 | 20 | **Entre 4 y 7 escenas por capítulo** | 2 |
 | 21 | Validadores en dos puntos: **al aceptar cada escena** (auditoría mecánica, palabras prohibidas, schema) y **al cerrar el capítulo** (longitud, nombres exactos, cobertura del brief, juez). Un fallo de capítulo vuelve a la escena con la evidencia | 2 |
 | 22 | Un capítulo está completo cuando sus escenas están aceptadas, su resumen escrito y sus validadores de cierre pasan. Se reanuda en el primer capítulo incompleto conservando sus escenas aceptadas. En TLA+, capítulos con las escenas como contador | 2 |
@@ -149,16 +157,22 @@ coste y la latencia por novela crecen con el número de turnos.
 
 ## 5. Lo que queda abierto
 
-### Para cerrar la spec 003 (transversales)
+### Para cerrar la spec 004 (ronda 3)
+
+La ronda 3 trae además un adelanto con once contradicciones y ausencias ya localizadas
+entre `docs/` y el enunciado.
 
 | # | Pregunta | Recomendación |
 |---|---|---|
-| 1 | Intención: cumplir el enunciado reencuadrando `docs/` y reutilizando la spec 001 | Sí, sin reescribir desde cero |
 | 2 | Fuera de alcance: pagos, cuentas, impresión, ilustraciones, audio, despliegue; opcionales al final | Sí; el primer opcional, el servidor MCP de solo lectura |
-| 3 | Ramas: `exam/rescope` recibe merges de las otras en un solo sentido; `main` nuevo al final; tag `legacy-story-creator` | Sí; mover `main` solo con confirmación en ese momento |
 | 10 | Idioma: novela, README y presentación en español; `docs/`, specs y código en inglés; `EMBED_MODEL` multilingüe antes del primer `rebuild()` real | Sí |
 | 26 | Los hechos del brief tienen su autoridad en SQLite; los ficheros del planner citan su id; un cambio actualiza el hecho y el rol dueño reescribe el fichero | Sí |
-| 28 | Esta sesión redacta las specs del lector (portada, fichas, cambio, marcado); la sesión del frontend las implementa sobre la spec 002 | Sí |
+| 29 | Forma: una tabla por bloque del enunciado; por requisito, qué dice `docs/`, veredicto (cubierto, parcial, contradice, ausente, solo código), resolución y doc a editar. Ids iguales a los de `exam/requirements.toml` | Sí |
+| 30 | Alcance: confrontación, decisiones y lista de ediciones de `docs/`, cumplida con los commits `docs:` tras aprobarla; el código va a las specs de bloque | (a) |
+| 31 | ¿Es ese el tipo de confrontación que esperas? | Sí, con todas las filas del enunciado |
+
+**Salen de la spec 004:** la 3 (ramas) es logística y se sigue aplicando como regla de
+trabajo; la 28 (quién redacta las specs del lector) pasa a la spec del bloque de lectura.
 
 ### Datos que solo tiene el usuario
 
@@ -174,12 +188,13 @@ copió a `.claude/memory/`). Sus recomendaciones están en la ronda 1.
 
 ### Próximos pasos
 
-1. Responder 1, 2, 3, 10, 26 y 28.
+1. Responder la ronda 3: 2, 10, 26, 29, 30 y 31.
 2. Redactar el **resumen de entendimiento compartido** y confirmarlo.
-3. Redactar la **spec 003**, "brechas y hoja de ruta por bloques", en
-   `specs/003-<slug>/003-<slug>.md`. Sus criterios cubren el reencuadre de `docs/`.
-4. Tras aprobarla, los commits `docs:` del reencuadre.
-5. Una spec por bloque, de la 004 en adelante, cada una con su Proceso 0 corto.
+3. Redactar la **spec 004**, la confrontación de `docs/` con el enunciado, en
+   `specs/004-<slug>/004-<slug>.md`.
+4. Tras aprobarla, los commits `docs:` que resuelven cada contradicción y ausencia.
+5. Una spec por bloque para el código, con el siguiente número libre, cada una con su
+   Proceso 0 corto.
 
 ---
 
@@ -223,12 +238,25 @@ razonamiento, que es lo que el examen corrige en `/docs`.
 **¿Está bien la idea de una spec general de brechas y una spec por bloque?** Sí, y mejora
 el plan:
 
-- La **spec 003** recoge lo que falta por bloques, las decisiones transversales y el orden de
-  los bloques con sus dependencias. Sus criterios de aceptación cubren el reencuadre de
-  `docs/`, porque `AGENTS.md` exige una spec antes de tocar invariantes, permisos o stores.
-- Cada **bloque** tiene después su spec (004 en adelante) con un Proceso 0 más corto.
+- La spec general recoge las decisiones transversales y sus criterios de aceptación cubren
+  el reencuadre de `docs/`, porque `AGENTS.md` exige una spec antes de tocar invariantes,
+  permisos o stores.
+- Cada **bloque** tiene después su spec con un Proceso 0 más corto.
 - Las preguntas de detalle (Langfuse, hooks, tools, formales, invariantes) pasan a su
-  bloque y ya no bloquean la 003.
+  bloque y ya no bloquean la spec general.
+
+*(Refinado el 2026-09-24: la spec general es la 004 y confronta `docs/` con el enunciado.
+Ver las dos preguntas siguientes.)*
+
+**¿El `checkout` de `main` en la carpeta del worktree afecta a GitHub?** No. Cambiar de
+rama es una operación local: no sube ni modifica nada en el remoto. `origin/exam/rescope` y
+`origin/main` siguen en los mismos commits.
+
+**¿La spec planeada confronta `docs/` con el enunciado?** Solo en parte: se había planteado
+como "qué le falta al sistema por bloques", mezclando huecos de documentación y de código.
+Se reenfocó: la spec 004 confronta cada requisito del enunciado con lo que dice `docs/`,
+decide cómo resolver cada contradicción o ausencia y lista las ediciones de `docs/`. Los
+huecos que son solo de código se anotan y van a las specs de bloque.
 
 **¿Cómo sigo desde otro dispositivo sin subir lo no commiteado del backend?** Subiendo
 `exam/rescope` a GitHub. Lo que el backend no ha commiteado vive solo en su carpeta y nunca
@@ -254,7 +282,9 @@ lea, como indica la sección 0. Por eso existe también este documento.
 - **Reparto de ficheros:** esta rama no toca `backend/`, `frontend/`, `specs/001-*` ni
   `specs/002-*`. Si un doc está mal desde la rama del backend, se anota en su spec.
 - **Proceso de `AGENTS.md`:** Proceso 0 → spec aprobada → plan aprobado → código. Nada de
-  `docs/` se edita hasta que la spec 003 esté aprobada.
+  `docs/` se edita hasta que la spec 004 esté aprobada.
+- **La carpeta del worktree debe estar en `exam/rescope`.** Para ver `main` sin moverla:
+  `git show main:<ruta>` o `git ls-tree -r --name-only main`.
 - **`main`** es el proyecto viejo; moverlo es irreversible en el remoto y requiere
   confirmación explícita.
 
