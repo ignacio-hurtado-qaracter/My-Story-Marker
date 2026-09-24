@@ -44,6 +44,9 @@ function main(): void {
       STORY_ROOT: storyRoot,
       STORY_INDEX: join(workDir, 'index', 'index.sqlite'),
       PYTHONUTF8: '1',
+      // Spec 018: the e2e suites predate login and read the fixture as the built-in `local`
+      // owner. Login itself is covered by the backend and component tests.
+      AUTH_REQUIRED: '0',
     },
   })
 

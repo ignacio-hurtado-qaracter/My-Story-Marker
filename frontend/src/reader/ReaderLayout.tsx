@@ -7,6 +7,7 @@ import './reader.css'
 import { useId, type ChangeEvent } from 'react'
 import { NavLink, Outlet, useNavigate, useParams, useSearchParams } from 'react-router'
 
+import { downloadFile } from '../shared/api'
 import { ErrorPanel } from '../shared/ui'
 import { pdfHref, useNovel } from './api'
 import { parseVersion, readerHref, type ReaderContext } from './context'
@@ -69,7 +70,17 @@ export function ReaderLayout() {
                   </option>
                 ))}
               </select>
-              <a className="btn-ghost reader-pdf" href={pdfHref(detail.id, version)} download>
+              <a
+                className="btn-ghost reader-pdf"
+                href={pdfHref(detail.id, version)}
+                download
+                onClick={(event) => {
+                  // Spec 018: the PDF route needs the session token, which a plain link cannot send.
+                  event.preventDefault()
+                  // A 401 already sends the reader to the login page; nothing else to report here.
+                  downloadFile(pdfHref(detail.id, version), `${detail.id}-v${String(version)}.pdf`).catch(() => undefined)
+                }}
+              >
                 PDF
               </a>
             </>
