@@ -121,6 +121,8 @@ class AnyTool(Protocol):
     @property
     def output_schema(self) -> dict[str, object]: ...
 
+    def validate_input(self, raw: Mapping[str, object] | None) -> ToolInput: ...
+
     def run(
         self,
         repo: BibleRepository,
