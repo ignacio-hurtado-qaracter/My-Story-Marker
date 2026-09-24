@@ -1,0 +1,19 @@
+/* ErrorPanel: a card with a fail accent and a ghost retry button. Spec 003, FR-UI3-02. */
+.error-panel {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--fail);
+  border-radius: var(--radius);
+  padding: 1.2rem 1.4rem;
+  box-shadow: var(--shadow);
+  max-width: 44rem;
+}
+
+.error-panel p {
+  margin: 0 0 0.8rem;
+  color: var(--ink);
+}
+
+.error-panel p:last-child {
+  margin-bottom: 0;
+}

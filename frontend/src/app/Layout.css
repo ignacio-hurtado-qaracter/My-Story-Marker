@@ -1,0 +1,129 @@
+/* The global layout: main's glass header, pill navigation and footer. Spec 003, FR-SHELL3. */
+
+.app-header {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+  z-index: 50;
+}
+
+/* FR-TOK-04: sticky only where it has a fixed height; below 600 px it scrolls away. */
+@media (min-width: 600px) {
+  .app-header {
+    position: sticky;
+    top: 0;
+  }
+
+  .app-header-inner {
+    height: var(--header-height);
+  }
+}
+
+.app-header-inner {
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: 0.6rem var(--gutter);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1.5rem;
+}
+
+.app-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.9rem;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.app-brand-logo {
+  display: block;
+  width: auto;
+  height: 32px;
+}
+
+.app-brand-divider {
+  width: 1px;
+  height: 28px;
+  background: var(--line);
+}
+
+.app-brand-product {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.app-brand-product span {
+  color: var(--accent);
+}
+
+.app-nav {
+  margin-left: auto;
+}
+
+.app-nav ul {
+  display: flex;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.app-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: var(--radius-pill);
+  color: var(--ink-600);
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.app-nav a:hover {
+  background: var(--brand-50);
+  color: var(--ink);
+}
+
+/* FR-SHELL3-03: the current page is the filled accent pill (5.39:1 against the header). */
+.app-nav a[aria-current='page'] {
+  background: var(--accent);
+  color: var(--white);
+}
+
+.app-footer {
+  border-top: 1px solid var(--line);
+  margin-top: 3rem;
+}
+
+.app-footer p {
+  max-width: var(--container);
+  margin: 0 auto;
+  padding: 1.5rem var(--gutter);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 599px) {
+  .app-brand-divider,
+  .app-brand-logo {
+    display: none;
+  }
+
+  .app-nav {
+    margin-left: 0;
+  }
+}
+
+.not-found {
+  max-width: 40rem;
+  margin: 2rem auto;
+  text-align: center;
+}
+
+.not-found-text {
+  color: var(--muted);
+}

@@ -1,6 +1,8 @@
 // A small live status line. Used only by the health badge, so it lives here: spec 002, FR-UI-01, P16.
 import type { ReactNode } from 'react'
 
+import './StatusBadge.css'
+
 export type StatusTone = 'pending' | 'ok' | 'error'
 
 export interface StatusBadgeProps {

@@ -1,0 +1,5 @@
+/* Heading: main's type scale lives in base.css; this adds only the page-title spacing.
+   Spec 003, FR-UI3-01. */
+.heading-1 {
+  margin-bottom: 0.75rem;
+}
