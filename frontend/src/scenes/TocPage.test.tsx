@@ -22,10 +22,24 @@ function chapter(id: string, scenes: string[]): Schemas['Chapter'] {
   }
 }
 
+// spec 003 (FR-BOOK): `/scenes` also reads the project record for its book header.
+function projectHandler() {
+  return http.get('/canon/project', ({ response }) =>
+    response(200).json({
+      schema_version: 1,
+      premise: { statement: 'Premisa de prueba', dramatic_question: '¿Pregunta de prueba?', answer: 'Respuesta de prueba' },
+      thesis: { proposition: 'Tesis de prueba', antithesis: 'Antítesis de prueba' },
+      genre_contract: { subgenre: 'sf_test', rigour: 'rigor de prueba', limits: 'límites de prueba' },
+      body: '',
+    }),
+  )
+}
+
 function serveToc(chapters: Schemas['Chapter'][], ids: string[]) {
   server.use(
     http.get('/structure/chapters', ({ response }) => response(200).json({ schema_version: 1, chapters })),
     http.get('/scenes', ({ response }) => response(200).json(ids)),
+    projectHandler(),
   )
 }
 
@@ -74,6 +88,7 @@ describe('TocPage', () => {
         response.untyped(HttpResponse.json({ error: 'not_found', detail: 'no chapters' }, { status: 404 })),
       ),
       http.get('/scenes', ({ response }) => response(200).json([])),
+      projectHandler(),
     )
     renderToc()
     expect(await screen.findByText('Todavía no hay escenas')).toBeInTheDocument()
@@ -92,6 +107,7 @@ describe('TocPage', () => {
           : response(200).json({ schema_version: 1, chapters: [chapter('ch01', ['001'])] })
       }),
       http.get('/scenes', ({ response }) => response(200).json(['001'])),
+      projectHandler(),
     )
     renderToc()
     const alert = await screen.findByRole('alert')

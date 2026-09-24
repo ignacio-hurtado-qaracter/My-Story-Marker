@@ -1,4 +1,6 @@
 // The loading state of a scenes/ screen. Used only by scenes/, so it lives here (FR-UI-01, P16).
+// Spec 003, FR-SCN3-03: a light surface block that keeps its status and its text.
+import './scenes.css'
 
 export interface SkeletonProps {
   /** How many placeholder lines to draw under the text. */

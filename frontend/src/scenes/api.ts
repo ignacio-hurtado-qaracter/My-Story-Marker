@@ -58,6 +58,14 @@ export async function fetchChapters(): Promise<Schemas['Chapter'][]> {
   }
 }
 
+/**
+ * Spec 003, FR-BOOK-02: the project record, for the book header of the table of contents. Any
+ * failure, a `404` included, is thrown; the header omits the premise and the page carries on.
+ */
+export function fetchProject(): Promise<Schemas['Project']> {
+  return unwrap(api.GET('/canon/project'))
+}
+
 export function fetchSceneIds(): Promise<string[]> {
   return unwrap(api.GET('/scenes'))
 }

@@ -1,0 +1,318 @@
+/* scenes/: the book header, chapter cards with scene chips, the scene detail and its states.
+   Spec 003, FR-BOOK, FR-SCN3. main's web/ library and detail layout, with the accessible tokens
+   of shared/ui/tokens.css: text is ink, ink-600, --muted or --accent, never the brand orange. */
+
+/* ---------- Book header (FR-BOOK-01) ---------- */
+
+.book-header {
+  margin-bottom: 2rem;
+  /* Every text colour used here keeps >= 4.5:1 on both ends of this gradient. */
+  background: linear-gradient(135deg, var(--brand-50) 0%, var(--white) 60%);
+}
+
+.book-header .heading-1 {
+  font-size: clamp(1.8rem, 4vw, 2.2rem);
+  margin-bottom: 0.75rem;
+}
+
+.book-premise {
+  max-width: 70ch;
+}
+
+.book-statement {
+  font-size: 1.15rem;
+  color: var(--ink-600);
+  margin-bottom: 0.75rem;
+}
+
+.book-question {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.book-question-label {
+  display: block;
+  margin-bottom: 0.15rem;
+  font-size: 0.75rem;
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* FR-BOOK-02: decorative stand-in while the premise loads; aria-hidden, no text. */
+.book-premise-skeleton {
+  width: min(32rem, 100%);
+  height: 1rem;
+  margin: 0.25rem 0 1rem;
+}
+
+/* FR-BOOK-03 */
+.book-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+/* ---------- Chapter cards and scene chips (FR-SCN3-01) ---------- */
+
+.toc-chapters {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: 1.5rem;
+}
+
+.toc-chapter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+/* The chapter id stays the section's h2, dressed as an eyebrow. */
+.toc-chapter h2.heading {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1.4;
+  text-transform: uppercase;
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+
+.toc-chapter-function {
+  margin: 0;
+  color: var(--ink-600);
+}
+
+.scene-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Pill links: no underline (they are not running text), at least 24 px tall (WCAG 2.5.8). */
+.scene-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.3rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  color: var(--ink-600);
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s, background-color 0.15s;
+}
+
+.scene-chip:hover {
+  border-color: var(--accent);
+  background: var(--brand-50);
+  color: var(--accent);
+  text-decoration: none;
+}
+
+/* ---------- Scene detail (FR-SCN3-02) ---------- */
+
+.scene-detail {
+  max-width: 52rem;
+}
+
+.scene-head {
+  margin-bottom: 1.5rem;
+}
+
+.scene-head .heading-1 {
+  font-size: clamp(1.8rem, 4vw, 2.2rem);
+}
+
+.scene-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.25rem 0 0;
+}
+
+/* The record as a key-value grid (main's .kv). */
+.kv {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 0.5rem 1.5rem;
+  margin: 0 0 2rem;
+  font-size: 0.95rem;
+}
+
+.kv dt {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.kv dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 599px) {
+  /* NFR3-02: at 320 px the two columns stack. */
+  .kv {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.1rem;
+  }
+
+  .kv dd {
+    margin-bottom: 0.6rem;
+  }
+}
+
+/* The reading column. The class name is spec 002's test hook. */
+.prose {
+  max-width: 70ch;
+  font-size: 1.075rem;
+  line-height: 1.75;
+  overflow-wrap: break-word;
+}
+
+.prose p {
+  margin: 0 0 1.25rem;
+}
+
+.prose h1 {
+  font-size: 1.8rem;
+  margin-top: 2rem;
+}
+
+.prose h2 {
+  margin-top: 1.5rem;
+}
+
+.prose blockquote {
+  margin: 0 0 1.25rem;
+  padding: 0.2rem 1rem;
+  border-left: 3px solid var(--brand);
+  color: var(--ink-600);
+}
+
+.prose pre {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font-size: 0.8rem;
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+}
+
+.prose table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.prose th,
+.prose td {
+  border: 1px solid var(--line);
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+}
+
+/* Previous / next / index, as ghost buttons (.btn-ghost in shared/ui/base.css). */
+.scene-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+}
+
+/* ---------- States (FR-SCN3-03) ---------- */
+
+/* Loading: a light surface block; it keeps role="status" and its text. */
+.skeleton {
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.skeleton p {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.skeleton-lines {
+  display: grid;
+  gap: 0.65rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.skeleton-line {
+  height: 0.8rem;
+}
+
+.skeleton-line:nth-child(3n + 2) {
+  width: 85%;
+}
+
+.skeleton-line:nth-child(3n) {
+  width: 60%;
+}
+
+/* A subtle shimmer; base.css turns it off under prefers-reduced-motion (FR-TOK-05). */
+.skeleton-line,
+.book-premise-skeleton {
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--line) 25%, var(--surface) 50%, var(--line) 75%);
+  background-size: 200% 100%;
+  animation: scenes-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes scenes-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}
+
+/* Empty: a centred muted panel. */
+.scenes-empty {
+  margin: 0 0 1.5rem;
+  padding: 2.5rem 1rem;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Not found: a centred panel with a way back. */
+.scenes-panel {
+  max-width: 36rem;
+  margin: 2rem auto;
+  padding: 3rem 1rem;
+  text-align: center;
+}
+
+.scenes-panel .heading-1 {
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+}
+
+.scenes-panel p {
+  color: var(--muted);
+}

@@ -1,5 +1,7 @@
 // `/scenes/:id`: one scene's record and its prose. Spec 002, FR-SCN route table, FR-SCN-02,
-// FR-SCN-03, FR-SCN-06, AC 9.
+// FR-SCN-03, FR-SCN-06, AC 9. Spec 003, FR-SCN3-02/03: main's detail layout and styled states.
+import './scenes.css'
+
 import { Link, useParams } from 'react-router'
 
 import type { Schemas } from '../shared/api'
@@ -20,11 +22,13 @@ export function ScenePage() {
 
 function SceneNotFound() {
   return (
-    <section>
+    <section className="scenes-panel">
       <title>Escena no encontrada · My Story Marker</title>
       <Heading>Escena no encontrada</Heading>
       <p>No existe ninguna escena con ese identificador.</p>
-      <Link to="/scenes">Volver al índice</Link>
+      <Link to="/scenes" className="btn-ghost">
+        Volver al índice
+      </Link>
     </section>
   )
 }
@@ -68,30 +72,37 @@ function SceneView({ id }: { id: string }) {
   // Previous/next need the table of contents; while it loads or if it fails, they are omitted.
   const { previous, next } = toc.data === undefined ? {} : neighbours(toc.data, id)
   return (
-    <article>
+    <article className="scene-detail">
       <title>{`Escena ${id} · My Story Marker`}</title>
-      <Heading>Escena {id}</Heading>
+      <div className="scene-head">
+        <p className="eyebrow">Escena</p>
+        <Heading>Escena {id}</Heading>
+        {draft.data === null ? null : (
+          <p className="scene-pills">
+            <span className="pill words">{draft.data.words} palabras</span>
+          </p>
+        )}
+      </div>
       <SceneHeadline scene={scene.data} />
       {draft.data === null ? (
-        <p>Esta escena aún no tiene borrador</p>
+        <p className="scenes-empty">Esta escena aún no tiene borrador</p>
       ) : (
-        <>
-          <p className="words">{draft.data.words} palabras</p>
-          <Prose markdown={draft.data.body} />
-        </>
+        <Prose markdown={draft.data.body} />
       )}
-      <nav aria-label="Escenas vecinas">
+      <nav aria-label="Escenas vecinas" className="scene-nav">
         {previous === undefined ? null : (
-          <Link to={`/scenes/${previous}`} rel="prev">
+          <Link to={`/scenes/${previous}`} rel="prev" className="btn-ghost">
             Anterior: {previous}
           </Link>
         )}
         {next === undefined ? null : (
-          <Link to={`/scenes/${next}`} rel="next">
+          <Link to={`/scenes/${next}`} rel="next" className="btn-ghost">
             Siguiente: {next}
           </Link>
         )}
-        <Link to="/scenes">Índice</Link>
+        <Link to="/scenes" className="btn-ghost">
+          Índice
+        </Link>
       </nav>
     </article>
   )
@@ -99,7 +110,7 @@ function SceneView({ id }: { id: string }) {
 
 function SceneHeadline({ scene }: { scene: Schemas['Scene'] }) {
   return (
-    <dl className="scene-headline">
+    <dl className="scene-headline kv card">
       <dt>Punto de vista</dt>
       <dd>{scene.pov}</dd>
       <dt>Lugar</dt>
