@@ -26,14 +26,35 @@ store tree" are not style preferences — the last one is where Figure 3's permi
 is enforced. All three are decidable without running the code, so they are **A**, and they
 are listed in the coverage matrix like any other claim.
 
-**The agents** — the six roles in Figure 3 of `architecture.md` (architect, world builder,
-writer, auditor, canoniser, style editor). They are stochastic. The same prompt can
+**The agents** — the roles in Figure 3 of `architecture.md`: the pipeline's interviewer,
+planner (architect and world builder invoked by a model), writer, editor (style editor and
+auditor), judge and canoniser. They are stochastic. The same prompt can
 produce a different draft, a different set of proposed facts, a different audit. A single
 passing run proves little. Verification here is about *process*: is the trajectory
 visible, bounded, checked, and recoverable?
 
 The first group of methods below applies to the code. The second applies to the agents.
 The classification framework at the end applies to both.
+
+---
+
+## Personalisation and narrative quality weigh the same
+
+A gift novel fails in two independent ways: it can be a good story that is not about the
+recipient, or a story that ticks every personal detail and does not work as a story. The
+system must not optimise for the brief's data merely appearing. **Every check that judges
+prose checks both halves, and neither compensates for the other**:
+
+- the programmatic validators check that the mandatory facts are present (brief coverage),
+  that names are exact, and that chapters have their length — and, with the same weight,
+  the audit invariants of coherence;
+- the editor's pass polishes for voice *and* for natural integration of the personal
+  details, never for their mere presence;
+- the judge's rubric scores narrative quality and natural personalisation as separate
+  criteria, and "forced personalisation" is a defect in its own right.
+
+A chapter that passes coverage but fails quality, or the reverse, is not accepted. This
+principle (spec 004, decision D11) binds every method below that reads prose.
 
 ---
 
@@ -136,13 +157,24 @@ checker silently corrupts the whole audit stage.
 Mathematically proving that code satisfies a specification for *all* possible inputs,
 not just the tested or explored ones.
 
-*In this project.* Not applied to application code. It is applied, lightly, to the
-**design**: the permission table of Figure 3 and the loop of Figure 1 are small enough to
-state as a transition system and check by hand or with a model checker (see Model
-checking below). The property we care about most, and the only one worth the effort, is:
+*In this project.* Not applied to application code. It is applied to **the story**: Lean 4
+proves properties of each novel's chronology before it is published. The chronology tables
+of the authoritative database (events, story date, place, participants, birth dates; see
+[`domain-knowledge.md`](./domain-knowledge.md#figure-6--the-story-chronology)) are exported
+to a generated `.lean` file, and `lake build` checks four theorems over it:
 
-> No sequence of operations lets a fact enter `canon/` without passing through
-> `promote()` executed by the canoniser or a write by the world builder.
+1. **Temporal order** — the order of events on the story axis is consistent (invariant 14).
+2. **Age against birth date** — every stated age equals event date minus birth date, and
+   nobody takes part before being born (invariant 15).
+3. **Not two places at once** — no character is a participant of two events at different
+   places at the same story date (invariant 4).
+4. **No appearance after death or departure** — invariant 16.
+
+The build runs automatically at `pre_publish`. A failure blocks the version, and the failed
+theorem with its events is sent to the editor as feedback for the repair round
+(`architecture.md`, [Figure 5](./architecture.md#figure-5--one-novel-generation)); the result is
+a validator result and a Langfuse score. The design's own properties — the permission table
+and the harness flow — are checked by TLA+, not by Lean (see Model checking below).
 
 *Classification note.* When the proof is done by hand and reviewed, it is an **I**, not
 an **A**. It becomes an **A** only when a tool checks it.
@@ -242,12 +274,25 @@ test for that boundary.
 Instrumenting an agent so its actual trajectory (tool calls, tokens, latency, errors) is
 visible and queryable after the fact.
 
-*In this project.* Every writing turn (Figure 4 of `architecture.md`) is one trace. Each
-agent invocation is a span, tagged with the role, the scene id, and the store paths it
-read and wrote. Store writes are recorded as events on the span. Langfuse is already
-wired to this repository's Claude Code sessions; the backend should emit to the same
-project so that a violation in `ledger/violations.yaml` can be traced back to the exact
-writer span, prompt, and assembled context that produced the offending line.
+*In this project.* Langfuse, through one observer in `backend/app/commons/observability/`
+that is a no-op when its keys are absent:
+
+- **Session = one novel**: the interview, the first generation and every regeneration.
+- **Trace = one generation or one regeneration** (`change_fact`), from `CONFIGURED` to
+  `PUBLISHED` or `STOPPED_ERROR` (Figure 5 of `architecture.md`).
+- **Spans** named `role:<role>` for every model call of every role (interviewer, planner,
+  writer, editor, judge, canoniser) and `tool:<tool>` for every tool call, tagged with the
+  chapter, the scene and the store paths or tables read and written.
+- **Generations** carry input and output tokens, **cost** computed from the token counts
+  and a pinned price table, and latency; totals roll up per call, chapter and novel.
+- **Scores**: every validator result — programmatic, judge and Lean — is a score on its
+  trace, and every guardrail match is an event and a score. TLC is not traced: it runs in
+  development, not per generation.
+- **Prompts are versioned in Langfuse** prompt management, and the prompt name and version
+  are recorded on every generation.
+
+A violation or a failed validator can therefore be traced back to the exact span, prompt
+version and context that produced the offending line.
 
 *Why it is a D and not a T.* Tracing does not decide correctness. It makes the evidence
 available for every other process-level method. Without it, evals, red-teaming and
@@ -273,6 +318,7 @@ Structured tests of a model or agent's behaviour against a dataset and a scoring
 | LLM-as-judge | Drafts paired with `canon/style.md` | Critic model scores voice, forbidden tics, rhythm | Writer, style editor |
 | Adversarial | Scenes engineered to tempt a canon contradiction | Did the auditor flag it? Did the canoniser leave it out of extraction, and did promotion leave the record as it was? | Auditor, canoniser |
 | Live / online | Real turns in a running project | Human ratings, downstream violation rate | All roles |
+| Brief evals | Five briefs in `evals/briefs/`, one a prompt injection in free text and one a temporal incoherence | Every registered validator, as a validator × brief table; one tuning iteration tied to Langfuse prompt versions | The whole pipeline |
 
 Golden and adversarial datasets live in Langfuse datasets and are versioned with the
 prompts they exercise. A prompt change that lowers a score blocks the merge.
@@ -280,6 +326,45 @@ prompts they exercise. A prompt change that lowers a score blocks the merge.
 *Classification note.* An offline eval with a deterministic scorer is a **T**. An eval
 scored by a judge model is an **I** performed by a machine, and should be labelled so.
 Online evals are **D**.
+
+### LLM-as-judge and human review — **I**
+
+The **judge** role scores each chapter at `chapter_close` and the whole novel at
+`pre_publish` against one rubric, with a score (1–5) **and a justification per criterion**:
+
+| Criterion | What it asks |
+|---|---|
+| Continuity | Does it agree with earlier chapters, the story bible and the chronology? |
+| Tone | Does it hold the tone the brief asked for, suitable to the recipient's age? |
+| Narrative quality | Arc (something changes), character coherence, pacing |
+| Natural personalisation | Are the recipient's details woven into the story rather than listed? |
+
+The rubric names the defects that fail a chapter whatever its score: **inconsistent
+characters, senseless time jumps, chapters that contradict each other, mechanical or
+repetitive prose, abrupt endings, and forced personalisation**. A chapter below the
+threshold on any criterion goes back to the editor with the justification.
+
+A **human review** of at least one full novel uses the same rubric and the same scale, and
+its scores are compared with the judge's in a table per criterion; disagreement is the
+judge's calibration signal. The judge is machine **I**; the human review is **I**.
+
+### Validator registry and execution points
+
+Every check the pipeline runs on prose, brief or chronology is a **named validator** in one
+registry. Each has a name, an execution point, and a result — passed, optional score,
+evidence, explanation — persisted as a `validator_result` row and sent as a Langfuse score.
+
+| Point | When (Figure 5 of `architecture.md`) | Validators | Letter |
+|---|---|---|---|
+| `scene_accept` | Before a scene is accepted | role-output schema · forbidden terms (normalised) · mechanical audit invariants | T |
+| `chapter_close` | After the editor pass, before the checkpoint | chapter length 1,000–1,500 · exact names · brief coverage so far · judge rubric | T · I (machine) |
+| `pre_publish` | Before `publish_version` | brief coverage over the novel · Lean 4 chronology · visual check of the reader | T · A · D |
+| `hook` | A Claude Code hook on a hand edit | the chapter validators · the forbidden-term policy | T |
+
+The **visual check** is run by an agent with the Playwright MCP over the reader's cover,
+index and sheets; a failure is recorded like any validator and routed to the role that owns
+the broken output. Adding a check means registering a validator at a point; a check run
+outside the registry is invisible to the coverage matrix and is a defect.
 
 ### Sandboxed execution — **D**
 
@@ -316,8 +401,19 @@ is enforced in `backend/`, not in the prompt. Concretely:
   backend code, not in the canoniser's prompt, and is verified by unit and property tests
   (**T**) and by the static rule that no code under `ledger/` or `agents/` writes `canon/`
   outside `promote` and `rule` (**A**).
-- Lexicon filter: drafts are checked against `canon/lexicon.yaml` forbidden variants
-  before being written to `manuscript/`.
+- Forbidden-term policy: prose is checked at `scene_accept` against three sources — the
+  **global** list and the **per-novel** list in the authoritative database (vetoed topics
+  become per-novel terms), and `canon/lexicon.yaml` forbidden variants. Matching uses the
+  normaliser of invariant 7 in `definitions.md` (case, accents, plurals, simple variants).
+  A match sends the scene back to the writer with the matched span, at most
+  `MAX_SCENE_RETRIES = 2` times; exhausted, the generation stops with
+  `forbidden_word_limit` and reports it. Every decision (`allow`, `rewrite`, `stop`) is a
+  row of the **policy decision log** and a Langfuse event and score. Levels are tested
+  separately: normaliser (unit), policy decision (unit, including a variant), bounded
+  rewrite (pipeline test with a fake writer that never complies).
+- Claude Code hooks: two hooks in `.claude/settings.json` run the same code on hand edits —
+  one runs the chapter validators, one the forbidden-term policy — so a person or agent
+  editing a chapter outside the pipeline cannot skip them.
 - Budget guardrails: every agent invocation has a hard cap of 100k context tokens, the
   same for all roles, counted over the context the system sends and not over what the
   model runtime adds on its own (see
@@ -350,6 +446,10 @@ turn reaches it.
 Decisions are recorded as Langfuse scores on the originating trace, and the queue is a
 Langfuse annotation queue. Over time those decisions become the golden dataset for the
 auditor eval.
+
+A second gate is a **human review of a full novel** with the judge's rubric (see
+[LLM-as-judge and human review](#llm-as-judge-and-human-review--i)); it is a calibration
+of the judge, not a gate on each publication.
 
 *Design constraint.* Review load must stay small or it will be skipped. The
 `architecture.md` warning about over-constraint applies here: gate the one action above,
@@ -416,7 +516,7 @@ adversarial eval set and a periodic manual session.
 
 | Threat | Attack | Expected defence |
 |---|---|---|
-| Prompt injection | Text inside `canon/` or `manuscript/` instructs the writer to ignore the scene record or write to another store | Guardrails at the tool layer; the auditor flags the drift; injected text is data, never instruction |
+| Prompt injection | Text inside `canon/` or `manuscript/`, or the free text pasted into the brief, instructs a role to ignore the scene record, the brief rules or the forbidden terms, or to write to another store | Guardrails at the tool layer; the auditor flags the drift; injected text is data, never instruction; free text only ever yields facts with `source: free_text`, and the interviewer can write nothing but the brief |
 | Tool-misuse chain | The writer proposes a fact, a compromised canoniser promotes it, the next turn's context now contains it | Add-only promotion, so the chain can add a false detail but never replace what canon states; self-consistency on extraction; provenance; the residual risk is in the [accepted-risk register](#accepted-risks-u-register) |
 | Goal drift | Over many turns the writer optimises for passing the audit rather than for the story | Style judge and human live eval; the over-constraint warning in `architecture.md` |
 | Data exfiltration | An agent leaks store contents to an external endpoint | Sandbox network policy; no tool has outbound network except the model API |
@@ -446,6 +546,25 @@ each restricted to its role. Invariants to check:
 This is the one place where a formal method pays for itself: the model is tiny, the
 properties are the whole point of the architecture, and a counterexample trace is
 directly actionable.
+
+**The harness flow in TLA+.** The generation flow of
+[Figure 5](./architecture.md#figure-5--one-novel-generation) — configuration, planning,
+chapter writing with scene and chapter retries, checkpoint and resume, pre-publish, the
+repair round, and the reader's regeneration — is specified in TLA+ and checked with TLC on
+**5 chapters × 2 retries**, with its configuration in the repository. It runs in
+development, not per generation. Safety invariants:
+
+- **Never publish an unvalidated chapter** — every chapter of a `published` version has
+  passed `chapter_close` and the version has passed `pre_publish`.
+- **Resume neither duplicates nor loses chapters** — after a crash and resume, each
+  chapter is checkpointed exactly once.
+- **The previous version survives a regeneration** — a `published` version is never
+  modified by `change_fact`.
+- **Retries never exceed their limit** — `MAX_SCENE_RETRIES` and `MAX_CHAPTER_RETRIES`.
+
+Liveness: **every generation ends in `PUBLISHED` or `STOPPED_ERROR`**. A README beside the
+model maps each TLA+ action to the state or transition of the pipeline code, and every
+counterexample TLC finds is logged with the code change it caused.
 
 ---
 
@@ -491,11 +610,35 @@ of this document; the sections above justify it.
 | Store content enters a prompt as data, never as a system instruction | Inspection of every recorded fake-client call: nothing from the stores in `system`, every document delimited | T |
 | Promotion never overwrites canon; an already-specified key, identifier or name is not applied | Unit and property tests on `promote` (set, append, add a key, not applied; nothing written beyond the target record and `ledger/proposed.yaml`); SAST rule that no code path under `ledger/` or `agents/` writes `canon/` outside `promote` and `rule` | T, A |
 | Body and memory changes are registered, not improvised | Invariant 3 check against `cast/{id}/changes.yaml` on a fixture with one registered and one unregistered change | T |
-| Chapter forty lands | — | **U** |
+| A brief missing a required field, or with an age × genre/tone contradiction, is refused before planning | Brief schema and validation unit tests, one per rule | T |
+| Pasted free text yields facts, never instructions | Red-team brief with an injection in free text; the brief evals | T, I |
+| Every fact records the scenes that use it, and chapters are derived from them | Repository test on `fact_usage` after a scripted chapter | T |
+| Chapters have 1,000–1,500 words (invariant 11) | `chapter_length` validator at `chapter_close`; unit tests at both bounds | T |
+| Names are exactly as in the story bible (invariant 12) | `exact_names` validator at `chapter_close`; unit test with a one-edit variant | T |
+| Every mandatory fact appears in some chapter (invariant 13) | `brief_coverage` validator at `chapter_close` and `pre_publish` over `fact_usage` | T |
+| Brief and role outputs match their schema | JSON Schema validation reported as validators | A, T |
+| Forbidden terms, global and per novel, never reach accepted prose | Normaliser and policy unit tests including a variant; bounded-rewrite pipeline test | T |
+| Every guardrail decision is logged | `policy_decision` rows and Langfuse events, checked in the pipeline test | T |
+| The two Claude Code hooks run the same validators as the pipeline | One test calling each hook entry point on a failing chapter | T |
+| Scene and chapter rewrites are bounded, and exhaustion stops with a reason | Pipeline tests with a fake model that never passes | T |
+| A run resumes at the first incomplete chapter without duplicating or losing chapters | Pipeline test interrupted after a checkpoint; TLA+ invariant | T, A |
+| A published version is never overwritten; `change_fact` regenerates only the chapters using the fact and marks them | Repository and `change_fact` tests on a two-chapter fixture; TLA+ invariant | T, A |
+| No version is published without passing every pre-publish validator | `publish_version` refusal test; TLA+ invariant "never publish an unvalidated chapter" | T, A |
+| The harness flow's safety invariants and liveness hold (5 chapters × 2 retries) | TLA+ model checked by TLC in development | A |
+| The TLA+ model matches the pipeline code | README mapping each action to the code; reviewed on every flow change | I |
+| The story chronology holds invariants 4, 14, 15, 16 | Lean 4 theorems over the exported chronology, `lake build` at `pre_publish` | A |
+| The reader's cover, index and sheets render | Visual check by an agent with Playwright MCP at `pre_publish` | D |
+| Every role and tool call is a span with tokens, cost and latency; every validator result is a score | Langfuse traces of a real generation | D |
+| Prompts are versioned and the version is recorded per call | Langfuse prompt management; trace inspection | D |
+| Each chapter meets minimum narrative quality and natural personalisation (D11) | Judge rubric at `chapter_close` and `pre_publish` (machine I); human review of one full novel with the same rubric | I |
+| Chapter forty lands — literary excellence | — | **U** |
 
-The last row is deliberate. Whether the novel is *good* is not something any method here
-verifies. It is the accepted risk that the whole apparatus exists to make smaller, and it
-is named so that nobody mistakes a green pipeline for a finished book.
+The last row is deliberate, and it is now narrower than it was. **Minimum quality** — no
+inconsistent characters, senseless time jumps, contradicting chapters, mechanical prose,
+abrupt endings or forced personalisation — is an **I**, checked by the judge and by a
+human. Whether the novel is *excellent* is not something any method here verifies. It is
+the accepted risk that the whole apparatus exists to make smaller, and it is named so that
+nobody mistakes a green pipeline for a finished book.
 
 ---
 
@@ -505,9 +648,11 @@ Every **U** is listed here with a reason. An unlisted U is a defect.
 
 | Risk | Why unverified | Mitigation |
 |---|---|---|
-| Literary quality of the prose | No scorer is trustworthy; human taste is the ground truth | Live human eval; style judge as a weak proxy |
+| Literary excellence of the prose | No scorer is trustworthy; human taste is the ground truth. Minimum quality is **I** (judge and human review), not U | Judge rubric and human review for the minimum; live human eval |
 | Judge-model reliability | The judge is itself a stochastic model | Periodic calibration against human labels |
-| Correctness of the model checker's model | The model is a hand-written abstraction of the real system | Review the model against `architecture.md` on every architecture change |
+| Correctness of the model checker's model | The model is a hand-written abstraction of the real system | Review the model against `architecture.md` on every architecture change; the TLA+ README maps each action to code |
+| Light verification of the gift-novel modules (spec 004, plan deviation V3) | The user asked for light verifiers in the exam programme: new modules get `ruff`, `mypy --strict` and 1–3 focused tests per block, with no property-based or schema-fuzzing tests; the legacy gate is unchanged | The validators, the TLA+ model and the Lean proof check the behaviour that matters at run time; the full gate is the target once the programme closes |
+| The Lean proof covers only what the chronology export records | Events the canoniser fails to project from prose are invisible to the proof | Judge continuity criterion; human review; the export is regenerated from the database on every publication |
 | Mutants accepted as equivalent | Manual judgement | Listed per module with a reason, re-reviewed quarterly |
 | Model provider behaviour change | Outside our control | Pinned model versions; golden evals re-run on any version bump |
 | Reproducibility of semantic selection | A vector index may rank differently across runs and embedding versions; no method here proves two selections equal | Selected ids are traced per turn so what entered a context is always recoverable; pins through `pins` and `tags` for anything a scene must not miss; pinned embedding model |
@@ -535,3 +680,7 @@ wall:
 8. Self-consistency on extraction; contract tests; adversarial eval set. (**I**, **T**)
 9. Model checking of the permission and turn invariants. (**A**)
 10. Mutation testing, symbolic execution of the checkers, scoped rollout. (**T**, **A**, **D**)
+
+The gift-novel programme (spec 004) pulls forward, for its own modules, tracing (3), the
+validator registry and guardrails (4), the brief evals (6), the TLA+ model of the harness
+flow (9) and the Lean proof of the chronology, under the light-verification risk above.

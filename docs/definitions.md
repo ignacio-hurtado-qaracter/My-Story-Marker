@@ -16,7 +16,7 @@ The ontology has four layers, ordered by rate of change.
 
 | Layer | Name | Changes | Covered here |
 |---|---|---|---|
-| L0 | Project | Never, after planning | Yes |
+| L0 | Project (rooted in the Brief) | Never, after planning — except a reader's change to one Fact | Yes |
 | L1 | World | Slowly, additively | Yes |
 | L2 | Cast | Per scene, in knowledge and relationships | Yes |
 | L3 | Narrative structure | Per revision pass | Yes |
@@ -35,6 +35,92 @@ Identifiers are stable forever. Renaming an entity breaks every edge that points
 
 Invariable for the whole book. This layer is present in every call without filtering, so
 if it does not fit in roughly 800 tokens it is written badly.
+
+The layer opens with the **Brief**: the commission the gift novel answers. The brief is not
+loaded whole into every call; its facts enter a scene's context when the planner assigns
+them to that scene, and the rest of Layer 0 is written from it.
+
+### Brief
+
+The commission for one gift novel, and the **root of every other entity**. The system
+writes a personalised novel for a named recipient; the brief is what the person who orders
+it asked for, captured by the interviewer and validated before planning starts. Everything
+in Layer 0 below — premise, thesis, genre contract, style bible — is derived from the brief
+by the planner, never the other way round. Where it is stored and who may write it is in
+[`architecture.md`](./architecture.md#authoritative-database).
+
+| Field | Meaning |
+|---|---|
+| `novel_id` | Stable identifier of the novel this brief commissions |
+| `recipient` | The Recipient (below) |
+| `genre` | Requested genre, from a closed list (adventure, mystery, fantasy, science fiction, romance, comedy, realistic) |
+| `tone` | Requested tone, from a closed list (light, tender, humorous, epic, dark, melancholic) |
+| `length` | Number of chapters; 10 by default (see Chapter) |
+| `vetoed_topics[]` | Subjects the novel must never touch; each becomes a novel-scope forbidden term |
+| `dedication` | The text printed on the cover and in the PDF; personalised, never generated without the brief |
+| `free_text` | Optional text pasted by the person ordering. **Untrusted data**: see below |
+| `facts[]` | The Facts extracted from the interview and from `free_text` |
+
+**Validation.** A brief is accepted only when it passes its JSON Schema and these rules; a
+failing brief goes back to the interviewer with the missing or contradictory field named,
+and planning does not start.
+
+1. **Required fields.** `recipient.name`, `recipient.age`, at least one trait, at least one
+   memory, `genre`, `tone`, `length` and `dedication` are present and non-empty.
+2. **Age × genre/tone contradiction.** A recipient under 12 cannot be given `tone: dark`
+   or a genre flagged adult-only; a recipient under 16 cannot be given romance with
+   explicit content. The contradiction is reported with both fields; the interviewer asks
+   which one to change and never resolves it silently.
+3. **Vetoed topics are closed.** No mandatory fact may mention a vetoed topic.
+
+**Free text is untrusted data.** Whatever the person pastes — a letter, a chat export, an
+anecdote — is delimited as data in every prompt that sees it and is never obeyed as an
+instruction. Its only effect on the system is the facts extracted from it, each recorded
+with `source: free_text`. An instruction found inside it ("ignore the rules", "write a
+different ending") is a red-team case, not a request (see
+[`verification.md`](./verification.md#red-teaming--adversarial-testing--t--i)).
+
+**Failure mode.** A brief accepted with holes. The planner fills them with invention, the
+recipient does not recognise themselves, and personalisation becomes decoration.
+
+### Recipient
+
+The real person the novel is written for, appearing in it as a character. Distinct from
+Character (Layer 2): the recipient is who the book is *about and for*; the character is how
+the story renders them. The recipient's canonical name is the exact form every chapter must
+use.
+
+| Field | Meaning |
+|---|---|
+| `name` | Canonical form; checked exactly in every chapter (invariant 12) |
+| `age` | Age at the time of the gift; drives the age × genre/tone rule |
+| `birth_date` | Optional; when present it anchors invariant 15 |
+| `traits[]` | Personality and physical traits to render, not to list |
+| `memories[]` | Real episodes the story may transform into scenes |
+| `relationships[]` | People and pets around the recipient who may appear |
+
+**Failure mode.** Treating the recipient as a checklist. The traits appear as a list in the
+first chapter and never again; the personalisation is present but forced.
+
+### Fact
+
+One atomic, citable piece of the brief: "the dog is called Nala", "she was born in Cádiz",
+"he is afraid of the sea". Facts are the unit of personalisation and the unit of change: a
+reader's change request changes one fact, and exactly the chapters that use it are
+regenerated.
+
+| Field | Meaning |
+|---|---|
+| `key` | Stable identifier, e.g. `pet.name` |
+| `value` | The current value; a fact never has two versions at once |
+| `kind` | `trait` · `memory` · `person` · `place` · `date` · `preference` · `other` |
+| `source` | `interview` · `free_text` · `planner`. The planner may add facts it needs for the story; they are never mandatory |
+| `mandatory` | Whether the novel must use it at least once (invariant 13) |
+| `usage[]` | Every scene that uses the fact, recorded when the scene is accepted. Chapter usage is derived from it, never stored separately |
+
+**Failure mode.** Usage recorded per chapter instead of per scene. A change request then
+regenerates a whole chapter for a fact used in one paragraph, or — worse — misses the scene
+that actually used it.
 
 ### Premise
 
@@ -240,6 +326,7 @@ which is precisely what the writer has to resolve on the page.
 | `lies` | The false belief about the self that sustains the arc |
 | `arc[]` | Successive states, each anchored to a specific scene |
 | `competences` | What they can do; bounds what they can solve |
+| `birth_date` | Optional, in the story calendar; required for the recipient's character when the brief gives it. Anchors invariant 15 |
 
 **Failure mode.** An arc written as a prose summary. Without scene anchors you cannot
 answer "where is she at chapter 19?".
@@ -332,6 +419,13 @@ and position on the tension curve**. They contain no prose.
 
 **Failure mode.** Not budgeting. Act two eats eighty per cent of the book and the climax
 arrives compressed.
+
+**Gift-novel sizing.** A gift novel has **10 chapters** by default (the brief's `length`),
+each of **1,000–1,500 words** summed over its scenes (invariant 11). A chapter holds **3 to
+5 scenes**; the planner plans **3** by default and splits the chapter budget into scene
+budgets of about 200–500 words each. A chapter is **complete** when its scenes are
+accepted, its digest is written and its chapter-close validators pass; generation resumes
+at the first incomplete chapter, keeping that chapter's accepted scenes.
 
 ### Scene
 
@@ -434,16 +528,40 @@ is described in `architecture.md`. All of them evaluate against the **story-time
 6. **Axiomatic respect.** No scene violates an axiom selected for its context, whether
    pinned through `tags` or `pins`, or retrieved by `select_entities`; the selected list recorded in
    the turn is the authority on which axioms those are.
-7. **Canonical lexicon.** Zero occurrences of any `forbidden_variants` in the manuscript.
+7. **Canonical lexicon and forbidden terms.** Zero occurrences in the manuscript of any
+   `forbidden_variants`, of any **global** forbidden term, and of any forbidden term of
+   **this novel's** scope (vetoed topics become novel-scope terms). Matching runs on
+   normalised text: both the prose and the term are lower-cased, stripped of accents,
+   reduced to a singular form (Spanish and English plural endings), and compared as whole
+   words, with simple variants (hyphen or space removed, repeated letters collapsed)
+   folded to the same key. A match sends the scene back to the writer; the rewrite is
+   bounded (see `architecture.md`, Figure 4).
 8. **No inert scenes.** Every scene declares a signed `value_change`, and the prose delivers it.
 9. **Recognisable voice.** No dialogue contains material marked `never_says` for that speaker.
 10. **Thread latency.** No active thread exceeds its `max_latency` without reappearing.
+11. **Chapter length.** Every chapter has 1,000–1,500 words, summed over its scenes.
+12. **Exact names.** The recipient and every character appear only under their canonical
+    `name`; a near-miss spelling (one edit away, or a different accent) is a violation.
+13. **Brief coverage.** Every mandatory Fact has at least one usage in an accepted scene
+    before the novel is published, and the prose of that scene renders it.
+14. **Chronological order.** Chronology events are ordered on the story axis without
+    contradiction: an event recorded as after another is never dated before it.
+15. **Age against birth date.** Where a character has a `birth_date`, every age stated or
+    implied in an event equals the difference between the event's story date and the
+    birth date, and no character takes part in an event before being born.
+16. **No appearance after exit.** A character who dies or departs for good in an event
+    takes part in no later event on the story axis, except as memory or flashback.
+
+Invariants 4, 14, 15 and 16 are also proved over the story chronology in Lean 4 before
+publication (see `verification.md`). Invariants 11–13 are checked by named validators.
+Personalisation (11–13) and narrative coherence (1–10, 14–16) weigh the same: a chapter
+that satisfies one family and fails the other is not accepted.
 
 ---
 
 ## What is deliberately not here
 
-The **Text layer (L4)** — drafts, proposed facts, violation reports — is not part of the
-domain vocabulary. Those are working artifacts of the writing system rather than facts
-about the fictional world, and they are defined in `architecture.md` alongside the
+The **Text layer (L4)** — drafts, chapter versions, proposed facts, violation reports,
+validator results — is not part of the domain vocabulary. Those are working artifacts of
+the writing system rather than facts about the fictional world, and they are defined in `architecture.md` alongside the
 operations, agent roles and storage layout that produce them.
