@@ -1,6 +1,6 @@
 ---
 spec: 001                 # the approved spec this plan implements
-status: draft                # draft · approved · done
+status: approved             # draft · approved · done
 ---
 
 Implementation plan for [`001-backend-foundation.md`](./001-backend-foundation.md)
