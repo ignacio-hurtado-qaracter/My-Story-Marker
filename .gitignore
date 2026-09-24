@@ -15,8 +15,12 @@ __pycache__/
 .coverage
 htmlcov/
 
-# Local configuration. `backend/.env.example` is committed; the real one is not.
-backend/.env
+# Local configuration. `.env.example` files are committed; the real ones never are, at any
+# level (the root `.env.example` says "copy to `.env`" and holds the Langfuse keys' slots;
+# security report SEC-02).
+.env
+.env.*
+!.env.example
 
 # Node
 node_modules/
