@@ -29,6 +29,7 @@
 | 21 | Novela de 10 cap. en vivo | `judge_novel` suspendía por capítulos solapados (1 y 2, "la última clase"), saltos de tiempo vagos y defectos "posibles"; la única ronda de reparación rehízo capítulos que el juez no pedía | Plan con `time_marker` y chequeo de solape; sinopsis vecinas a escritor/editor; solo bloquea un defecto `alta` concreto; se reparan `capitulos_a_reparar`; `MAX_REPAIR_ROUNDS = 2` (TLC OK) | `fecf6ba`, `8beec13`, `1a39e7c` |
 | 22 | PDF | "Novedades" imprimía la nota JSON cruda | "Cambio: clave: «antes» → «después»" y capítulos cambiados con enlace | `bacc93a`, spec 014 |
 | 23 | L04 | ¿Atrapa Lean algo que no vea nadie más? | Experimento con el prechequeo desactivado: Lean y `judge_novel` sí, `judge_chapter` y los programáticos no | `91f8cdd`, [lean-caso-real](./lean-caso-real.md) |
+| 24 | Novela de 10 cap. en vivo | `judge_novel` bloqueó `novela-ejemplo-final` tras 2 rondas: días de la semana que contradicen su fecha (21, 23 y 24 de junio de 2026) y «treinta años» de una carrera 1992–2026; el propio plan decía «El domingo de mañana, veintitrés de junio» (martes) | Días de la semana y cifras calculados en Python (`calendar_facts.py`, `plan/calendar.txt`); validador `calendar_consistency` en `chapter_close`; el editor puede quitar el día | spec 007 AC 8, spec 008 AC 8, [tuning 2](#iteración-de-tuning-2) |
 
 ---
 
@@ -206,3 +207,52 @@ reparaciones — correcto como bloqueo, caro en tiempo (la segunda ronda no cabe
 señale (el planner no crea evento `departure`; [L04](./lean-caso-real.md)). La novela de
 10 capítulos de `ejemplo` no se ha regenerado en esta iteración. No se hizo `after2`: lo
 que falla en `b4` es del brief, no de un prompt o un validador.
+
+### Iteración de tuning 2
+
+**Antes** (`novela-ejemplo-final` en `data/harness.sqlite`, brief `evals/briefs/ejemplo.json`,
+log `data/logs/novela-ejemplo-final.log`): los 10 capítulos escritos y bloqueada con
+`repair_limit` tras 2 rondas de reparación. `judge_novel`: «[alta; cap. 4, 5, 6]
+Contradicción temporal verificable: cap. 4 sitúa el 21 de junio como domingo; cap. 5 … el
+23 como martes; cap. 6 asigna al 24 de junio la etiqueta "lunes"»; en la ronda anterior,
+«el 21 de junio como sábado; … el 23 como domingo». Además, «treinta años» frente a los 34
+de carrera que dan las fechas del brief (1992–2026).
+
+**Causa.** Nadie calcula el calendario: el writer inventa el día de la semana de cada fecha
+y cada reescritura de reparación inventa otro, así que las rondas no convergen. El error
+nacía ya en el plan: la marca temporal del cap. 5 era «El domingo de mañana, veintitrés de
+junio», y el 23 de junio de 2026 es martes. Las duraciones salen igual: el brief dice
+«treinta años» en la descripción de Valdelosa, el recuerdo más antiguo es de 1992 y el
+presente de la historia es 2026; el writer usaba «treinta y cuatro» o «treinta» según el
+capítulo. Ningún validador programático miraba fechas en la prosa: solo el juez, una
+llamada cara por ronda.
+
+**Cambio** (deterministas; specs 007 y 008 revisadas en su sitio con aprobación delegada):
+
+| Pieza | Qué |
+|---|---|
+| Plan (`app/novel/calendar_facts.py`) | Tras pasar `check_plan`, `enrich_plan_calendar` corrige en Python todo día de la semana que el planner escribió junto a una fecha y añade a cada `time_marker` sus fechas reales (`[fechas: domingo 21 de junio de 2026]`). `ctx.extra["plan"]` da a cada capítulo su `calendar`. El prompt del planner ya no pide días de la semana |
+| Writer y editor | Documento `plan/calendar.txt`: «Fecha: domingo 21 de junio de 2026 (usa exactamente este día de la semana si lo nombras)» por escena y un bloque de **cifras canónicas** calculado solo de fechas del brief con los dos extremos conocidos: presente de la historia, edades, años cumplidos desde cada recuerdo fechado y edades entonces. Una cifra redonda del brief se sustituye por la calculada o por una expresión compatible («más de treinta años») |
+| Validador `calendar_consistency` | `chapter_close`, bloqueante, `app/validators/programmatic/calendar.py`: «<día> [,] [el] <n> de <mes> [de <año>]» y «el <n> de <mes>, <día>», con el número en cifras o en letras; año explícito, o el del plan. Falla con «El capítulo dice «…», pero el 23 de junio de 2026 es martes. Corrige el día de la semana o elimínalo» |
+| Reparación | La tarea de reescritura del editor dice que un fallo de `calendar_consistency` se arregla con el día que da el feedback o, más sencillo, quitando el nombre del día |
+
+Comprobación sobre la novela bloqueada (solo lectura): `enrich_plan_calendar` corrige la
+marca del cap. 5 a «El martes de mañana, veintitrés de junio»; el validador acepta los
+textos finales de los caps. 4 y 5 («Domingo por la mañana, el veintiuno de junio»,
+«martes veintitrés de junio»). El «lunes» del cap. 6 que citó el juez no va junto a una
+fecha en el texto final: es el hueco que queda (días sin fecha, abajo).
+
+**Efecto esperado.** Ninguna contradicción de día de la semana llega a `judge_novel`: la del
+plan se corrige antes de escribir y la de la prosa se para en `chapter_close` con una
+corrección mecánica (sin gastar ronda de reparación). Las cifras de años y edades son las
+mismas en los 10 capítulos. Métrica: `novela-ejemplo-final` (o su repetición) publicada, o
+bloqueada por un motivo distinto del calendario.
+
+**Límites conocidos.** No se validan días de la semana sin fecha al lado («aquel lunes»)
+ni duraciones en la prosa («treinta años»): las cifras van por el prompt. El plan de
+`novela-ejemplo-final` también encadena el cap. 6 («al atardecer del mismo día») con una
+fecha distinta a la del cap. 5; eso es del chequeo de marcas temporales, fuera de esta
+iteración.
+
+**Después.** *Pendiente: lo rellena el orquestador tras volver a generar `ejemplo`
+(estado, rondas de reparación, coste y el veredicto de `judge_novel`).*

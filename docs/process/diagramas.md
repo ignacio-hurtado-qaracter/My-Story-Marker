@@ -314,6 +314,7 @@ desde cada bloque.
 | `chapter_length` | `app/validators/programmatic/length.py` | `chapter_close`, `hook` | sí | editor |
 | `exact_names` | `…/names.py` | `chapter_close`, `hook` | sí | editor |
 | `prose_repetition` | `…/prose.py` | `chapter_close`, `hook` | blando: solo si es grave | editor |
+| `calendar_consistency` | `…/calendar.py` | `chapter_close` | sí: día de la semana que contradice su fecha (tuning 2) | editor (corrige o quita el día) |
 | `fact_usage_recorder` | `…/coverage.py` | `chapter_close` | no (registra `fact_usage`) | — |
 | `forbidden_words_chapter` | `app/policy/validators.py` | `chapter_close` | sí | editor |
 | `judge_chapter` | `app/judge/validators.py` | `chapter_close` | sí (umbral de rúbrica) | editor |
@@ -329,7 +330,7 @@ desde cada bloque.
 flowchart LR
   H["hook<br/>brief_schema"] --> P["planificación<br/>check_plan · cronología"]
   P --> S["scene_accept<br/>schema_role_output · forbidden_words_scene · no_placeholders"]
-  S --> C["chapter_close<br/>chapter_length · exact_names · prose_repetition<br/>fact_usage_recorder · forbidden_words_chapter<br/>no_placeholders · judge_chapter"]
+  S --> C["chapter_close<br/>chapter_length · exact_names · prose_repetition<br/>calendar_consistency · fact_usage_recorder · forbidden_words_chapter<br/>no_placeholders · judge_chapter"]
   C --> Q["pre_publish<br/>schema_brief · brief_coverage · lean_chronology<br/>judge_novel · visual_check"]
   CCH["Claude Code hooks<br/>policy_guard · validate_chapter"] -.mismo código.-> C
 ```
