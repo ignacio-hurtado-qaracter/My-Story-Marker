@@ -8,6 +8,7 @@
 | `docs/domain-knowledge.md` | Entity graph, knowledge model, temporal axes | You need to know how entities relate |
 | `docs/architecture.md` | Loop, operations, stores, turn protocol | You need to know how the system runs |
 | `docs/verification.md` | Verification methods, Trust Spec letters, coverage matrix | You need to decide how a change is proven correct |
+| `docs/process/` | The **record** of how the system was built: initial spec, trade-offs, explainers, diagrams, iteration log, red-team log. It cites `docs/`, never defines design, and is edited without Process 1 unless it states how the system works (spec 004, D10) | You need the history or the rationale of a decision, not the decision itself |
 | `specs/` | One folder per change, holding its spec (scope, acceptance criteria, verification plan) and, once approved, its implementation plan | You are about to change code |
 | `AGENTS.md` | This file — what you may do, right now | Every session |
 
@@ -38,6 +39,33 @@ Three layers of artefacts, in order of authority:
 A lower layer never contradicts a higher one. If implementing a spec reveals that a doc is
 wrong, stop and fix the doc first (Process 1), then the spec (Process 2), then the code
 (Process 3). Never patch the contradiction at the lower layer and move on.
+
+---
+
+## Parallel work
+
+When several agents build blocks of one programme at the same time (spec 004 § 5, as
+adapted by its plan's deviation V1), these rules hold on top of the processes below:
+
+1. **One worktree per block.** Each block agent works in its own git worktree and branch.
+   The orchestrating session merges the blocks into the integration branch
+   (`proyecto-desde-cero` for spec 004), the only branch it pushes; `main` is not touched.
+2. **Ownership.** A block writes only the paths its row of the block map assigns it. A file
+   it needs outside them is a stop condition: the orchestrator arbitrates and records it.
+3. **Shared files** (`backend/app/main.py`, `backend/app/commons/config.py`,
+   `backend/pyproject.toml`, `uv.lock`, `frontend/src/app/routes.tsx`,
+   `frontend/package.json`) are edited in small, separate commits, never mixed with
+   feature work. `backend/openapi.json` and the generated frontend types are regenerated,
+   never hand-merged.
+4. **Contracts first.** A contract between blocks (K1–K5 in spec 004) is published by its
+   provider, as an interface with a fake, before consumers code against it. Changing a
+   published contract is a change to the provider's spec.
+5. **Migrations** of the authoritative database use per-block number ranges so parallel
+   migrations never collide.
+6. **Sync one way.** A block merges the integration branch into its own, with a clean
+   worktree, before drafting and before merging.
+7. **Approvals** may be delegated by the user for a session; the delegation is recorded in
+   the spec it approves, and Process 0 still closes before any edit.
 
 ---
 
