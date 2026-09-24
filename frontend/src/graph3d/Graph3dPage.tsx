@@ -1,45 +1,25 @@
-// The /graph3d page: a heading, a pause toggle and the lazily loaded decorative planet, in
-// main's hero look. Spec 002, FR-3D-01; spec 003, FR-3D-03..05.
-// Loading, error and loaded states come from LazyCanvas; empty does not apply, since the page
-// shows no data.
-import { useState } from 'react'
-
+// The /graph3d page: a heading and the decorative planet with its pause toggle, in main's hero
+// look. Spec 002, FR-3D-01; spec 003, FR-3D-03..05. The toggle and the canvas live in
+// PlanetHero, which the cover mounts too (plan 003 Q8).
+// Loading, error and loaded states come from PlanetHero's LazyCanvas; empty does not apply,
+// since the page shows no data.
 import { Heading } from '../shared/ui'
 import './graph3d.css'
-import { LazyCanvas, type LazyCanvasProps } from './LazyCanvas'
-import { useReducedMotion } from './useReducedMotion'
+import type { LazyCanvasProps } from './LazyCanvas'
+import { PlanetHero } from './PlanetHero'
 
 /** The props exist for the tests (AC 18; spec 003, AC 7); app/ mounts the page without any. */
 export type Graph3dPageProps = Omit<LazyCanvasProps, 'paused'>
 
 export function Graph3dPage(props: Graph3dPageProps) {
-  // FR-3D-04: under reduced motion the planet starts paused; the toggle decides after that.
-  const reducedMotion = useReducedMotion()
-  const [paused, setPaused] = useState(() => reducedMotion)
-
   return (
     <section className="graph3d">
+      <title>Grafo 3D · My Story Marker</title>
       <div className="graph3d-head">
-        <div>
-          <Heading>Grafo 3D</Heading>
-          <p className="graph3d-lead">Vista decorativa: el grafo de la novela todavía no se dibuja aquí.</p>
-        </div>
-        {/* WAI-ARIA toggle button: a constant label, with the state in aria-pressed. It sits
-            outside the canvas, which is aria-hidden (WCAG 2.2.2). */}
-        <button
-          type="button"
-          className="btn-ghost graph3d-toggle"
-          aria-pressed={paused}
-          onClick={() => {
-            setPaused((value) => !value)
-          }}
-        >
-          Pausar animación
-        </button>
+        <Heading>Grafo 3D</Heading>
+        <p className="graph3d-lead">Vista decorativa: el grafo de la novela todavía no se dibuja aquí.</p>
       </div>
-      <div className="graph3d-stage">
-        <LazyCanvas {...props} paused={paused} />
-      </div>
+      <PlanetHero className="graph3d-hero" {...props} />
     </section>
   )
 }

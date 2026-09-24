@@ -1,0 +1,362 @@
+/* cover/: the cover at "/". Spec 003, FR-COVER-01..04. main's web/ hero (.hero, .book-card
+   .cover, .card, .btn), with the accessible tokens of shared/ui/tokens.css: text is ink,
+   ink-600, --muted, --accent or white on --accent; white on the book cover sits only on its
+   darker stops, as large bold text (>= 3:1) or, for the small brand line, >= 4.5:1. */
+
+/* ---------- Buttons: main's .btn size; primary is accent fill, white text (5.4:1) ---------- */
+
+.cover-btn-primary,
+.btn-ghost.cover-btn {
+  min-height: 2.75rem;
+  padding: 0.65rem 1.25rem;
+  font-size: 0.95rem;
+}
+
+.cover-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--white);
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.cover-btn-primary:hover {
+  border-color: color-mix(in srgb, var(--accent) 82%, #000000);
+  background: color-mix(in srgb, var(--accent) 82%, #000000);
+  color: var(--white);
+  text-decoration: none;
+}
+
+.cover-btn-primary:active {
+  transform: translateY(1px);
+}
+
+/* While the first chapter loads: a button-shaped shimmer, so the row does not jump. */
+.cover-btn-skeleton {
+  display: inline-block;
+  width: 10rem;
+  height: 2.75rem;
+}
+
+/* ---------- Hero: main's orange-50 to white band ---------- */
+
+.cover-hero {
+  display: grid;
+  gap: 1.5rem;
+  overflow: hidden;
+  padding: 2rem 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, var(--brand-50) 0%, var(--white) 100%);
+}
+
+/* The book cover and the text: side by side where both fit, the cover above otherwise. */
+.cover-hero-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2rem 2.5rem;
+  min-width: 0;
+}
+
+.cover-hero-text {
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+
+.cover-hero-text .heading-1 {
+  margin-bottom: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.cover-lead {
+  max-width: 38rem;
+  margin: 0 0 1.5rem;
+  color: var(--ink-600);
+  font-size: 1.15rem;
+}
+
+.cover-lead-skeleton {
+  display: grid;
+  gap: 0.6rem;
+  max-width: 32rem;
+  margin: 0.25rem 0 1.75rem;
+}
+
+.cover-lead-skeleton span {
+  display: block;
+  height: 0.9rem;
+}
+
+.cover-lead-skeleton span:last-child {
+  width: 70%;
+}
+
+.cover-lead-skeleton span,
+.cover-btn-skeleton {
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--line) 25%, var(--surface) 50%, var(--line) 75%);
+  background-size: 200% 100%;
+  /* base.css stops it under prefers-reduced-motion (FR-TOK-05). */
+  animation: cover-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes cover-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}
+
+.cover-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+}
+
+/* The planet: below the text on narrow screens; from 900 px, as in main, it fills the band's
+   right half behind the content. The canvas is transparent, so the planet floats on the
+   band's gradient, and its edges fade out instead of cutting the orbits off. */
+.planet-hero.cover-planet {
+  height: 20rem;
+}
+
+.cover-planet .planet-hero-stage {
+  mask-image: radial-gradient(ellipse closest-side at 50% 50%, #000000 72%, transparent 100%);
+}
+
+@media (min-width: 900px) {
+  .cover-hero {
+    position: relative;
+    align-items: center;
+    min-height: 70vh;
+    padding: 3rem 2.5rem;
+  }
+
+  .cover-hero-content {
+    position: relative;
+    z-index: 1;
+    max-width: 56%;
+  }
+
+  .planet-hero.cover-planet {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 50%;
+    height: auto;
+  }
+}
+
+/* ---------- The book cover: main's .book-card .cover, as a portrait ---------- */
+
+.cover-book {
+  position: relative;
+  overflow: hidden;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 0.9rem;
+  width: min(220px, 100%);
+  aspect-ratio: 11 / 16;
+  padding: 1.5rem 1.25rem 1.25rem 1.6rem;
+  border-radius: 10px;
+  /* main's gradient with darker stops: from 40% on it is #D2601E or darker (white >= 3.8:1). */
+  background: radial-gradient(circle at 30% 20%, #F08A4B 0%, #D2601E 40%, #8F3A0E 100%);
+  color: var(--white);
+  box-shadow:
+    0 22px 45px rgba(143, 58, 14, 0.3),
+    var(--shadow);
+}
+
+/* The spine: a shaded strip down the left edge. */
+.cover-book::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0.7rem;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.22), rgba(255, 255, 255, 0.12) 60%, rgba(255, 255, 255, 0));
+}
+
+/* main's translucent disc, moved to the top right, away from the text. */
+.cover-book::after {
+  content: '';
+  position: absolute;
+  top: -18%;
+  right: -30%;
+  width: 70%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.cover-book-rule {
+  display: block;
+  width: 2.5rem;
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.cover-book-title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.25);
+}
+
+.cover-book-brand {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* ---------- Dedication: main's card, centred ---------- */
+
+.card.cover-dedication {
+  max-width: 40rem;
+  margin: 2.5rem auto 0;
+  padding: 2.5rem 2rem 2rem;
+  text-align: center;
+}
+
+.cover-dedication-label {
+  margin-bottom: 0.5rem;
+}
+
+.cover-ornament {
+  display: block;
+  width: 3rem;
+  height: 3px;
+  margin: 0 auto 1.5rem;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--brand), var(--brand-600));
+}
+
+.cover-dedication-to {
+  margin: 0 0 0.75rem;
+  color: var(--ink-600);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* A local serif for a bookish voice: no font file is requested (spec 003, FR-FONT). */
+.cover-dedication-text {
+  margin: 0 0 1rem;
+  color: var(--ink);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.25rem, 2.6vw, 1.6rem);
+  font-style: italic;
+  line-height: 1.5;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.cover-dedication-placeholder {
+  margin: 0 0 1.5rem;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.cover-dedication-from {
+  margin: 0 0 1.75rem;
+  color: var(--ink-600);
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+
+.cover-storage-note p {
+  margin: 1rem 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* ---------- The personalisation form: main's .field ---------- */
+
+.cover-form {
+  display: grid;
+  gap: 1rem;
+  margin-top: 0.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--line);
+  text-align: left;
+}
+
+.cover-field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.cover-field label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* The border is --muted (5.6:1), so the field's edge meets WCAG 1.4.11's 3:1. */
+.cover-field input,
+.cover-field textarea {
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--muted);
+  border-radius: 10px;
+  background: var(--white);
+  color: var(--ink);
+  font: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.cover-field textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+.cover-field input::placeholder,
+.cover-field textarea::placeholder {
+  color: var(--muted);
+}
+
+.cover-field input:focus-visible,
+.cover-field textarea:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 4px rgba(174, 78, 20, 0.15);
+}
+
+.cover-form-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.cover-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+@media (max-width: 599px) {
+  .card.cover-dedication {
+    padding: 2rem 1.25rem 1.5rem;
+  }
+}

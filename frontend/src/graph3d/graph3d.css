@@ -1,6 +1,80 @@
-/* /graph3d in main's hero look: an orange-50 to white gradient around the decorative planet.
-   Spec 003, FR-3D-03/04. Imported by Graph3dPage, so it ships with the page, not the lazy
-   three.js chunk. */
+/* The decorative planet (PlanetHero) and the /graph3d page, in main's hero look: an orange-50
+   to white gradient around the planet. Spec 003, FR-3D-03..05. Imported by PlanetHero and
+   Graph3dPage, so it ships with them, not with the lazy three.js chunk. */
+
+/* ---------- PlanetHero: the stage, the canvas and the toggle ---------- */
+
+.planet-hero {
+  position: relative;
+  min-width: 0;
+}
+
+/* The canvas area: the loading text and the error panel are centred in it; the planet fills
+   it. Each page gives it a height through its own class on .planet-hero. */
+.planet-hero-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 100%;
+  min-height: 18rem;
+  padding: 1rem;
+  overflow: hidden;
+}
+
+.planet-hero-stage > [role='status'] {
+  margin: 0;
+  color: var(--muted);
+}
+
+.planet-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+/* The toggle floats over the stage's lower right corner, like a media control, on a white
+   background so it reads over the planet (ink on white). */
+.planet-hero-toggle {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  z-index: 1;
+  box-shadow: var(--shadow);
+}
+
+/* The pressed state is a filled accent button with white text (5.39:1), like the active nav
+   pill; the hover variant keeps it, so .btn-ghost:hover never turns the text accent on accent. */
+.planet-hero-toggle[aria-pressed='true'],
+.planet-hero-toggle[aria-pressed='true']:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--white);
+}
+
+/* Decorative hero without WebGL: a still planet drawn in CSS (main's orange, with its orbit). */
+.planet-still {
+  position: relative;
+  width: min(15rem, 60%);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, #FFB88A 0%, var(--brand) 45%, var(--brand-600) 85%);
+  box-shadow:
+    0 0 0 1.5rem rgba(255, 122, 47, 0.08),
+    0 0 0 3rem rgba(255, 122, 47, 0.05);
+}
+
+.planet-still::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 170%;
+  height: 38%;
+  border: 2px solid rgba(255, 122, 47, 0.35);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) rotate(-14deg);
+}
+
+/* ---------- /graph3d ---------- */
 
 .graph3d {
   display: grid;
@@ -11,12 +85,8 @@
   background: linear-gradient(180deg, var(--brand-50) 0%, var(--white) 100%);
 }
 
-.graph3d-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1rem;
+.graph3d-head .heading-1 {
+  margin-bottom: 0.5rem;
 }
 
 .graph3d-lead {
@@ -25,37 +95,15 @@
   color: var(--muted);
 }
 
-/* The pressed state is a filled accent button with white text (5.39:1), like the active nav
-   pill; the hover variant keeps it, so .btn-ghost:hover never turns the text accent on accent. */
-.graph3d-toggle[aria-pressed='true'],
-.graph3d-toggle[aria-pressed='true']:hover {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: var(--white);
-}
-
-/* The canvas area: the loading text and the error panel are centred in it; the planet fills it. */
-.graph3d-stage {
-  position: relative;
-  display: grid;
-  place-items: center;
+.graph3d-hero {
   height: 60vh;
   min-height: 18rem;
-  padding: 1rem;
+}
+
+.graph3d-hero .planet-hero-stage {
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  overflow: hidden;
   background: radial-gradient(circle at 50% 45%, var(--brand-50) 0%, var(--white) 70%);
-}
-
-.graph3d-stage > [role='status'] {
-  margin: 0;
-  color: var(--muted);
-}
-
-.planet-canvas {
-  position: absolute;
-  inset: 0;
 }
 
 @media (max-width: 599px) {
