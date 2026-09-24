@@ -92,6 +92,8 @@ the scenes are already merged by the editor).
    a checkpointed chapter. **T**.
 4. AC 4 — R05: `change_fact` creates version v+1, rewrites only the chapters using the fact,
    keeps version v published and unchanged. **I** (code review) · **D** when time allows.
+   *Clarified (TLA+ divergence 2): the fact update, renames, brief, plan and v+1 commit in
+   one `repo.transaction()`; a failure leaves the fact unchanged. **T***
 5. AC 5 — every mandatory fact is assigned to ≥ 1 scene by the plan (programmatic check with
    one replan). **T**.
 6. AC 6 — observability: one trace per run in the novel's session, role spans with prompt
