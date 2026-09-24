@@ -1,4 +1,4 @@
-"""The six agent roles, and nothing else.
+"""The agent roles, and nothing else: Figure 3's six plus the four gift-novel roles (spec 005).
 
 FR-PERM-01. A closed enum, because "roles are separations of permission" and a role that can
 be invented at runtime is not a separation of anything.
@@ -25,6 +25,19 @@ class AgentRole(StrEnum):
     STYLE_EDITOR = "style_editor"
     AUDITOR = "auditor"
     CANONISER = "canoniser"
+    # Spec 004 decision D7, spec 005. The gift-novel roles. They write the authoritative
+    # database only (plan 004, V4), so their rows in the file-store tables are empty.
+    INTERVIEWER = "interviewer"
+    PLANNER = "planner"
+    EDITOR = "editor"
+    JUDGE = "judge"
+
+
+GIFT_NOVEL_ROLES: frozenset[AgentRole] = frozenset(
+    {AgentRole.INTERVIEWER, AgentRole.PLANNER, AgentRole.EDITOR, AgentRole.JUDGE}
+)
+"""Spec 005. The roles with no file-store row in Figure 3: they read and write the
+authoritative database through `app.bible` only (plan 004, V4)."""
 
 
 class Actor(StrEnum):
@@ -49,4 +62,4 @@ if tuple(role.value for role in AgentRole) != ROLE_NAMES:  # pragma: no cover - 
     raise RuntimeError(message)
 
 
-__all__ = ["Actor", "AgentRole"]
+__all__ = ["GIFT_NOVEL_ROLES", "Actor", "AgentRole"]
