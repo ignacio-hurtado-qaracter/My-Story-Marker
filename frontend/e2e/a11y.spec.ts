@@ -24,3 +24,16 @@ for (const { path, ready } of ROUTES) {
     expect(blocking).toEqual([])
   })
 }
+
+// spec 003 / AC 2: the table of contents with the book header loaded.
+test('no serious or critical axe violations on /scenes with the book header', async ({ page }) => {
+  await page.goto('/scenes')
+  await expect(page.getByText('Teodora Vance')).toBeVisible()
+  await expect(page.getByRole('heading', { level: 2, name: 'ch01' })).toBeVisible()
+
+  const { violations } = await new AxeBuilder({ page }).withTags(WCAG_22_AA).analyze()
+  const blocking = violations
+    .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
+    .map((violation) => `${violation.id}: ${violation.help} (${String(violation.nodes.length)} nodes)`)
+  expect(blocking).toEqual([])
+})
