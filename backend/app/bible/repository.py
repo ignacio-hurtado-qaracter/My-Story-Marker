@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sqlite3
 import uuid
 from collections.abc import Iterable, Iterator, Mapping, Sequence
@@ -26,6 +27,7 @@ from typing import Final, Self
 from pydantic import JsonValue, TypeAdapter
 
 from app.bible.models import (
+    AppUser,
     Brief,
     ChapterAttempt,
     ChapterCost,
@@ -56,6 +58,12 @@ from app.commons.observability.traced import LlmCallRecord
 
 DEFAULT_CHAPTERS: Final[int] = 10
 """Spec 004 D3: a novel has ten chapters."""
+
+LOCAL_OWNER_ID: Final[str] = "local"
+"""Spec 018: the built-in owner (migration 1700) of every novel created without one."""
+
+DEFAULT_OWNER_ENV: Final[str] = "STORY_MAKER_USER"
+"""Spec 018: the email of a registered user who owns what the local CLI creates."""
 
 _JSON_OBJECT: Final[TypeAdapter[dict[str, JsonValue]]] = TypeAdapter(dict[str, JsonValue])
 
@@ -102,8 +110,23 @@ def _opt_str(value: object) -> str | None:
 class BibleRepository:
     """K1. Construct with a connection from `open_authoritative`, or with `open()`."""
 
-    def __init__(self, connection: sqlite3.Connection) -> None:
+    def __init__(self, connection: sqlite3.Connection, *, owner_id: str | None = None) -> None:
         self._db = connection
+        self._owner = owner_id
+
+    def scoped_to(self, owner_id: str) -> BibleRepository:
+        """Spec 018: a view on the same connection that only sees `owner_id`'s novels.
+
+        `get_novel` of another owner's novel raises `BibleNotFoundError`, exactly as for a
+        missing one; `list_novels` and `list_policy_decisions` omit other owners' rows.
+        Every other method is unchanged, so a caller resolves the novel first (the reader
+        and the tools do). Closing the view closes the shared connection."""
+        return BibleRepository(self._db, owner_id=owner_id)
+
+    @property
+    def owner_id(self) -> str | None:
+        """The owner this view is scoped to; None for the unscoped repository."""
+        return self._owner
 
     @classmethod
     def open(cls, path: Path | str | None = None, *, check_same_thread: bool = True) -> Self:
@@ -147,27 +170,81 @@ class BibleRepository:
         dedication: str | None = None,
         recipient_name: str | None = None,
         session_id: str | None = None,
+        owner_id: str | None = None,
     ) -> Novel:
-        """A new novel. Its Langfuse session id is the novel id unless given (O01)."""
+        """A new novel. Its Langfuse session id is the novel id unless given (O01).
+
+        Spec 018: its owner is `owner_id`, else this view's owner, else the default owner
+        (`STORY_MAKER_USER`'s user, or `local`)."""
         identifier = novel_id or f"nov-{uuid.uuid4().hex[:12]}"
+        owner = owner_id or self._owner or self.default_owner_id()
         now = _now()
         self._db.execute(
             "insert into novel (id, session_id, title, dedication, recipient_name, status, "
-            "created_at, updated_at) values (?, ?, ?, ?, ?, 'draft', ?, ?)",
-            (identifier, session_id or identifier, title, dedication, recipient_name, now, now),
+            "created_at, updated_at, owner_id) values (?, ?, ?, ?, ?, 'draft', ?, ?, ?)",
+            (
+                identifier,
+                session_id or identifier,
+                title,
+                dedication,
+                recipient_name,
+                now,
+                now,
+                owner,
+            ),
         )
         return self.get_novel(identifier)
 
     def get_novel(self, novel_id: str) -> Novel:
-        row = self._db.execute("select * from novel where id = ?", (novel_id,)).fetchone()
+        row = self._db.execute(
+            "select * from novel where id = ? and (? is null or owner_id = ?)",
+            (novel_id, self._owner, self._owner),
+        ).fetchone()
         if row is None:
             message = f"no novel {novel_id!r}"
             raise BibleNotFoundError(message)
         return Novel.model_validate(dict(row))
 
     def list_novels(self) -> list[Novel]:
-        rows = self._db.execute("select * from novel order by created_at").fetchall()
+        rows = self._db.execute(
+            "select * from novel where (? is null or owner_id = ?) order by created_at",
+            (self._owner, self._owner),
+        ).fetchall()
         return [Novel.model_validate(dict(row)) for row in rows]
+
+    # ----------------------------------------------------------------------------------
+    # Users (spec 018)
+    # ----------------------------------------------------------------------------------
+
+    def create_user(self, *, email: str, password_hash: str) -> AppUser:
+        """A new login. `email` is stored as given (callers normalise it); a duplicate
+        raises `sqlite3.IntegrityError`."""
+        identifier = f"usr-{uuid.uuid4().hex[:12]}"
+        self._db.execute(
+            "insert into app_user (id, email, password_hash, created_at) values (?, ?, ?, ?)",
+            (identifier, email, password_hash, _now()),
+        )
+        return self.get_user(identifier)
+
+    def get_user(self, user_id: str) -> AppUser:
+        row = self._db.execute("select * from app_user where id = ?", (user_id,)).fetchone()
+        if row is None:
+            message = f"no user {user_id!r}"
+            raise BibleNotFoundError(message)
+        return AppUser.model_validate(dict(row))
+
+    def find_user_by_email(self, email: str) -> AppUser | None:
+        row = self._db.execute("select * from app_user where email = ?", (email,)).fetchone()
+        return None if row is None else AppUser.model_validate(dict(row))
+
+    def default_owner_id(self) -> str:
+        """`STORY_MAKER_USER`'s user id when that email is registered, else `local`."""
+        email = os.environ.get(DEFAULT_OWNER_ENV, "").strip().casefold()
+        if email:
+            user = self.find_user_by_email(email)
+            if user is not None:
+                return user.id
+        return LOCAL_OWNER_ID
 
     def update_novel(
         self,
@@ -889,7 +966,15 @@ class BibleRepository:
         return int(cursor.lastrowid or 0)
 
     def list_policy_decisions(self, novel_id: str | None = None) -> list[PolicyDecision]:
-        if novel_id is None:
+        """The audit log. A scoped view (spec 018) sees only its owner's novels' entries:
+        the owner of an entry is its novel's, by join."""
+        if self._owner is not None:
+            rows = self._db.execute(
+                "select p.* from policy_decision p join novel n on n.id = p.novel_id "
+                "where n.owner_id = ? and (? is null or p.novel_id = ?) order by p.id",
+                (self._owner, novel_id, novel_id),
+            ).fetchall()
+        elif novel_id is None:
             rows = self._db.execute("select * from policy_decision order by id").fetchall()
         else:
             rows = self._db.execute(
@@ -1088,6 +1173,8 @@ def _version(row: sqlite3.Row) -> NovelVersion:
 
 __all__ = [
     "DEFAULT_CHAPTERS",
+    "DEFAULT_OWNER_ENV",
+    "LOCAL_OWNER_ID",
     "BibleError",
     "BibleNotFoundError",
     "BibleRepository",

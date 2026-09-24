@@ -30,6 +30,18 @@ class Novel(_Record):
     status: str = "draft"
     created_at: str
     updated_at: str
+    owner_id: str | None = Field(
+        default=None, description="Spec 018: the `app_user` who owns it (`local` by default)."
+    )
+
+
+class AppUser(_Record):
+    """Spec 018: a login. `password_hash` is bcrypt; it never leaves `app.auth`."""
+
+    id: str
+    email: str
+    password_hash: str
+    created_at: str
 
 
 class Brief(_Record):
@@ -208,6 +220,7 @@ class CostSummary(_Record):
 
 
 __all__ = [
+    "AppUser",
     "Brief",
     "ChapterAttempt",
     "ChapterCost",

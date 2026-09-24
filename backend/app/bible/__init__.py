@@ -10,6 +10,7 @@ version = repo.create_version(novel.id)  # version 1, draft
 from __future__ import annotations
 
 from app.bible.models import (
+    AppUser,
     Brief,
     ChapterAttempt,
     ChapterCost,
@@ -35,6 +36,7 @@ from app.bible.models import (
 )
 from app.bible.repository import (
     DEFAULT_CHAPTERS,
+    LOCAL_OWNER_ID,
     BibleError,
     BibleNotFoundError,
     BibleRepository,
@@ -45,6 +47,8 @@ from app.bible.repository import (
 
 __all__ = [
     "DEFAULT_CHAPTERS",
+    "LOCAL_OWNER_ID",
+    "AppUser",
     "BibleError",
     "BibleNotFoundError",
     "BibleRepository",
