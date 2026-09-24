@@ -14,6 +14,12 @@ on these structures — assembly, agents, storage, audit pipeline — is in
 
 ```mermaid
 erDiagram
+  BRIEF ||--|| RECIPIENT : "is written for"
+  BRIEF ||--|{ FACT : "yields"
+  BRIEF ||--|| PROJECT : "commissions"
+  RECIPIENT ||--|| CHARACTER : "is rendered as"
+  FACT }o--o{ SCENE : "used in"
+
   PROJECT ||--|| STYLE_BIBLE : "defines"
   PROJECT ||--o{ AXIOM : "establishes"
   PROJECT ||--o{ ARC : "divides into"
@@ -73,6 +79,17 @@ temporal system, and is referenced directly by scenes. In science fiction this i
 expected: the rules of the universe are what make the invented world cohere, and they
 propagate into everything that touches them. It also means an axiom edited late is an
 expensive edit — it invalidates work downstream in several directions at once.
+
+**The brief is the root, and facts are how it reaches the page.** `BRIEF` commissions the
+`PROJECT` — premise, thesis, genre contract and style bible are the planner's answer to it —
+and yields the `FACT`s that personalise the book. A fact reaches prose only through a
+`SCENE` that uses it, which is why usage is an edge to `SCENE` and not to `CHAPTER`: the
+chapters that use a fact are derived by walking `CHAPTER ||--o{ SCENE`. That single edge is
+what makes a reader's change request cheap and exact — change the fact, follow its usage
+edges, regenerate those scenes' chapters and nothing else. `RECIPIENT ||--|| CHARACTER` keeps
+the real person and their fictional rendering apart: the recipient carries what was asked
+for, the character carries what the story does with it, and the exact-name invariant binds
+the two by the recipient's canonical name.
 
 **What the graph does not contain** is any edge running from prose back into canon. There
 is deliberately no `DRAFT → AXIOM` relation in the domain model. Prose is not a source of
@@ -334,12 +351,58 @@ consequence of ordering.
 
 ---
 
+## Figure 6 — The story chronology
+
+```mermaid
+erDiagram
+  CHRONOLOGY_EVENT }o--|| SCENE : "projected from"
+  CHRONOLOGY_EVENT }o--|| LOCATION : "happens at"
+  CHRONOLOGY_EVENT ||--o{ EVENT_PARTICIPANT : "involves"
+  EVENT_PARTICIPANT }o--|| CHARACTER : "is"
+  CHARACTER |o--o| BIRTH_DATE : "born on"
+  BRIEF ||--o{ BIRTH_DATE : "may state"
+
+  CHRONOLOGY_EVENT {
+    int seq "order on the story axis"
+    string story_date "in the story calendar"
+    int chapter "where the reader meets it"
+    int scene "the scene it comes from"
+    string kind "normal, death or departure"
+  }
+```
+
+### Reading it
+
+The chronology is the **story axis of Figure 5 made into rows**. Every accepted scene
+projects one or more `CHRONOLOGY_EVENT`s: a moment on the story axis (`seq`, `story_date`),
+a place, and the characters present. `chapter` and `scene` record where the reader meets
+the event, so the discourse axis is kept alongside but never used to order anything.
+
+Birth dates hang off characters, and the brief may state them — the recipient's birth date
+is often the one real date in the whole book. A birth date turns a vague "she was a girl
+then" into a checkable claim: the age implied by an event is its date minus the birth date.
+
+`kind` marks the two events after which a character must not appear again: a death and a
+permanent departure. Memory and flashback are not appearances; they are events where the
+character is remembered, not present, and they carry no `EVENT_PARTICIPANT` row.
+
+These tables are the input of the formal chronology check. They are exported to a Lean 4
+file, and four properties are proved over them: the order of events is consistent, every
+age agrees with the birth date, nobody is in two places at once, and nobody appears after
+their death or departure (invariants 4, 14, 15 and 16 of
+[`definitions.md`](./definitions.md#domain-invariants)). A chronology that cannot be proved
+blocks publication; how that is run is in
+[`verification.md`](./verification.md#formal-verification--theorem-proving--a).
+
+---
+
 ## Summary of what the diagrams argue
 
 | Figure | Claim |
 |---|---|
-| 1 | The scene is the centre of the domain; everything dated resolves through it |
+| 1 | The scene is the centre of the domain; everything dated resolves through it, and the brief reaches the page only through the scenes that use its facts |
 | 2 | Three entities must be typed records because they carry the checks |
 | 3 | A loose end is an authorial decision that was never made, not an event |
 | 4 | Knowledge is non-monotonic, and false belief is a first-class state |
 | 5 | Causality and reading order are independent axes and must stay separate |
+| 6 | The story axis, stored as events with dates, places, participants and birth dates, is what a proof can run over |
