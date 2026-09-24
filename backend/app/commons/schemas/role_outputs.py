@@ -41,9 +41,9 @@ class ProposedFactDraft(HarnessModel):
 
     This is the writer's and the canoniser's half of `ProposedFact`: the address and the
     claim, and nothing about what happens next. The orchestrator assigns `id`,
-    `extracted_from`, `source_scene` and `status: pending`, and only `promote` ever sets
-    `conflict` or `existing_value`, and only a human ruling fills `ruling` (FR-OPS-06,
-    FR-OPS-07).
+    `extracted_from`, `source_scene` and `status: pending`; `promote`, add-only, settles the
+    fact `promoted` or `rejected` and sets neither `conflict` nor `existing_value`, and only a
+    human ruling fills `ruling` or records what it overwrote (FR-OPS-06, FR-OPS-07).
 
     **Failure mode** (`architecture.md` ProposedFact): automatic promotion with no review.
     Canon fills with improvised noise and stops being worth consulting. The queue exists to
@@ -61,7 +61,7 @@ class ProposedFactDraft(HarnessModel):
     target_entity: EntityId = Field(
         description=(
             "The canon or cast record the claim would attach to. With `target_field` it is "
-            "the address `promote` detects a collision at."
+            "the address `promote` adds the payload at."
         ),
     )
     target_field: str = Field(

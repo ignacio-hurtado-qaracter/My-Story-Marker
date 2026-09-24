@@ -290,7 +290,8 @@ def test_a_model_failure_at_the_write_step_escalates_with_its_category(
 # --- the lock (FR-TURN-05) ------------------------------------------------------------------
 
 
-# spec 001 / FR-TURN-05 -- a second turn while one runs is refused with TurnLocked.
+# spec 001 / AC 20, FR-TURN-05 -- a second turn while one runs is refused with TurnLocked: the
+# lock's 409, the one refusal before a turn that add-only promotion leaves.
 def test_a_second_turn_while_one_runs_is_refused(turn_env: TurnEnv) -> None:
     refusals: list[TurnLocked] = []
     script = load_script("happy_002")

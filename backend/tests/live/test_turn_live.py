@@ -21,9 +21,10 @@ touched), is what the fixture README's "The tempting scene - 006" section sets u
 * Ilan going under, swimming or breathing the brine -- his lungs are unmodified and no
   ChangeEvent says otherwise -- is flagged as invariant 3 with `source: model`;
 * his steel graft hand, a *registered* change (scene 002, before 006), is NOT flagged;
-* the turn ends `merged` or `awaiting_ruling`, and its record shows the real model ids the CLI
-  reported, input, cache-creation and cache-read tokens, every step's estimate below 100k and
-  every real count below 100k once CLI_OVERHEAD_TOKENS is subtracted (FR-CTX-06).
+* the turn ends `merged` -- promotion is add-only, so no turn waits for a ruling -- and its
+  record shows the real model ids the CLI reported, input, cache-creation and cache-read
+  tokens, every step's estimate below 100k and every real count below 100k once
+  CLI_OVERHEAD_TOKENS is subtracted (FR-CTX-06).
 
 The turn is driven step by step (`turn.begin_turn`, `TurnRun.events`), and each step prints one
 line as it ends, so a run under `-s` shows its progress.
@@ -95,7 +96,7 @@ def test_a_live_turn_on_the_tempting_scene(
     graft = [finding for finding in bodies if _about_the_registered_change(finding)]
 
     selected = PINNED_AXIOM in {entry.entity_id for entry in record.selected}
-    ended_well = record.outcome in {TurnOutcome.MERGED, TurnOutcome.AWAITING_RULING}
+    ended_well = record.outcome is TurnOutcome.MERGED
     real_ids = bool(calls) and all(
         step.call is not None and step.call.model_id for step in calls
     )
@@ -132,7 +133,7 @@ def test_a_live_turn_on_the_tempting_scene(
         ),
         f"| Unregistered body change flagged (inv 3, model, not the hand) | {mark(bool(lungs))} |",
         f"| Registered change (the graft hand) NOT flagged | {mark(not graft)} |",
-        f"| Outcome merged or awaiting_ruling | {mark(ended_well)} |",
+        f"| Outcome merged | {mark(ended_well)} |",
         f"| Every call reports a real model id | {mark(real_ids)} |",
         f"| Every estimate <= 100k and real - {CLI_OVERHEAD_TOKENS} <= 100k | {mark(under_cap)} |",
         "",

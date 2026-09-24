@@ -48,8 +48,9 @@ instruction lists the records a proposed fact may address and the fields each on
 Address every invention to one of those records, using only its listed fields: the record the
 invention is about or, for something new that has no record of its own, the listed record it
 belongs to or is found in. Do not propose what the documents already state, and do not contradict them; if the scene
-seems to need a contradiction, write around it. If you invented nothing, say so with an
-empty list.
+seems to need a contradiction, write around it. For a single-valued field that already holds
+a value, propose only the new detail: it is added to what is there, and it never replaces it.
+If you invented nothing, say so with an empty list.
 
 The prose is the scene and only the scene: no title, no notes, no commentary.
 

@@ -384,16 +384,17 @@ def dossier(store: Store, character: str, at: int) -> TrimmedDossier:
 
 
 def body_at(store: Store, character: str, at: int) -> dict[str, str]:
-    """Invariant 3, FR-AGENT-06, FR-OPS-06. The character's `immutable_physical` as of `at`:
+    """Invariant 3, FR-AGENT-06, FR-OPS-07. The character's `immutable_physical` as of `at`:
     the stored map with every registered physical change dated at or before `at` applied, by
     the one rule `dossier` uses (`_body_at`).
 
     Narrower than `dossier` on purpose: it reads only `dossier.md`, `changes.yaml` and the
     scenes the changes are anchored to, because its callers -- the auditor's view of a
-    participant's body and `promote`'s comparison of a body fact -- need the body and nothing
-    else, and a malformed knowledge file must not decide whether a body fact collides. A
-    missing `dossier.md` or `changes.yaml` is `NotFound` naming it, never an empty body
-    (FR-STORE-06)."""
+    participant's body and a human ruling's comparison of a body fact (`rule`) -- need the body
+    and nothing else, and a malformed knowledge file must not decide what a body holds.
+    `promote` does not call it: promotion is add-only and compares no value it would replace
+    (FR-OPS-06). A missing `dossier.md` or `changes.yaml` is `NotFound` naming it, never an
+    empty body (FR-STORE-06)."""
     record = repository.read_dossier(store, character)
     _refuse_foreign_id(
         path=repository.file_path(character, "dossier"),

@@ -24,7 +24,8 @@ re-exported here, so the orchestrator of plan step 18 reaches them through this 
 public surface (NFR-04) rather than through a module it would otherwise have to know about.
 They are kept in their own module because they are the only code in `ledger/` that writes
 `canon/` or `cast/`, and AC 13's static rule looks for exactly those two function names: a
-reviewer auditing the return edge into canon reads one file. The mechanical audit (IF-05,
+reviewer auditing the return edge into canon reads one file. `promote` is add-only and is what
+a turn calls; `rule` is the human's manual tool. The mechanical audit (IF-05,
 `POST /scenes/{id}/audit`) arrives at step 14.
 
 **What a fact may target** (`promotable_targets`, FR-OPS-06, FR-AGENT-05) is exposed here too,
@@ -32,7 +33,8 @@ read-only, from the same module: the records `promote` can resolve and the field
 on each, derived from the tests `promote` itself applies. The canoniser lists them in its
 instruction and checks its facts against them, so extraction and promotion never disagree
 about what can be written. `split_mapping_payload` is the same kind of shared test for a
-mapping payload's `key: value` form.
+mapping payload's `key: value` form, and `normalised_words` is what add-only promotion compares
+when it asks whether a record already holds a payload (FR-OPS-06).
 """
 
 from __future__ import annotations
@@ -56,6 +58,7 @@ from app.ledger.promote import (
     FieldShape,
     PromotableField,
     PromotableTarget,
+    normalised_words,
     promotable_fields,
     promotable_targets,
     promote,
@@ -216,6 +219,7 @@ __all__ = [
     "PromotableTarget",
     "ProposedAppend",
     "append_proposed",
+    "normalised_words",
     "promotable_fields",
     "promotable_targets",
     "promote",

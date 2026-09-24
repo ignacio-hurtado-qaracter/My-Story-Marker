@@ -24,8 +24,8 @@ one assertion twice, whichever role queued it first and however often a revision
 Queuing is not done here: roles never write, and `app.agents.service` appends under the role's
 tool set.
 
-**A fact names a target that exists** (AC 27, FR-OPS-06). `promote` sets a field on an existing
-record and refuses anything else, so a fact addressed to an invented field can never be
+**A fact names a target that exists** (AC 27, FR-OPS-06). `promote` adds to a field of an
+existing record and refuses anything else, so a fact addressed to an invented field can never be
 promoted. The instruction therefore lists the records a fact may address and, per record type,
 the fields `promote` can fill, each with its shape and meaning -- all derived by code from
 `app.ledger.service.promotable_targets`, the same tests `promote` applies, so the two cannot
@@ -141,15 +141,17 @@ def extract_instruction(scene_id: str, targets: Sequence[PromotableTarget] = ())
     A listed record whose file the canoniser may not read -- a character's dossier, which
     Figure 3 keeps out of its row -- is named as not given (`render_targets`, `hidden`), derived
     from the target's own path by the same test that admits a canon document (`is_canon_entry`),
-    so the instruction never claims the model can see a record it cannot. The closing line asks
-    for a pass over every listed record: the first live runs stopped after the first record
-    that had something to say."""
+    so the instruction never claims the model can see a record it cannot. The first line asks
+    only for what the records do not already specify and do not contradict (FR-AGENT-05,
+    FR-OPS-06: promotion is add-only, and whether the prose may contradict a record was the
+    auditor's question). The closing line asks for a pass over every listed record: the first
+    live runs stopped after the first record that had something to say."""
     hidden = [target.entity for target in targets if not is_canon_entry((target.path,))]
     return "\n".join(
         [
             (
                 f"Operation: extract the facts the accepted scene {scene_id} asserts about the "
-                "story world that the records do not already hold."
+                "story world that the records do not already specify and do not contradict."
             ),
             (
                 f"The accepted prose is the document labelled {paths.draft(scene_id)}; the other "
@@ -309,8 +311,9 @@ def extract_facts(
     *,
     cap: int = CONTEXT_TOKEN_CAP,
 ) -> ExtractCall:
-    """FR-AGENT-05, AC 27. Assertions in the accepted draft that canon does not already hold,
-    each addressed to a field `promote` can write.
+    """FR-AGENT-05, AC 27. Assertions in the accepted draft that canon does not already specify
+    and does not contradict, each addressed to a field `promote` can write. Judging the prose
+    against canon is the auditor's, before the draft is accepted; promotion only adds.
 
     Mandatory: the draft's prose. Prunable: the assembled context's canon documents, in rank
     order, fitted to `cap` with the canoniser's own prompt and instruction counted. The

@@ -1,9 +1,9 @@
-# AC 13 — no code path under `ledger/` or `agents/` resolves a collision by writing canon.
+# AC 13 — no code path under `ledger/` or `agents/` writes canon outside `promote` and `rule`.
 #
 # `promote` is "the return edge: the only write path into canon during drafting, and the sole
-# responsibility of the canoniser". When a proposed fact collides with an existing record it
-# is escalated rather than resolved silently, and only `rule`, carrying `actor: human`,
-# settles it (FR-OPS-06, FR-OPS-07).
+# responsibility of the canoniser". It is add-only: it adds what a record does not already
+# specify and never overwrites (FR-OPS-06). Only `rule`, carrying `actor: human`, can write a
+# payload over a different value (FR-OPS-07).
 #
 # The failure this forbids is the one `architecture.md` names under ProposedFact: automatic
 # promotion with no review. Canon fills with improvised noise and stops being authoritative,
@@ -33,8 +33,8 @@ rules:
       Write to canon/ or cast/ from ledger/ or agents/ outside promote() or rule(), or a
       store write whose path cannot be shown not to be one. Canon has exactly two inbound
       write edges (Figure 3) and during drafting only the canoniser's promote() uses one of
-      them; a collision is escalated to a human ruling (rule(), actor human), never resolved
-      in place. Pass the path as a literal, an UPPER_CASE constant or a paths helper call.
+      them, add-only; only a human ruling (rule(), actor human) may overwrite a value. Pass
+      the path as a literal, an UPPER_CASE constant or a paths helper call.
     paths:
       include:
         - app/ledger/

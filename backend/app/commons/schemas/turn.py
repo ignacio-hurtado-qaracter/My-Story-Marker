@@ -275,8 +275,11 @@ class FactRecord(HarnessModel):
 
     @property
     def settled(self) -> bool:
-        """True once the promotion step has nothing left to do for this fact."""
-        return self.status is not FactStatus.PENDING or self.conflict or self.refused is not None
+        """True once the promotion step has nothing left to do for this fact (FR-OPS-06, AC 20).
+
+        `conflict` does not settle a fact: promotion is add-only, so a pending fact that still
+        carries `conflict: true` from before is promoted like any other."""
+        return self.status is not FactStatus.PENDING or self.refused is not None
 
 
 class DraftMeasure(HarnessModel):

@@ -96,9 +96,9 @@ class ExtractCall(RoleCall[ExtractOutput]):
     can write (`app.ledger.service.promotable_targets`).
 
     `output.facts` holds only facts whose address is promotable, so everything the orchestrator
-    queues from it can be promoted or escalated, never refused for its address. When the first
-    answer named any other target, the call was retried once with those targets named in the
-    instruction; `first` is then that first call, as the model answered it, and `completion`,
+    queues from it can be settled by an add-only `promote`, never refused for its address. When
+    the first answer named any other target, the call was retried once with those targets named
+    in the instruction; `first` is then that first call, as the model answered it, and `completion`,
     `documents` and `instruction` are the retry's, its output replaced by the valid facts of
     both answers merged by key (first answer's first). `retried` lists what the first answer
     got wrong; `rejected` what the retry still got wrong -- never queued, and kept here so no

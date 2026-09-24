@@ -488,15 +488,15 @@ exists for a fixture-level test that does not need a live model.
 
 Prose invents constantly, and none of what it invents is canon at the moment it is written.
 `extract_facts` reads the accepted draft and queues each invention in `ledger/proposed.yaml`,
-where a human decides whether it becomes canon. AC 27 checks that the live extraction finds
-the two inventions planted in Draft A.
+from where `promote` files it into canon on top of the record, never over it. AC 27 checks
+that the live extraction finds the two inventions planted in Draft A.
 
 Both are stated plainly in `manuscript/002.md`, and **neither is anywhere in canon.**
 
 | | What the prose asserts | Expected `target_entity` | Expected `target_field` | Why it is not already canon |
 |---|---|---|---|---|
 | **F1** | The throat — the inner soak-lock door of the pump vault — releases only from the vault side | `pump_vault` | `geometry` | `canon/locations/pump_vault.md`'s `geometry` says the throat is the only door and nothing about which side releases it |
-| **F2** | A cold soak may be cut to four hours on a co-op indemnity dive, which is why indemnity divers lose the lung lining first | `ax_cold_soak` | `exceptions` | `canon/axioms/ax_cold_soak.md` has `exceptions: []` — an empty list, so an extraction has nothing to collide with |
+| **F2** | A cold soak may be cut to four hours on a co-op indemnity dive, which is why indemnity divers lose the lung lining first | `ax_cold_soak` | `exceptions` | `canon/axioms/ax_cold_soak.md` has `exceptions: []` — an empty list, so the four-hour cut would be its first entry |
 
 Those two absences are load-bearing. If `geometry` already mentioned the release side, or
 `exceptions` already held the four-hour cut, AC 27 would have nothing to extract and the
@@ -505,8 +505,8 @@ result could not be told from a pre-existing record.
 `ledger/proposed.yaml` ships with two entries, `pf_001` and `pf_002`, both deliberately about
 something else (a competence of vance's, and a want of quiej's), for the same reason: a
 reviewer must be able to tell a fresh extraction from a row that was already queued. Neither
-carries `conflict: true`, so no turn on any scene starts blocked — in particular the live
-turn on scene 006 starts cleanly.
+carries `conflict: true`, the mark a pre-add-only `promote` once left on a queued fact, and
+neither blocks a turn — in particular the live turn on scene 006 starts cleanly.
 
 Scene 006's record re-invites both facts without prescribing any prose — its `entry_state`
 has the throat closed behind them, and its `notes` reads "What Ilan can do down here, he can

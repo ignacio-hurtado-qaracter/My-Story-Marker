@@ -18,7 +18,7 @@ The rules:
    what path the module then opened, which is why this check exists at all.
 2. **canon-write-outside-promote** (AC 13) - nothing under `ledger/` or `agents/` writes
    canon except `promote` and `rule`. `promote` is the only write path into canon during
-   drafting, and a collision is escalated to a human rather than resolved silently. Outside
+   drafting, and it only adds; `rule`, carrying a human, is the one that can overwrite. Outside
    those two functions a store write must name its path as a literal, an UPPER_CASE constant
    or a direct `paths.<helper>(...)` call, none of them canon or cast, and the canon and cast
    services' write functions may not be called.
@@ -375,8 +375,8 @@ def check_canon_write_outside_promote(relative: str, tree: ast.Module) -> list[F
                     "canon-write-outside-promote",
                     relative,
                     node.lineno,
-                    f"{reason} in {enclosing}(); canon is written only by promote() and "
-                    "rule(), and a collision is escalated to a human",
+                    f"{reason} in {enclosing}(); canon is written only by promote(), which "
+                    "only adds, and rule(), which a human calls",
                 )
             )
     return findings

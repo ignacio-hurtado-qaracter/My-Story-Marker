@@ -1,15 +1,22 @@
-"""AC 13 - `promote` updates the record on a non-conflicting fact; on a collision it returns an
-`Escalation`, changes nothing in canon or cast, and sets `conflict`. No code path under
-`ledger/` or `agents/` resolves a collision without a `rule` call carrying `actor: human`.
+"""AC 13 - `promote` is add-only (FR-OPS-06). It sets an empty field, appends one clause to a
+filled text field, one item to a list and one new key to a mapping, and never replaces what a
+record holds. What the record already specifies -- a different identifier or name, a key it
+already has with another value, a body key a registered change names -- is not applied: the
+fact is settled `rejected` with no ruling and only `ledger/proposed.yaml` is written.
+`promote` always answers `Promoted`, never escalates, and never sets `conflict` or
+`existing_value`. No code path under `ledger/` or `agents/` writes canon except `promote` and
+`rule`, and `rule`, the one path that can overwrite, refuses `actor: agent`.
 
-Measured with a hash of every file in the tree before and after each call, because "changes
-nothing" is a claim about bytes, and a status code or a returned object cannot prove it.
+Measured with a hash of every file in the tree before and after each call, because "never
+replaces" and "changes nothing" are claims about bytes, and a status code or a returned object
+cannot prove them. An append is checked by its exact new value, never by `payload in value`,
+which an overwrite would satisfy too.
 
 The fixture values these tests lean on are named in `tests/fixtures/repo/README.md`: the
 queued facts `pf_001` (pending, vance's competences) and `pf_002` (already rejected), and the
 two invented facts of Draft A - F1, the throat releasing only from the vault side, aimed at
-`pump_vault.geometry`, which is already non-empty and so must collide; and F2, the four-hour
-indemnity cut, aimed at `ax_cold_soak.exceptions`, which is an empty list and so must not.
+`pump_vault.geometry`, which already holds text and so is extended by it; and F2, the four-hour
+indemnity cut, aimed at `ax_cold_soak.exceptions`, an empty list.
 """
 
 from __future__ import annotations
@@ -27,12 +34,12 @@ from app.cast import service as cast_service
 from app.cast.models import Character
 from app.commons.errors import InvalidRecord, NotFound, PermissionDenied
 from app.commons.permissions import Actor, AgentRole
-from app.commons.schemas import FactStatus, ProposedFact, RulingKind
+from app.commons.schemas import ChangeEvent, ChangesFile, FactStatus, ProposedFact, RulingKind
 from app.commons.stores import Store, paths
 from app.commons.stores.provenance import ProvenanceRecord
 from app.ledger import service
-from app.ledger.models import Escalation, Promoted
-from app.ledger.service import ProposedAppend
+from app.ledger.models import Promoted
+from app.ledger.service import PromotableField, PromotableTarget, ProposedAppend
 
 CANONISER = AgentRole.CANONISER
 F1_PAYLOAD = "the throat releases only from the vault side, never from the gallery"
@@ -40,6 +47,7 @@ F2_PAYLOAD = "cut to four hours on a co-op indemnity dive; the lung lining goes 
 PUMP_VAULT = paths.canon_entity("locations", "pump_vault")
 COLD_SOAK = paths.canon_entity("axioms", "ax_cold_soak")
 VANCE = paths.cast_file("vance", "dossier")
+ILAN = paths.cast_file("ilan", "dossier")
 
 
 def _hashes(store: Store) -> dict[str, str]:
@@ -80,12 +88,41 @@ def _on_disk(store: Store, fact_id: str) -> ProposedFact:
     return next(fact for fact in service.proposed(store).proposed if fact.id == fact_id)
 
 
-def _promote(store: Store, fact_id: str) -> Promoted | Escalation:
+def _promote(store: Store, fact_id: str) -> Promoted:
     return service.promote(store, fact_id, role=CANONISER, actor=Actor.AGENT)
 
 
 def _written(writes: list[ProvenanceRecord]) -> list[str]:
     return [line.path for line in writes]
+
+
+def _geometry(store: Store) -> str:
+    return canon_service.entity(store, "locations", "pump_vault", Location).geometry
+
+
+def _set_failure_mode(store: Store, text: str) -> None:
+    """Give the hand sonar's `failure_mode` a known text, as the world builder would."""
+    sonar = canon_service.entity(store, "technology", "te_hand_sonar", Technology)
+    store.write(
+        paths.canon_entity("technology", "te_hand_sonar"),
+        sonar.model_copy(update={"failure_mode": text}),
+        role=AgentRole.WORLD_BUILDER,
+    )
+
+
+def _assert_not_applied(store: Store, result: Promoted, fact_id: str, target: str) -> None:
+    """A fact the record already specifies: `Promoted` by type, `rejected` by status, with no
+    ruling (a ruling is a human's), no collision recorded, and nothing but the queue written."""
+    assert isinstance(result, Promoted)
+    assert result.changed is False
+    assert result.target_path == target
+    assert _written(result.writes) == [paths.PROPOSED]
+    recorded = _on_disk(store, fact_id)
+    assert recorded.status is FactStatus.REJECTED
+    assert recorded.ruling is None
+    assert recorded.conflict is False
+    assert recorded.existing_value is None
+    assert result.fact == recorded
 
 
 # --------------------------------------------------------------------------------------
@@ -195,73 +232,306 @@ def test_mapping_key_absent_is_added_and_same_value_is_a_no_op(fixture_store: St
 
 
 # --------------------------------------------------------------------------------------
-# Collisions: escalated, canon and cast byte-identical, conflict recorded
+# Add-only: a filled field is extended, never replaced; what is already specified is not applied
 # --------------------------------------------------------------------------------------
 
 
-def test_scalar_collision_escalates_and_leaves_canon_and_cast_byte_identical(
+def test_a_filled_scalar_gets_the_payload_appended_as_one_more_clause(
     fixture_store: Store,
 ) -> None:
-    # spec 001 / AC 13 - conflict -> Escalation, tree byte-identical, conflict=True
-    geometry = canon_service.entity(fixture_store, "locations", "pump_vault", Location).geometry
+    # spec 001 / AC 13 - F1 extends `geometry`: the old text is kept byte for byte and the
+    # payload follows it after "; ". No escalation, no collision recorded.
+    geometry = _geometry(fixture_store)
     _queue(fixture_store, _fact("pf_f1", "pump_vault", "geometry", F1_PAYLOAD))
     before = _hashes(fixture_store)
 
     result = _promote(fixture_store, "pf_f1")
 
-    assert isinstance(result, Escalation)
-    assert result.existing_value == geometry
-    assert result.payload == F1_PAYLOAD
+    assert isinstance(result, Promoted)
+    assert result.changed is True
     assert result.target_path == PUMP_VAULT
-    assert _written(result.writes) == [paths.PROPOSED]
-    assert _changed(before, _hashes(fixture_store)) == {paths.PROPOSED}
-
+    assert _written(result.writes) == [PUMP_VAULT, paths.PROPOSED]
+    assert _changed(before, _hashes(fixture_store)) == {PUMP_VAULT, paths.PROPOSED}
+    assert _geometry(fixture_store) == f"{geometry.rstrip()}; {F1_PAYLOAD}"
     recorded = _on_disk(fixture_store, "pf_f1")
-    assert recorded.conflict is True
-    assert recorded.existing_value == geometry
-    assert recorded.status is FactStatus.PENDING
+    assert recorded.status is FactStatus.PROMOTED
+    assert recorded.conflict is False
+    assert recorded.existing_value is None
     assert recorded.ruling is None
 
 
-def test_mapping_collision_records_the_existing_key_and_value(fixture_store: Store) -> None:
-    # spec 001 / AC 13 - a different value under an existing key collides
-    lungs = cast_service.read_character(fixture_store, "ilan").immutable_physical["lungs"]
-    _queue(fixture_store, _fact("pf_lungs", "ilan", "immutable_physical", "lungs: tolerates brine"))
+def test_the_appended_payload_is_stripped_and_the_existing_text_is_never_edited(
+    fixture_store: Store,
+) -> None:
+    # spec 001 / AC 13 - only trailing whitespace of the old text goes (a block scalar ends in a
+    # newline); its closing punctuation stays, and the payload's own padding is dropped
+    _set_failure_mode(fixture_store, "it lies in a working shelf.\n")
+    _queue(fixture_store, _fact("pf_pad", "te_hand_sonar", "failure_mode", "  and in brine  "))
+
+    result = _promote(fixture_store, "pf_pad")
+
+    assert result.changed is True
+    sonar = canon_service.entity(fixture_store, "technology", "te_hand_sonar", Technology)
+    assert sonar.failure_mode == "it lies in a working shelf.; and in brine"
+
+
+def test_a_scalar_that_already_says_the_payload_is_settled_with_no_write(
+    fixture_store: Store,
+) -> None:
+    # spec 001 / AC 13 - the payload's words are a run of the text's words, in another case and
+    # with other punctuation: canon already says it, so it is promoted and nothing is appended
+    _queue(
+        fixture_store, _fact("pf_door", "pump_vault", "geometry", "The Throat is the ONLY door.")
+    )
     before = _hashes(fixture_store)
 
-    result = _promote(fixture_store, "pf_lungs")
+    result = _promote(fixture_store, "pf_door")
 
-    assert isinstance(result, Escalation)
-    assert result.existing_value == f"lungs: {lungs}"
+    assert isinstance(result, Promoted)
+    assert result.changed is False
+    assert result.fact.status is FactStatus.PROMOTED
+    assert _written(result.writes) == [paths.PROPOSED]
     assert _changed(before, _hashes(fixture_store)) == {paths.PROPOSED}
 
 
-def test_promote_cannot_resolve_a_recorded_collision(fixture_store: Store) -> None:
-    # spec 001 / AC 13 - no code path resolves a collision without a human `rule`
-    _queue(fixture_store, _fact("pf_f1", "pump_vault", "geometry", F1_PAYLOAD))
-    _promote(fixture_store, "pf_f1")
+def test_containment_is_word_bounded(fixture_store: Store) -> None:
+    # spec 001 / AC 13 - "red" is not said by "reddish": a substring test would drop the detail
+    # and still mark the fact promoted
+    _set_failure_mode(fixture_store, "a reddish glow in silty water")
+    _queue(fixture_store, _fact("pf_red", "te_hand_sonar", "failure_mode", "red"))
+
+    result = _promote(fixture_store, "pf_red")
+
+    assert result.changed is True
+    sonar = canon_service.entity(fixture_store, "technology", "te_hand_sonar", Technology)
+    assert sonar.failure_mode == "a reddish glow in silty water; red"
+
+
+@pytest.mark.parametrize(
+    "payload",
+    ["lungs: tolerates brine", "LUNGS: tolerates brine", "left-hand: a hook", "Left Hand: a hook"],
+    ids=["same-key", "key-case", "key-hyphen", "key-space"],
+)
+def test_a_mapping_key_the_record_has_is_never_changed(fixture_store: Store, payload: str) -> None:
+    # spec 001 / AC 13 - a stored key with a different value is not applied, whatever the case
+    # or the separators of the key; the dossier is byte-identical and no one is asked
+    dossier = fixture_store.read_raw(ILAN)
+    _queue(fixture_store, _fact("pf_body", "ilan", "immutable_physical", payload))
     before = _hashes(fixture_store)
 
-    again = _promote(fixture_store, "pf_f1")
+    result = _promote(fixture_store, "pf_body")
 
-    assert isinstance(again, Escalation)
-    assert again.writes == []
-    assert _hashes(fixture_store) == before
+    _assert_not_applied(fixture_store, result, "pf_body", ILAN)
+    assert _changed(before, _hashes(fixture_store)) == {paths.PROPOSED}
+    assert fixture_store.read_raw(ILAN) == dossier
 
 
-def test_a_collision_stands_even_if_canon_later_agrees(fixture_store: Store) -> None:
-    # spec 001 / AC 13 - `conflict` is never cleared by code, only by a ruling
-    _queue(fixture_store, _fact("pf_f1", "pump_vault", "geometry", F1_PAYLOAD))
-    _promote(fixture_store, "pf_f1")
+def test_a_body_key_only_a_registered_change_names_is_not_applied(fixture_store: Store) -> None:
+    # spec 001 / AC 13, invariant 3 - a key the stored map lacks but a ChangeEvent names: adding
+    # it to the base map would make it hold from the story's start and rewrite the history the
+    # change records. The change is dated after the fact's scene, so no as-of body holds it.
+    changes = cast_service.read_changes(fixture_store, "ilan")
+    scar = ChangeEvent(
+        character="ilan",
+        attribute="right_eye",
+        from_value="clear",
+        to_value="clouded by brine",
+        scene="006",
+        cause="a cracked mask in the vault",
+    )
+    fixture_store.write(
+        paths.cast_file("ilan", "changes"),
+        ChangesFile(changes=[*changes.changes, scar]),
+        role=CANONISER,
+    )
+    assert "right_eye" not in cast_service.read_character(fixture_store, "ilan").immutable_physical
+    dossier = fixture_store.read_raw(ILAN)
+    _queue(fixture_store, _fact("pf_eye", "ilan", "immutable_physical", "Right Eye: clear"))
+    before = _hashes(fixture_store)
+
+    result = _promote(fixture_store, "pf_eye")
+
+    _assert_not_applied(fixture_store, result, "pf_eye", ILAN)
+    assert _changed(before, _hashes(fixture_store)) == {paths.PROPOSED}
+    assert fixture_store.read_raw(ILAN) == dossier
+
+
+def test_a_name_is_never_appended_to(fixture_store: Store) -> None:
+    # spec 001 / AC 13 - a different name is not applied; the same name in another case is
+    # already in canon
+    name = cast_service.read_character(fixture_store, "ilan").name
+    _queue(
+        fixture_store,
+        _fact("pf_alias", "ilan", "name", "Ilan the splicer"),
+        _fact("pf_name", "ilan", "name", name.upper()),
+    )
+    dossier = fixture_store.read_raw(ILAN)
+
+    alias = _promote(fixture_store, "pf_alias")
+    same = _promote(fixture_store, "pf_name")
+
+    _assert_not_applied(fixture_store, alias, "pf_alias", ILAN)
+    assert same.changed is False
+    assert same.fact.status is FactStatus.PROMOTED
+    assert fixture_store.read_raw(ILAN) == dossier
+
+
+def test_an_identifier_is_set_once_and_never_changed(fixture_store: Store) -> None:
+    # spec 001 / AC 13 - `parent` is an EntityId: a different id is not applied, the same id is a
+    # no-op, and an empty one is set. Appending would have made an invalid id.
+    parent = canon_service.entity(fixture_store, "locations", "pump_vault", Location).parent
+    assert parent is not None
+    root = canon_service.entity(fixture_store, "locations", "kestrel_deep", Location)
+    assert root.parent is None
+    _queue(
+        fixture_store,
+        _fact("pf_moved", "pump_vault", "parent", "the_gallery"),
+        _fact("pf_same_parent", "pump_vault", "parent", parent),
+        _fact("pf_root_parent", "kestrel_deep", "parent", "the_shelf"),
+    )
+    vault = fixture_store.read_raw(PUMP_VAULT)
+
+    moved = _promote(fixture_store, "pf_moved")
+    same = _promote(fixture_store, "pf_same_parent")
+    rooted = _promote(fixture_store, "pf_root_parent")
+
+    _assert_not_applied(fixture_store, moved, "pf_moved", PUMP_VAULT)
+    assert fixture_store.read_raw(PUMP_VAULT) == vault
+    assert (same.changed, same.fact.status) == (False, FactStatus.PROMOTED)
+    assert rooted.changed is True
+    kestrel = canon_service.entity(fixture_store, "locations", "kestrel_deep", Location)
+    assert kestrel.parent == "the_shelf"
+
+
+def test_a_promotion_that_died_between_its_two_writes_settles_with_no_second_write(
+    fixture_store: Store,
+) -> None:
+    # spec 001 / AC 13 - canon first, queue second: canon already holds what the fact adds (an
+    # appended clause, an added key, a set identifier) while the fact is still pending. The next
+    # promote settles it as promoted and writes nothing but the queue.
+    geometry = _geometry(fixture_store)
     vault = canon_service.entity(fixture_store, "locations", "pump_vault", Location)
     fixture_store.write(
-        PUMP_VAULT, vault.model_copy(update={"geometry": ""}), role=AgentRole.WORLD_BUILDER
+        PUMP_VAULT,
+        vault.model_copy(update={"geometry": f"{geometry.rstrip()}; {F1_PAYLOAD}"}),
+        role=CANONISER,
     )
+    ilan = cast_service.read_character(fixture_store, "ilan")
+    fixture_store.write(
+        ILAN,
+        ilan.model_copy(update={"immutable_physical": {**ilan.immutable_physical, "eyes": "grey"}}),
+        role=CANONISER,
+    )
+    root = canon_service.entity(fixture_store, "locations", "kestrel_deep", Location)
+    fixture_store.write(
+        paths.canon_entity("locations", "kestrel_deep"),
+        root.model_copy(update={"parent": "the_shelf"}),
+        role=CANONISER,
+    )
+    _queue(
+        fixture_store,
+        _fact("pf_f1", "pump_vault", "geometry", F1_PAYLOAD),
+        _fact("pf_eyes", "ilan", "immutable_physical", "eyes: grey"),
+        _fact("pf_root", "kestrel_deep", "parent", "the_shelf"),
+    )
+
+    for fact_id in ("pf_f1", "pf_eyes", "pf_root"):
+        before = _hashes(fixture_store)
+        result = _promote(fixture_store, fact_id)
+        assert isinstance(result, Promoted), fact_id
+        assert (result.changed, result.fact.status) == (False, FactStatus.PROMOTED), fact_id
+        assert _changed(before, _hashes(fixture_store)) == {paths.PROPOSED}, fact_id
+
+
+def test_a_legacy_collided_fact_is_promoted_add_only_and_keeps_its_record(
+    fixture_store: Store,
+) -> None:
+    # spec 001 / AC 13 - a queue entry an earlier, collision-checking promote left pending with
+    # `conflict: true`: promoted like any other fact, and `conflict` and `existing_value` are
+    # carried over exactly as they were (promote never sets or clears them)
+    geometry = _collided(fixture_store)
 
     result = _promote(fixture_store, "pf_f1")
 
-    assert isinstance(result, Escalation)
-    assert _on_disk(fixture_store, "pf_f1").status is FactStatus.PENDING
+    assert isinstance(result, Promoted)
+    assert result.changed is True
+    assert _geometry(fixture_store) == f"{geometry.rstrip()}; {F1_PAYLOAD}"
+    recorded = _on_disk(fixture_store, "pf_f1")
+    assert recorded.status is FactStatus.PROMOTED
+    assert recorded.conflict is True
+    assert recorded.existing_value == geometry
+    assert recorded.ruling is None
+
+
+def _read_target(store: Store, target: PromotableTarget) -> BaseModel:
+    """The record `target` names, read through its owning service."""
+    if target.record_type == Character.__name__:
+        return cast_service.read_character(store, target.entity)
+    kind = target.path.split("/")[1]
+    return canon_service.entity(store, kind, target.entity, canon_service.CANON_MODELS[kind])
+
+
+def _valid_payload(field: PromotableField) -> str:
+    """A payload every promotable field of its shape accepts: an identifier-shaped word fits an
+    `EntityId` scalar or list item as well as free text."""
+    if field.shape is service.FieldShape.MAPPING:
+        return "promoted_key: a promoted value"
+    return "promoted_value"
+
+
+def _fixture_targets(store: Store) -> tuple[PromotableTarget, ...]:
+    """Every canon entity and every character of the fixture, as `promote` resolves them."""
+    entities = [
+        relative.rsplit("/", 1)[1].removesuffix(".md")
+        for kind in paths.CANON_KINDS
+        for relative in store.list_files(f"{paths.CANON}/{kind}", ".md")
+    ]
+    entities.extend(store.list_subdirectories(paths.CAST))
+    return service.promotable_targets(store, entities)
+
+
+def test_no_promotion_of_any_field_of_any_fixture_record_overwrites_anything(
+    fixture_store: Store,
+) -> None:
+    # spec 001 / AC 13 - the property: over every promotable field of every fixture record, with
+    # a payload the field accepts, promote answers `Promoted`, writes nothing but the target and
+    # the queue, and what the field held survives as a prefix (text, list) or a sub-map with
+    # equal values. Any overwrite or escalation fails it.
+    targets = _fixture_targets(fixture_store)
+    assert {target.record_type for target in targets} == {
+        "Axiom",
+        "Technology",
+        "Location",
+        "Faction",
+        "HistoricalEvent",
+        "Character",
+    }
+    number = 0
+    for target in targets:
+        for field in target.fields:
+            number += 1
+            fact_id = f"pf_prop_{number}"
+            _queue(fixture_store, _fact(fact_id, target.entity, field.name, _valid_payload(field)))
+            old = getattr(_read_target(fixture_store, target), field.attribute)
+            before = _hashes(fixture_store)
+
+            result = _promote(fixture_store, fact_id)
+
+            where = f"{target.entity}.{field.name}"
+            new = getattr(_read_target(fixture_store, target), field.attribute)
+            changed = _changed(before, _hashes(fixture_store))
+            assert isinstance(result, Promoted), where
+            assert changed <= {target.path, paths.PROPOSED}, where
+            assert result.fact.status in {FactStatus.PROMOTED, FactStatus.REJECTED}, where
+            assert (result.fact.conflict, result.fact.existing_value) == (False, None), where
+            if result.fact.status is FactStatus.REJECTED:
+                assert changed == {paths.PROPOSED}, where
+            if isinstance(old, list):
+                assert new[: len(old)] == old, where
+            elif isinstance(old, dict):
+                assert all(new.get(key) == value for key, value in old.items()), where
+            else:
+                assert str(new).startswith((old or "").rstrip()), where
 
 
 # --------------------------------------------------------------------------------------
@@ -279,6 +549,8 @@ def test_a_collision_stands_even_if_canon_later_agrees(fixture_store: Store) -> 
         (_fact("pf_x", "pump_vault", "id", "vault"), "target_field"),
         (_fact("pf_x", "pump_vault", "parent", "Not An Id"), "payload"),
         (_fact("pf_x", "ilan", "immutable_physical", "no colon here"), "payload"),
+        (_fact("pf_x", "pump_vault", "geometry", "-- ... --"), "payload"),
+        (_fact("pf_x", "ilan", "immutable_physical", "eyes: ..."), "payload"),
     ],
     ids=[
         "entity-missing",
@@ -288,12 +560,15 @@ def test_a_collision_stands_even_if_canon_later_agrees(fixture_store: Store) -> 
         "identifier",
         "payload-fails-field",
         "mapping-without-key",
+        "payload-asserts-nothing",
+        "mapping-value-asserts-nothing",
     ],
 )
 def test_unpromotable_fact_is_refused_and_nothing_is_written(
     fixture_store: Store, fact: ProposedFact, field: str
 ) -> None:
-    # spec 001 / AC 13 - a target that does not exist is not promoted, and not escalated
+    # spec 001 / AC 13 - a target that does not exist is not promoted, and not settled as "not
+    # applied"; a payload with no word would be "contained" in any text, so it is refused too
     _queue(fixture_store, fact)
     index = len(service.proposed(fixture_store).proposed) - 1
     before = _hashes(fixture_store)
@@ -331,20 +606,24 @@ def test_promote_runs_under_the_canoniser_only(fixture_store: Store, role: Agent
 
 
 # --------------------------------------------------------------------------------------
-# rule: the human gate
+# rule: a human's manual decision, and the one path that can overwrite canon
 # --------------------------------------------------------------------------------------
 
 
 def _collided(store: Store) -> str:
-    """Queue F1 and let `promote` record its collision; returns the original geometry."""
-    geometry = canon_service.entity(store, "locations", "pump_vault", Location).geometry
-    _queue(store, _fact("pf_f1", "pump_vault", "geometry", F1_PAYLOAD))
-    assert isinstance(_promote(store, "pf_f1"), Escalation)
+    """Queue F1 as an earlier, collision-checking `promote` left it -- pending, `conflict: true`,
+    the geometry it collided with recorded -- built directly, since no promotion records a
+    collision now. Returns the original geometry."""
+    geometry = _geometry(store)
+    legacy = _fact("pf_f1", "pump_vault", "geometry", F1_PAYLOAD).model_copy(
+        update={"conflict": True, "existing_value": geometry}
+    )
+    _queue(store, legacy)
     return geometry
 
 
 def test_accept_promotes_despite_the_collision(fixture_store: Store) -> None:
-    # spec 001 / AC 13 - `rule` with actor human is the one path that resolves a collision
+    # spec 001 / AC 13 - `rule` with actor human is the one path that overwrites a value
     geometry = _collided(fixture_store)
     before = _hashes(fixture_store)
 
@@ -487,16 +766,22 @@ def test_every_canon_or_cast_write_comes_from_promote_or_rule(
 
     _queue(fixture_store, _fact("pf_f1", "pump_vault", "geometry", F1_PAYLOAD))
     _queue(fixture_store, _fact("pf_f2", "ax_cold_soak", "exceptions", F2_PAYLOAD))
+    _queue(fixture_store, _fact("pf_wants", "ilan", "wants", "the way back up"))
     monkeypatch.setattr(Store, "write", recording_write)
 
     _promote(fixture_store, "pf_001")
     _promote(fixture_store, "pf_f2")
     _promote(fixture_store, "pf_f1")
     service.rule(
-        fixture_store, "pf_f1", RulingKind.ACCEPT, "decided", role=CANONISER, actor=Actor.HUMAN
+        fixture_store, "pf_wants", RulingKind.ACCEPT, "decided", role=CANONISER, actor=Actor.HUMAN
     )
 
-    assert callers == [("promote", VANCE), ("promote", COLD_SOAK), ("rule", PUMP_VAULT)]
+    assert callers == [
+        ("promote", VANCE),
+        ("promote", COLD_SOAK),
+        ("promote", PUMP_VAULT),
+        ("rule", ILAN),
+    ]
 
 
 # --------------------------------------------------------------------------------------
@@ -517,19 +802,42 @@ def test_http_promote_answers_promoted(fixture_client: TestClient) -> None:
     assert body["fact"]["status"] == "promoted"
 
 
-def test_http_collision_escalates_then_a_human_rules(fixture_client: TestClient) -> None:
-    # spec 001 / AC 13 - escalation is a 200; the agent is refused; the human settles it
-    fact = _fact("pf_f1", "pump_vault", "geometry", F1_PAYLOAD).model_dump(mode="json")
-    queued = fixture_client.post(
-        "/ledger/proposed", json={"facts": [fact]}, headers=CANONISER_AGENT
-    )
+def test_http_promote_extends_a_filled_field_and_reports_a_fact_not_applied(
+    fixture_client: TestClient,
+) -> None:
+    # spec 001 / AC 13 - both answers are `Promoted`: a client reads `fact.status`, promoted for
+    # the appended clause, rejected with no ruling for the key the record already has
+    facts = [
+        _fact("pf_f1", "pump_vault", "geometry", F1_PAYLOAD).model_dump(mode="json"),
+        _fact("pf_lungs", "ilan", "immutable_physical", "lungs: tolerates brine").model_dump(
+            mode="json"
+        ),
+    ]
+    queued = fixture_client.post("/ledger/proposed", json={"facts": facts}, headers=CANONISER_AGENT)
     assert queued.status_code == 200
 
-    escalated = fixture_client.post("/ledger/proposed/pf_f1/promote", headers=CANONISER_AGENT)
-    assert escalated.status_code == 200
-    assert escalated.json()["outcome"] == "escalation"
-    assert escalated.json()["fact"]["conflict"] is True
+    appended = fixture_client.post("/ledger/proposed/pf_f1/promote", headers=CANONISER_AGENT)
+    assert appended.status_code == 200
+    assert appended.json()["outcome"] == "promoted"
+    assert appended.json()["changed"] is True
+    assert appended.json()["fact"]["status"] == "promoted"
+    assert appended.json()["fact"]["conflict"] is False
 
+    specified = fixture_client.post("/ledger/proposed/pf_lungs/promote", headers=CANONISER_AGENT)
+    assert specified.status_code == 200
+    assert specified.json()["outcome"] == "promoted"
+    assert specified.json()["changed"] is False
+    assert specified.json()["fact"]["status"] == "rejected"
+    assert specified.json()["fact"]["ruling"] is None
+    assert specified.json()["fact"]["conflict"] is False
+
+
+def test_http_a_human_rules_on_a_legacy_collision(
+    fixture_client: TestClient, fixture_store: Store
+) -> None:
+    # spec 001 / AC 13 - the rule route stays a human's tool: the agent is refused, the human
+    # settles the collision an earlier promote recorded
+    _collided(fixture_store)
     ruling = {"ruling": "accept", "reason": "the draft is right"}
     refused = fixture_client.post(
         "/ledger/proposed/pf_f1/rule", json=ruling, headers=CANONISER_AGENT
@@ -704,7 +1012,7 @@ def test_the_mapping_payload_test_is_shared(payload: str, split: tuple[str, str]
 
 
 # --------------------------------------------------------------------------------------
-# A character's body is compared as of the fact's scene, with registered changes applied
+# A character's body: the stored map is what promotion adds to, never the as-of body
 # --------------------------------------------------------------------------------------
 
 
@@ -721,39 +1029,33 @@ def _body_fact(identifier: str, payload: str, scene: str) -> ProposedFact:
     )
 
 
-def test_a_body_fact_equal_to_a_registered_change_is_settled_with_no_write(
-    fixture_store: Store,
-) -> None:
-    # spec 001 / AC 13, AC 26 - the first live turn ended awaiting_ruling on a false conflict:
-    # a fact restating the registered left-hand change collided with the stored base value.
-    # After the change's scene the record holds the new value, so the fact agrees with it.
+def test_a_body_fact_restating_a_registered_change_is_not_applied(fixture_store: Store) -> None:
+    # spec 001 / AC 13 - `left_hand` is a key the stored map already has, so the registered
+    # change's new value is not added over it: the change stays in `changes.yaml`, the stored
+    # map is never rewritten, and nobody is asked
     changed = _registered(fixture_store, "ilan", "left_hand")
     _queue(fixture_store, _body_fact("pf_hand_now", f"left_hand: {changed}", "006"))
     before = _hashes(fixture_store)
 
     result = _promote(fixture_store, "pf_hand_now")
 
-    assert isinstance(result, Promoted)
-    assert result.changed is False
+    _assert_not_applied(fixture_store, result, "pf_hand_now", ILAN)
     assert _changed(before, _hashes(fixture_store)) == {paths.PROPOSED}
 
 
-def test_a_body_fact_restating_the_value_a_change_replaced_collides_with_the_new_one(
-    fixture_store: Store,
-) -> None:
-    # spec 001 / AC 13 - the stored base value no longer holds after a registered change: a
-    # fact asserting it is a collision, and the value it collides with is the as-of one, so
-    # the person ruling compares the fact with what the character's body actually is.
+def test_a_body_fact_restating_the_stored_value_is_already_in_canon(fixture_store: Store) -> None:
+    # spec 001 / AC 13 - the value the stored map holds, even though a registered change later
+    # replaces it: canon already says it, so the fact is promoted and nothing is written but the
+    # queue. No as-of comparison, and no collision with the changed value.
     base = cast_service.read_character(fixture_store, "ilan").immutable_physical["left_hand"]
-    changed = _registered(fixture_store, "ilan", "left_hand")
-    assert base != changed
+    assert base != _registered(fixture_store, "ilan", "left_hand")
     _queue(fixture_store, _body_fact("pf_hand_old", f"left_hand: {base}", "006"))
     before = _hashes(fixture_store)
 
     result = _promote(fixture_store, "pf_hand_old")
 
-    assert isinstance(result, Escalation)
-    assert result.existing_value == f"left_hand: {changed}"
+    assert isinstance(result, Promoted)
+    assert (result.changed, result.fact.status) == (False, FactStatus.PROMOTED)
     assert _changed(before, _hashes(fixture_store)) == {paths.PROPOSED}
     stored = cast_service.read_character(fixture_store, "ilan").immutable_physical
-    assert stored["left_hand"] == base, "the stored map is never rewritten by a comparison"
+    assert stored["left_hand"] == base, "the stored map is never rewritten by a promotion"

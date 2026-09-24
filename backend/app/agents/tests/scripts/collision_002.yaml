@@ -1,7 +1,8 @@
-# spec 001 / AC 20. Scene 002 again, but the canoniser extracts an assertion that collides with
-# canon: ilan's `wants` already holds "to be left alone with the certification he still has".
-# `promote` escalates it rather than overwrite, and the turn ends awaiting_ruling. The writer
-# proposes nothing, so the collision is the turn's only fact.
+# spec 001 / AC 20. Scene 002 again, but the canoniser extracts an assertion about a field canon
+# already fills: ilan's `wants` holds "to be left alone with the certification he still has".
+# Promotion is add-only, so `promote` appends the new detail as one more clause, never replacing
+# the text, and the turn ends merged. The writer proposes nothing, so it is the turn's only fact.
+# (The file keeps its name from when such an assertion was a collision left for a human.)
 writer:
   - reply:
       body: |-

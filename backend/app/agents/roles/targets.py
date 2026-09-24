@@ -2,11 +2,12 @@
 FR-OPS-06, AC 27).
 
 Two roles propose facts: the writer reports its own inventions as it drafts, and the canoniser
-reads the accepted prose for what it asserts. Both proposals end at `promote`, which sets one
-field of one existing record and refuses anything else. A role that is not told which records
-exist and which fields each has invents addresses (a field named after the answer, an object
-that has no record), and a fact aimed at an address that does not exist can never be promoted.
-So both instructions carry the same list, rendered here once.
+reads the accepted prose for what it asserts. Both proposals end at `promote`, which adds to
+one field of one existing record, never replacing what it holds, and refuses anything else. A
+role that is not told which records exist and which fields each has invents addresses (a field
+named after the answer, an object that has no record), and a fact aimed at an address that
+does not exist can never be promoted. So both instructions carry the same list, rendered here
+once.
 
 **Everything listed is derived by code.** The records and their fields come from
 `app.ledger.service.promotable_targets`, the tests `promote` itself applies; each field's
@@ -34,12 +35,20 @@ from app.cast.models import Character
 from app.ledger.service import FieldShape, PromotableTarget
 
 SHAPE_RULES: Final[Mapping[FieldShape, str]] = {
-    FieldShape.SCALAR: "the payload is its one value",
+    FieldShape.SCALAR: (
+        "the payload is its value when it is empty, otherwise only the new detail, which is "
+        "added to what is there, and a name or an identifier already set is never changed"
+    ),
     FieldShape.LIST: "the payload is one more item, one fact per item",
-    FieldShape.MAPPING: 'the payload is written "key: value", the key naming what is set',
+    FieldShape.MAPPING: (
+        'the payload is written "key: value", the key naming what is set, and a key the '
+        "record already has is never changed"
+    ),
 }
-"""How each of `promote`'s three field shapes takes a payload (FR-OPS-06), as the instruction
-states it once before the list; each field is then marked with its shape."""
+"""How each of `promote`'s three field shapes takes a payload (FR-OPS-06, add-only), as the
+instruction states it once before the list; each field is then marked with its shape. A
+filled scalar is extended by the payload, never rewritten, so the payload is the new detail
+alone (FR-AGENT-01, FR-AGENT-05, AC 13)."""
 
 FIELD_RULE: Final[str] = (
     "target_field must be one of the fields listed for that record: choose the field whose "
@@ -118,10 +127,11 @@ def render_targets(
     `promote` can fill on it, each with its shape and its meaning.
 
     `hidden` names listed records whose documents the role is not given (the canoniser never
-    reads a dossier). A model cannot see what such a record already holds, so a restatement of
-    it in other words would collide with the record and hold the turn for a person; the list
-    says so and asks only for what the scene shows new. Identifiers and code-owned sentences
-    only (FR-PERM-07).
+    reads a dossier). A model cannot see what such a record already holds, and promotion is
+    add-only (FR-OPS-06): a restatement in other words would be appended to a filled field as a
+    duplicate clause, and a new value for a key the record already has would not be applied. So
+    the list says so and asks only for what the scene shows new about them. Identifiers and
+    code-owned sentences only (FR-PERM-07).
 
     `meanings=False` is the compact form the writer gets: per record type, the identifiers and
     the field names with their shapes on one line, without the notes and descriptions. The
@@ -141,7 +151,8 @@ def render_targets(
     legend = "; ".join(f"{shape.value}: {rule}" for shape, rule in SHAPE_RULES.items())
     lines = [
         (
-            "A fact sets one field of one existing record; promotion never creates a record. "
+            "A fact adds to one field of one existing record and never replaces what it holds; "
+            "promotion never creates a record. "
             "target_entity must be one of these identifiers, and target_field one of the fields "
             "listed for its record type."
         ),
@@ -163,8 +174,7 @@ def render_targets(
         lines.append(
             "You are not given the documents of these listed records, so you cannot see what "
             f"they already hold: {', '.join(unseen)}. For them, propose only what this scene "
-            "shows happening, changing or being learned in it, never a restatement in other "
-            "words of how they already are."
+            "shows new about them, never how they already are, in any words."
         )
     lines.extend([FIELD_RULE, ABOUT_RULE])
     return lines

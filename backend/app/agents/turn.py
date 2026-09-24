@@ -1,7 +1,7 @@
 """The writing turn: Figure 4 as a state machine over the stores (FR-TURN-01..10, plan step 18).
 
     assemble -> write -> audit -> (revise -> audit)* -> polish -> recheck -> digest
-             -> extract -> promote -> merged | awaiting_ruling          (else escalated)
+             -> extract -> promote -> merged                            (else escalated)
 
 **Each step is a fresh model call over the stores** (FR-TURN-01, FR-AGENT-11). A step reads what
 it needs through the owning features' services -- the auditor the draft the writer's step
@@ -45,11 +45,15 @@ record and the lock, under `.index/` (`records`, `lock`), which is not a store.
   `target_entity + target_field + normalised payload`, because both roles' proposals are queued
   under the id that key derives (`canoniser.proposal_id`).
 * *promote* promotes each of this turn's pending facts under the canoniser, with `actor: agent`,
-  and runs `reconcile(target_entity)` after every promotion (FR-TURN-04). A collision is left to
-  a human: the turn ends `awaiting_ruling`. A fact `promote` refuses outright -- an entity that
-  does not exist, a field no string fills -- stays `pending`, is listed as `refused` on the
-  record and does not hold the turn: no ruling can make it promotable, and FR-TURN-05 blocks only
-  on collisions.
+  add-only (FR-OPS-06), and runs `reconcile(target_entity)` after every promotion that put the
+  fact in canon (FR-TURN-04). Nothing is escalated and nothing waits for a person, so the turn
+  always ends `merged`. A fact the record already specifies is settled `rejected` by `promote`
+  and recorded with `refused` set to the fixed code `already_specified field=<target_field>`
+  (NFR-10: never the payload or a mapping key, which are model text). A fact `promote` refuses
+  outright -- an entity that does not exist, a field no string fills -- stays `pending` and is
+  listed as `refused` with the error's code. A queue entry that still carries `conflict: true`
+  from before promotion was add-only is promoted like any other pending fact. `awaiting_ruling`
+  is reached only by a record written before then, and `apply_rulings` still settles one.
 
 **Escalation is terminal and never an empty draft** (Figure 4 note). A harness error from a
 step -- a model failure after its retries, a refusal with its category, a budget overflow
@@ -124,7 +128,6 @@ from app.commons.stores import Store, paths
 from app.commons.stores.provenance import ProvenanceRecord
 from app.ledger import audit as ledger_audit
 from app.ledger import service as ledger_service
-from app.ledger.models import Promoted
 from app.manuscript import service as manuscript_service
 from app.scenes import service as scenes_service
 from app.scenes.models import AssembledContext
@@ -633,9 +636,22 @@ def _extract(ctx: TurnContext, started: str) -> None:
     ctx.record.next_step = TurnStep.PROMOTE
 
 
+ALREADY_SPECIFIED: Final[str] = "already_specified"
+"""FR-OPS-06, FR-TURN-07, AC 20. The code a fact's `refused` carries when `promote` settled it
+`rejected` because the record already specifies what it addresses."""
+
+
+def _not_applied(fact: FactRecord) -> str:
+    """The fixed reason a turn record gives for a fact `promote` did not apply: a code and the
+    target field, which `promote` resolved to a field of the record's model -- never the payload
+    or a mapping key, which are model text and may not leave the stores (NFR-10)."""
+    return f"{ALREADY_SPECIFIED} field={fact.target_field}"
+
+
 def _promote(ctx: TurnContext, started: str) -> None:
-    """FR-OPS-06, FR-TURN-04. Each of this turn's pending facts, promoted or escalated; the
-    record saved after every one, so a resume never promotes a fact twice."""
+    """FR-OPS-06, FR-TURN-04, AC 20. Each of this turn's pending facts, promoted add-only; the
+    record saved after every one, so a resume never promotes a fact twice. The turn ends
+    `merged` whatever became of its facts: promotion escalates nothing and waits for no one."""
     writes: list[ProvenanceRecord] = []
     for fact in ctx.record.facts:
         if fact.settled:
@@ -645,11 +661,12 @@ def _promote(ctx: TurnContext, started: str) -> None:
         if entry is None:
             fact.refused = f"{fact.fact_id} is not in {paths.PROPOSED}"
         elif entry.status is not FactStatus.PENDING:
+            # Settled already: by this step before a crash, or by an earlier turn of the scene.
             fact.status = entry.status
             if entry.status is FactStatus.PROMOTED:
                 _reconcile(ctx.store, fact)
-        elif entry.conflict:
-            fact.conflict = True
+            elif entry.ruling is None:
+                fact.refused = _not_applied(fact)
         else:
             try:
                 result = ledger_service.promote(
@@ -664,23 +681,22 @@ def _promote(ctx: TurnContext, started: str) -> None:
                 fact.refused = safe_detail(refusal)
             else:
                 writes.extend(result.writes)
-                if isinstance(result, Promoted):
-                    fact.status = FactStatus.PROMOTED
-                    fact.changed = result.changed
+                fact.status = result.fact.status
+                fact.changed = result.changed
+                if result.fact.status is FactStatus.PROMOTED:
                     _reconcile(ctx.store, fact)
                 else:
-                    fact.conflict = True
+                    fact.refused = _not_applied(fact)
         records.save(ctx.store, ctx.record)
     ctx.record.steps.append(_step(ctx, TurnStep.PROMOTE, started, writes=writes))
-    ctx.record.outcome = (
-        TurnOutcome.AWAITING_RULING if _awaiting(ctx.record) else TurnOutcome.MERGED
-    )
+    ctx.record.outcome = TurnOutcome.MERGED
     ctx.record.ended_at = _now()
     ctx.record.next_step = TurnStep.DONE
 
 
 def _awaiting(record: TurnRecord) -> list[FactRecord]:
-    """The facts of the turn that wait for a human ruling (FR-TURN-04, FR-TURN-08)."""
+    """FR-TURN-08. The facts of an `awaiting_ruling` record that wait for a human ruling. Only a
+    record written before promotion was add-only has any: no v1 turn leaves a fact so."""
     return [fact for fact in record.facts if fact.conflict and fact.status is FactStatus.PENDING]
 
 
@@ -851,24 +867,6 @@ class TurnRun:
 # --- entry points ---------------------------------------------------------------------------
 
 
-def _refuse_pending_collisions(store: Store, scene_id: str) -> None:
-    """FR-TURN-05. No turn on a scene while a collision from an earlier turn of it waits for a
-    human ruling: the next draft would be written against a canon nobody has settled."""
-    if not store.exists(paths.PROPOSED):
-        return
-    waiting = [
-        fact.id
-        for fact in ledger_service.proposed(store).proposed
-        if fact.source_scene == scene_id and fact.status is FactStatus.PENDING and fact.conflict
-    ]
-    if waiting:
-        message = (
-            f"scene {scene_id} has fact(s) pending a human ruling after a collision: "
-            f"{', '.join(waiting)}. Rule on them first (FR-TURN-05, FR-TURN-08)"
-        )
-        raise TurnLocked(message, scene=scene_id)
-
-
 def begin_turn(
     store: Store,
     client: ModelClient,
@@ -881,7 +879,8 @@ def begin_turn(
     """FR-TURN-01, FR-TURN-05. A new turn on `scene_id`, locked and recorded, not yet run.
 
     Refused before anything is written: a scene with no record (404), another turn running on
-    the store root (409), a collision of this scene waiting for a ruling (409).
+    the store root (409). A pending fact of the scene does not block it, whatever it carries:
+    promotion is add-only and leaves nothing for a person to settle first (FR-OPS-06).
     """
     scenes_service.read_scene(store, scene_id)
     identifier = records.next_turn_id(store, scene_id)
@@ -890,7 +889,6 @@ def begin_turn(
         if records.next_turn_id(store, scene_id) != identifier:
             message = f"another turn of scene {scene_id} started meanwhile; start again"
             raise TurnLocked(message, scene=scene_id)
-        _refuse_pending_collisions(store, scene_id)
         record = TurnRecord(id=identifier, scene=scene_id, started_at=_now())
         records.save(store, record)
     except BaseException:
@@ -981,19 +979,23 @@ def apply_rulings(
     role: AgentRole,
     actor: Actor,
 ) -> TurnRecord:
-    """FR-TURN-08, FR-OPS-07. A human's rulings on the turn's collided facts.
+    """FR-TURN-08, FR-OPS-07. A human's rulings on the collided facts of an `awaiting_ruling`
+    turn -- a record written before promotion was add-only, since no v1 turn ends so.
 
     Everything that can be checked is checked before the first ruling lands, so a batch is
     applied whole or not at all: the turn is `awaiting_ruling`, each fact is one of its
-    collisions, none twice, and every reason says something. The role and the actor are the
-    ledger's `rule` to refuse (403), which it does before reading anything. An accepted fact is
-    reconciled (FR-TURN-04); the turn is `merged` once no collision is left.
+    collisions, none twice, every reason says something, and each fact is still `pending` in
+    the queue -- a later add-only turn of the scene may have promoted it meanwhile, and `rule`
+    would refuse it after the earlier rulings of the batch had landed. The role and the actor
+    are the ledger's `rule` to refuse (403), which it does before reading anything. An accepted
+    fact is reconciled (FR-TURN-04); the turn is `merged` once no collision is left.
     """
     record = records.load(store, turn_id)
     if record.outcome is not TurnOutcome.AWAITING_RULING:
         message = f"turn {turn_id} is {record.outcome.value}, not awaiting a ruling (FR-TURN-08)"
         raise TurnLocked(message, scene=record.scene)
     waiting = {fact.fact_id: fact for fact in _awaiting(record)}
+    queued = {entry.id: entry for entry in ledger_service.proposed(store).proposed}
     seen: set[str] = set()
     for ruling in rulings:
         if ruling.fact_id not in waiting:
@@ -1005,6 +1007,13 @@ def apply_rulings(
         if not ruling.reason.strip():
             message = f"the ruling on {ruling.fact_id} needs a reason (FR-OPS-07)"
             raise InvalidRecord(message, file=paths.PROPOSED, field="reason")
+        entry = queued.get(ruling.fact_id)
+        if entry is None or entry.status is not FactStatus.PENDING:
+            message = (
+                f"fact {ruling.fact_id} is no longer pending in {paths.PROPOSED}; only a "
+                "pending fact can be ruled on (FR-OPS-07)"
+            )
+            raise InvalidRecord(message, file=paths.PROPOSED, field="fact_id")
         seen.add(ruling.fact_id)
     handle = lock.acquire(store.index_dir, turn_id)
     try:

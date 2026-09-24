@@ -1184,8 +1184,9 @@ def test_the_extract_instruction_says_what_each_record_is_and_what_an_exception_
 
 
 # spec 001 / AC 26, AC 27 -- the canoniser never reads a dossier (Figure 3), so a character it
-# lists is named as not given, and it is asked only for what the scene shows new: the live turn
-# queued a restatement of a registered body change that then held the turn for a ruling.
+# lists is named as not given, and it is asked only for what the scene shows new: a live turn
+# queued a restatement of a registered body change, which add-only promotion would now either
+# append as a duplicate clause or leave unapplied.
 def test_the_extract_instruction_names_the_records_the_canoniser_cannot_see(
     fixture_store: Store,
 ) -> None:
@@ -1199,6 +1200,47 @@ def test_the_extract_instruction_names_the_records_the_canoniser_cannot_see(
     characters = [entity for entity in result.targets if entity in {"ilan", "quiej", "vance"}]
     assert named == characters
     assert not any(entity.startswith(("ax_", "pump_")) for entity in named)
+
+
+# spec 001 / AC 27, FR-AGENT-05 -- the canoniser only adds. Its prompt no longer asks it to
+# report a contradiction "as the prose makes it" for a ruling after it: judging prose against
+# canon is the auditor's, before the draft is accepted. It leaves out restatements and
+# contradictions alike, and for a filled single-valued field proposes the new detail alone.
+def test_the_canoniser_prompt_asks_only_for_what_is_new() -> None:
+    flat = _flat(system_prompt(AgentRole.CANONISER))
+    assert "report the assertion as the prose makes it" not in flat
+    assert "ruled on after you" not in flat
+    assert "goes to a person" not in flat
+    assert "propose only what is new" in flat
+    assert "whatever the records already state, in any words, and whatever contradicts a" in flat
+    assert "only the new detail, which is added to what is there and never replaces it" in flat
+    assert "never one the record already has" in flat
+
+
+# spec 001 / AC 27, FR-AGENT-01, FR-AGENT-05 -- promotion is add-only, so both instructions say
+# what that means for a payload: a filled single-valued field takes the new detail alone, and a
+# key or a name or an identifier the record already has is never changed. The canoniser's first
+# line asks for what the records neither specify nor contradict, and for a record it cannot see
+# only what the scene shows new; the writer's prompt carries the new-detail rule too.
+def test_both_instructions_ask_for_the_new_detail_alone(fixture_store: Store) -> None:
+    client = FakeModelClient({AgentRole.CANONISER: [extracted()]})
+    canoniser.extract_facts(fixture_store, client, "002", SELECTED_002)
+    [call] = client.calls
+    lines = call.instruction.splitlines()
+    assert lines[0].endswith("the records do not already specify and do not contradict.")
+    [legend] = [line for line in lines if line.startswith("Each field is marked with its shape")]
+    assert "otherwise only the new detail, which is added to what is there" in legend
+    assert "a name or an identifier already set is never changed" in legend
+    assert "a key the record already has is never changed" in legend
+    [hidden] = [line for line in lines if line.startswith("You are not given")]
+    assert hidden.endswith("propose only what this scene shows new about them, never how they "
+                           "already are, in any words.")
+    assert "changing" not in hidden
+    writer_targets = targets.render_targets(
+        ledger_service.promotable_targets(fixture_store, ["pump_vault"]), meanings=False
+    )
+    assert legend in writer_targets, "the writer's compact list carries the same legend"
+    assert "propose only the new detail" in _flat(system_prompt(AgentRole.WRITER))
 
 
 # spec 001 / AC 26 -- the live writer proposed facts for an object with no record and for a

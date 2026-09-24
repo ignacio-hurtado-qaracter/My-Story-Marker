@@ -9,8 +9,8 @@ everyone remembers it:
   default. Guessing a role would mean the provenance log recorded a guess (FR-STORE-04), and
   a log that records guesses is not evidence.
 * **`ActorDep`** turns `X-Actor` into `agent` or `human` (Decision R2-7). Absent means
-  `agent`, and the orchestrator always sends `agent` explicitly: the human gate on collisions
-  (FR-OPS-07) means nothing if a process can claim to be a person.
+  `agent`, and the orchestrator always sends `agent` explicitly: a human ruling (FR-OPS-07),
+  the one path that can overwrite canon, means nothing if a process can claim to be a person.
 
 A fourth, **`EmbedderDep`**, gives the index routes the embedder. It is a dependency rather
 than a construction inside the route so the offline suite can override it with

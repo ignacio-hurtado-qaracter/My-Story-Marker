@@ -5,16 +5,21 @@
   `?dry_run=true` it runs the assembly alone and answers the `AssembledContext` as JSON, with
   no model call (FR-TURN-10).
 * `GET /agents/turns` and `GET /agents/turns/{id}` read the turn records (IF-03, FR-TURN-07).
-* `POST /agents/turns/{id}/rulings` hands down a human's rulings on the turn's collisions,
-  under `X-Agent-Role: canoniser` and `X-Actor: human` (FR-TURN-08).
+* `POST /agents/turns/{id}/rulings` hands down a human's rulings on the collisions of an
+  `awaiting_ruling` turn, under `X-Agent-Role: canoniser` and `X-Actor: human` (FR-TURN-08).
+  Kept in the contract, though no v1 turn ends so: promotion is add-only (FR-OPS-06), so only a
+  record written before that still awaits a ruling.
 * `POST /agents/turns/{id}/resume` continues a turn a crash interrupted, streaming like a new
   turn (FR-TURN-09).
 * `GET /agents/provenance?path=&since=` reads the provenance log (IF-03, FR-STORE-04).
 * `POST /agents/digests/rollup` rolls a chapter or an arc up into its digest (FR-AGENT-08).
 
 **Refusals come before the stream.** A turn's lock and preconditions are taken in the handler,
-so a scene that does not exist is a 404 and a locked store root or a pending ruling a 409, as
-IF-07 maps them, before any event is sent. Once the stream has started, the turn's own failures
+so a scene that does not exist is a 404 and a locked store root a 409, as IF-07 maps them,
+before any event is sent. A pending fact of the scene no longer refuses a turn. The docstrings
+of the route handlers are emitted into the committed OpenAPI document and are left as they are
+so the contract does not move, including the start-turn route's mention of a pending ruling
+(spec 001 lists them for regeneration). Once the stream has started, the turn's own failures
 are its outcome -- `escalated`, with the category -- and never an HTTP error.
 
 **The stream.** The turn is synchronous (P5): each step runs in a worker thread, one at a time,

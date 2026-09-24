@@ -9,8 +9,15 @@ mechanical audit of plan step 14 is `app/ledger/audit/`.
 `Promoted`, `Escalation`, `RuleRequest` and `RulingApplied` are the wire shapes of
 `POST /ledger/proposed/{id}/promote` and `.../rule` (IF-05, FR-OPS-06, FR-OPS-07). They are
 not store records -- nothing writes them to disk -- but the orchestrator of plan step 18 reads
-them to decide whether a turn is `merged` or `awaiting_ruling`, so they are the public surface
-of the operation and live here rather than inside the module that computes them.
+them to record what became of each fact of a turn, so they are the public surface of the
+operation and live here rather than inside the module that computes them.
+
+Promotion is add-only (FR-OPS-06, AC 13): `promote` always answers `Promoted`, and a client
+reads `fact.status` -- `promoted` when canon holds the payload, `rejected` with no ruling when
+the record already specified it -- never `outcome` alone. `Escalation` stays in the contract
+(IF-05) and in the discriminated `PromotionResult`, unused: no v1 promotion returns one. The
+emitted descriptions of these models predate the add-only design and are left as they are so
+the committed OpenAPI document does not move; spec 001 lists them for regeneration.
 """
 
 from __future__ import annotations

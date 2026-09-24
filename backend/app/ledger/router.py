@@ -2,10 +2,11 @@
 operations on the queue, under `/ledger`.
 
 The ledger is where the loop of Figure 1 turns. Prose flows into it as proposed facts and as
-violations, and both of those are the *input* to a decision: `promote` returns a fact to canon
-under the canoniser, a human ruling settles a fact that collided, and a human settles what a
-violation costs through the violations write. The handlers here only carry the request to the
-operation; what may be decided, and by whom, is the operation's and Figure 3's business.
+violations, and both of those are the *input* to a decision: `promote` adds a fact to canon
+under the canoniser, add-only, a human ruling can settle a pending fact by hand, and a human
+settles what a violation costs through the violations write. The handlers here only carry the
+request to the operation; what may be decided, and by whom, is the operation's and Figure 3's
+business.
 
 Three conventions hold in every handler and each is a rule from the spec rather than a style
 preference:
@@ -35,8 +36,11 @@ table behind it.
 
 **The two operations on the queue** (IF-05) are `POST /ledger/proposed/{id}/promote`
 (FR-OPS-06) and `POST /ledger/proposed/{id}/rule` (FR-OPS-07): the return edge of Figure 1,
-from proposed facts back into canon, and the human gate on it. The mechanical `audit` whose
-findings land in `violations.yaml` (FR-AUD) arrives at plan step 14.
+from proposed facts back into canon, and a human's manual decision on a pending fact. The
+docstrings of the two route handlers below are emitted into the committed OpenAPI document
+and predate add-only promotion; they are left as they are so the contract does not move (spec
+001 lists them for regeneration). The mechanical `audit` whose findings land in
+`violations.yaml` (FR-AUD) arrives at plan step 14.
 """
 
 from __future__ import annotations
