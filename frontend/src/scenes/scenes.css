@@ -1,96 +1,245 @@
-/* scenes/: the book header, chapter cards with scene chips, the scene detail and its states.
-   Spec 003, FR-BOOK, FR-SCN3. main's web/ library and detail layout, with the accessible tokens
-   of shared/ui/tokens.css: text is ink, ink-600, --muted or --accent, never the brand orange. */
+/* scenes/: the chapter index, the chapter reader, the scene detail and their states.
+   Spec 003, FR-INDEX, FR-READ, FR-SCN3. main's web/ hero, book cards, detail head and prose,
+   with the accessible tokens of shared/ui/tokens.css: text is ink, ink-600, --muted, --accent
+   or white on --accent; the brand orange is decoration, or large bold text (>= 3:1). */
 
-/* ---------- Book header (FR-BOOK-01) ---------- */
+/* ---------- Primary button (accent fill, white text: 5.4:1) ---------- */
 
-.book-header {
-  margin-bottom: 2rem;
-  /* Every text colour used here keeps >= 4.5:1 on both ends of this gradient. */
-  background: linear-gradient(135deg, var(--brand-50) 0%, var(--white) 60%);
+.scenes-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0.5rem 1.15rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--white);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.1s;
 }
 
-.book-header .heading-1 {
-  font-size: clamp(1.8rem, 4vw, 2.2rem);
-  margin-bottom: 0.75rem;
+.scenes-cta:hover {
+  border-color: color-mix(in srgb, var(--accent) 82%, #000000);
+  background: color-mix(in srgb, var(--accent) 82%, #000000);
+  color: var(--white);
+  text-decoration: none;
 }
 
-.book-premise {
-  max-width: 70ch;
+.scenes-cta:active {
+  transform: translateY(1px);
 }
 
-.book-statement {
+/* ---------- Index head: main's hero band, with a decorative planet (FR-INDEX-01) ---------- */
+
+.toc-head {
+  position: relative;
+  overflow: hidden;
+  margin: 0 0 2.5rem;
+  padding: 2.75rem 2.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, var(--brand-50) 0%, var(--white) 100%);
+}
+
+.toc-head > * {
+  position: relative;
+  z-index: 1;
+  max-width: 40rem;
+}
+
+.toc-head .heading-1 {
+  margin-bottom: 0.9rem;
+}
+
+.toc-lead {
   font-size: 1.15rem;
   color: var(--ink-600);
-  margin-bottom: 0.75rem;
 }
 
-.book-question {
-  color: var(--muted);
-  font-style: italic;
-}
-
-.book-question-label {
-  display: block;
-  margin-bottom: 0.15rem;
-  font-size: 0.75rem;
-  font-style: normal;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-/* FR-BOOK-02: decorative stand-in while the premise loads; aria-hidden, no text. */
-.book-premise-skeleton {
-  width: min(32rem, 100%);
-  height: 1rem;
-  margin: 0.25rem 0 1rem;
-}
-
-/* FR-BOOK-03 */
-.book-counts {
+.toc-counts {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
 }
 
-/* ---------- Chapter cards and scene chips (FR-SCN3-01) ---------- */
+/* The planet and its orbit: decorative, never behind text (the text column stops short). */
+.toc-head::before,
+.toc-head::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  pointer-events: none;
+}
+
+.toc-head::before {
+  right: -7rem;
+  width: 25rem;
+  height: 6.5rem;
+  border: 2px solid rgba(255, 122, 47, 0.3);
+  border-radius: 50%;
+  transform: translateY(-50%) rotate(-14deg);
+}
+
+.toc-head::after {
+  right: 2.5rem;
+  width: 11rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, #FFB88A 0%, var(--brand) 45%, var(--brand-600) 85%);
+  box-shadow:
+    0 0 0 1.25rem rgba(255, 122, 47, 0.08),
+    0 0 0 2.5rem rgba(255, 122, 47, 0.05);
+  transform: translateY(-50%);
+}
+
+@media (min-width: 720px) {
+  .toc-head > * {
+    max-width: min(40rem, calc(100% - 16rem));
+  }
+}
+
+@media (max-width: 719px) {
+  .toc-head {
+    padding: 1.75rem 1.25rem;
+  }
+
+  .toc-head::before,
+  .toc-head::after {
+    display: none;
+  }
+}
+
+/* ---------- Chapter cards: main's book cards (FR-INDEX-01) ---------- */
 
 .toc-chapters {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
   gap: 1.5rem;
 }
 
 .toc-chapter {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
   min-width: 0;
+  transition: transform 0.15s, border-color 0.15s;
 }
 
-/* The chapter id stays the section's h2, dressed as an eyebrow. */
-.toc-chapter h2.heading {
-  margin: 0;
-  font-size: 0.75rem;
+.toc-chapter:hover {
+  transform: translateY(-3px);
+  border-color: var(--brand);
+}
+
+.toc-chapter:focus-within {
+  border-color: var(--accent);
+}
+
+/* The cover: the white numeral sits bottom-left, over the darker stops (>= 3:1, large bold). */
+.toc-chapter-cover {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  height: 7.5rem;
+  padding: 0.85rem 1rem;
+  border-radius: 10px;
+  background: radial-gradient(circle at 30% 20%, #FF9A5C 0%, var(--brand-600) 40%, var(--accent) 75%, #7C3208 100%);
+  color: var(--white);
+}
+
+.toc-chapter-cover::after {
+  content: '';
+  position: absolute;
+  inset: auto -20% -40% auto;
+  width: 60%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.toc-chapter-numeral {
+  position: relative;
+  z-index: 1;
+  font-size: 2.75rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
-  line-height: 1.4;
-  text-transform: uppercase;
-  color: var(--accent);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.25);
+}
+
+.toc-chapter-loose .toc-chapter-cover {
+  border: 1px dashed var(--line);
+  background: repeating-linear-gradient(135deg, var(--surface) 0 12px, var(--white) 12px 24px);
+}
+
+.toc-chapter-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-top: 1.15rem;
+}
+
+.toc-chapter-body .eyebrow {
+  margin: 0;
+}
+
+.toc-chapter .heading-2 {
+  margin: 0;
+  font-size: 1.35rem;
+  line-height: 1.25;
   overflow-wrap: anywhere;
+}
+
+/* The chapter id: a small muted tag inside the heading. */
+.toc-chapter-id {
+  display: inline-block;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  vertical-align: 0.2em;
+  white-space: nowrap;
 }
 
 .toc-chapter-function {
   margin: 0;
   color: var(--ink-600);
+  font-size: 0.95rem;
 }
+
+.toc-chapter-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: auto;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+
+.toc-chapter-count {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+/* ---------- Scene chips ---------- */
 
 .scene-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  margin: 0.4rem 0 0;
+  margin: 0.2rem 0 0.4rem;
   padding: 0;
   list-style: none;
 }
@@ -116,6 +265,273 @@
   background: var(--brand-50);
   color: var(--accent);
   text-decoration: none;
+}
+
+/* ---------- Chapter reader: side index + reading column (FR-READ-01) ---------- */
+
+.chapter-layout {
+  display: grid;
+  gap: 2.5rem;
+}
+
+@media (min-width: 900px) {
+  .chapter-layout {
+    grid-template-areas: 'toc reading';
+    grid-template-columns: 18rem minmax(0, 48rem);
+    justify-content: center;
+    align-items: start;
+    gap: 3.5rem;
+  }
+
+  .chapter-reading {
+    grid-area: reading;
+  }
+
+  .chapter-toc {
+    grid-area: toc;
+    position: sticky;
+    top: calc(var(--header-height) + 1.5rem);
+    max-height: calc(100vh - var(--header-height) - 3rem);
+    overflow-y: auto;
+  }
+}
+
+.chapter-reading {
+  min-width: 0;
+}
+
+.chapter-head {
+  margin-bottom: 2.75rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.chapter-head .heading-1 {
+  font-size: clamp(2.1rem, 4.5vw, 3.1rem);
+  overflow-wrap: anywhere;
+}
+
+.chapter-summary {
+  max-width: 62ch;
+  font-size: 1.15rem;
+  color: var(--ink-600);
+}
+
+.chapter-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+}
+
+.chapter-scene {
+  max-width: 70ch;
+}
+
+.chapter-scene + .chapter-scene {
+  margin-top: 3rem;
+}
+
+/* A three-dot ornament between scenes, like a section break in a printed book. */
+.chapter-scene + .chapter-scene::before {
+  content: '';
+  display: block;
+  width: 3.75rem;
+  height: 6px;
+  margin: 0 auto 3rem;
+  background: radial-gradient(circle, var(--brand) 0 2.5px, transparent 3px) 0 50% / 1.25rem 6px repeat-x;
+}
+
+.chapter-scene-title {
+  margin: 0 0 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.chapter-scene-title a {
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.chapter-scene-title a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+/* The chapter opens with a drop cap: large bold brand orange on white (3.4:1 >= 3:1). */
+.chapter-scene:first-of-type .prose > p:first-child::first-letter {
+  float: left;
+  margin: 0.06em 0.12em 0 0;
+  color: var(--brand-600);
+  font-size: 3.4em;
+  font-weight: 700;
+  line-height: 0.9;
+}
+
+.chapter-scene-empty {
+  margin: 0;
+  padding: 1.1rem 1.4rem;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  font-style: italic;
+}
+
+.chapter-scene-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.9rem 1.1rem;
+  border-left: 4px solid var(--fail);
+  border-radius: 10px;
+  background: var(--fail-tint);
+}
+
+.chapter-scene-error p {
+  flex: 1 1 16rem;
+  margin: 0;
+  color: var(--ink);
+}
+
+/* Previous / next chapter (FR-READ-02): two-line buttons, next filled and on the right. */
+.chapter-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 3.5rem;
+  padding-top: 1.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.chapter-nav .chapter-nav-link {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  max-width: 100%;
+  min-width: min(15rem, 100%);
+  padding: 0.8rem 1.25rem;
+  border-radius: var(--radius);
+}
+
+.chapter-nav .chapter-nav-next {
+  align-items: flex-end;
+  margin-left: auto;
+  text-align: right;
+}
+
+.chapter-nav-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.chapter-nav-title {
+  font-size: 1rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* The side index (FR-READ-01). */
+.chapter-toc {
+  padding: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.chapter-toc-list {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chapter-toc-link {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: 10px;
+  color: var(--ink-600);
+  font-size: 0.95rem;
+  font-weight: 500;
+  line-height: 1.35;
+  text-decoration: none;
+}
+
+.chapter-toc-link:hover {
+  background: var(--white);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.chapter-toc-link[aria-current='page'] {
+  background: var(--white);
+  box-shadow: var(--shadow);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.chapter-toc-number {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--white);
+  color: var(--ink-600);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.chapter-toc-link[aria-current='page'] .chapter-toc-number {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--white);
+}
+
+.chapter-toc-scenes {
+  display: grid;
+  gap: 0.1rem;
+  margin: 0.3rem 0 0.5rem 1.35rem;
+  padding: 0 0 0 0.9rem;
+  border-left: 2px solid var(--brand-100);
+  list-style: none;
+}
+
+.chapter-toc-scenes a {
+  display: block;
+  min-height: 1.75rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.chapter-toc-scenes a:hover {
+  background: var(--white);
+  color: var(--accent);
+}
+
+.chapter-toc-all {
+  display: inline-block;
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.chapter-state {
+  max-width: 48rem;
+  margin: 0 auto;
 }
 
 /* ---------- Scene detail (FR-SCN3-02) ---------- */
@@ -170,61 +586,6 @@
   }
 }
 
-/* The reading column. The class name is spec 002's test hook. */
-.prose {
-  max-width: 70ch;
-  font-size: 1.075rem;
-  line-height: 1.75;
-  overflow-wrap: break-word;
-}
-
-.prose p {
-  margin: 0 0 1.25rem;
-}
-
-.prose h1 {
-  font-size: 1.8rem;
-  margin-top: 2rem;
-}
-
-.prose h2 {
-  margin-top: 1.5rem;
-}
-
-.prose blockquote {
-  margin: 0 0 1.25rem;
-  padding: 0.2rem 1rem;
-  border-left: 3px solid var(--brand);
-  color: var(--ink-600);
-}
-
-.prose pre {
-  background: var(--surface);
-  color: var(--ink);
-  border: 1px solid var(--line);
-  font-size: 0.8rem;
-}
-
-.prose img {
-  max-width: 100%;
-  height: auto;
-}
-
-.prose table {
-  display: block;
-  max-width: 100%;
-  overflow-x: auto;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-
-.prose th,
-.prose td {
-  border: 1px solid var(--line);
-  padding: 0.4rem 0.6rem;
-  text-align: left;
-}
-
 /* Previous / next / index, as ghost buttons (.btn-ghost in shared/ui/base.css). */
 .scene-nav {
   display: flex;
@@ -261,6 +622,11 @@
 
 .skeleton-line {
   height: 0.8rem;
+  border-radius: var(--radius-pill);
+  /* A subtle shimmer; base.css turns it off under prefers-reduced-motion (FR-TOK-05). */
+  background: linear-gradient(90deg, var(--line) 25%, var(--surface) 50%, var(--line) 75%);
+  background-size: 200% 100%;
+  animation: scenes-shimmer 1.6s ease-in-out infinite;
 }
 
 .skeleton-line:nth-child(3n + 2) {
@@ -269,15 +635,6 @@
 
 .skeleton-line:nth-child(3n) {
   width: 60%;
-}
-
-/* A subtle shimmer; base.css turns it off under prefers-reduced-motion (FR-TOK-05). */
-.skeleton-line,
-.book-premise-skeleton {
-  border-radius: var(--radius-pill);
-  background: linear-gradient(90deg, var(--line) 25%, var(--surface) 50%, var(--line) 75%);
-  background-size: 200% 100%;
-  animation: scenes-shimmer 1.6s ease-in-out infinite;
 }
 
 @keyframes scenes-shimmer {

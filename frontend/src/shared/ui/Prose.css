@@ -1,0 +1,59 @@
+/* Prose: the reading column (main's .prose), at most 70ch. Spec 003, FR-READ-01, FR-UI3.
+   The class name is spec 002's test hook. */
+.prose {
+  max-width: 70ch;
+  font-size: 1.075rem;
+  line-height: 1.75;
+  overflow-wrap: break-word;
+}
+
+.prose p {
+  margin: 0 0 1.25rem;
+}
+
+.prose > :last-child {
+  margin-bottom: 0;
+}
+
+.prose h1 {
+  font-size: 1.8rem;
+  margin-top: 2rem;
+}
+
+.prose h2 {
+  margin-top: 1.5rem;
+}
+
+.prose blockquote {
+  margin: 0 0 1.25rem;
+  padding: 0.2rem 1rem;
+  border-left: 3px solid var(--brand);
+  color: var(--ink-600);
+}
+
+.prose pre {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font-size: 0.8rem;
+}
+
+.prose img {
+  max-width: 100%;
+  height: auto;
+}
+
+.prose table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.prose th,
+.prose td {
+  border: 1px solid var(--line);
+  padding: 0.4rem 0.6rem;
+  text-align: left;
+}

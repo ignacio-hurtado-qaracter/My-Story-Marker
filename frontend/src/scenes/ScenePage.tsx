@@ -1,13 +1,13 @@
 // `/scenes/:id`: one scene's record and its prose. Spec 002, FR-SCN route table, FR-SCN-02,
-// FR-SCN-03, FR-SCN-06, AC 9. Spec 003, FR-SCN3-02/03: main's detail layout and styled states.
+// FR-SCN-03, FR-SCN-06, AC 9. Spec 003, FR-SCN3-02/03: main's detail layout and styled states;
+// `Prose` now comes from shared/ui (plan 003 Q9).
 import './scenes.css'
 
 import { Link, useParams } from 'react-router'
 
 import type { Schemas } from '../shared/api'
-import { ErrorPanel, Heading } from '../shared/ui'
+import { ErrorPanel, Heading, Prose } from '../shared/ui'
 import { describeError, isNotFoundError, isSceneId } from './api'
-import { Prose } from './Prose'
 import { Skeleton } from './Skeleton'
 import { neighbours } from './toc'
 import { useScene } from './useScene'

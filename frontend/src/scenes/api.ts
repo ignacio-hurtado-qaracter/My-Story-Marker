@@ -1,5 +1,6 @@
-// The backend calls of scenes/, over the shared typed client. Spec 002, FR-SCN, FR-API-04.
-// Scene records, the chapter structure and drafts are read by no other feature yet (rule 6).
+// The backend calls of scenes/, over the shared typed client. Spec 002, FR-SCN, FR-API-04;
+// spec 003, FR-INDEX, FR-READ. Each feature makes its own calls (architecture rule 6): the
+// project record moved to cover/ (plan 003 Q10).
 import { api, errorMessage, isNotFound, parseApiError } from '../shared/api'
 import type { ApiError, Schemas } from '../shared/api'
 
@@ -56,14 +57,6 @@ export async function fetchChapters(): Promise<Schemas['Chapter'][]> {
     }
     throw error
   }
-}
-
-/**
- * Spec 003, FR-BOOK-02: the project record, for the book header of the table of contents. Any
- * failure, a `404` included, is thrown; the header omits the premise and the page carries on.
- */
-export function fetchProject(): Promise<Schemas['Project']> {
-  return unwrap(api.GET('/canon/project'))
 }
 
 export function fetchSceneIds(): Promise<string[]> {
