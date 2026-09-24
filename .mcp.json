@@ -11,6 +11,14 @@
         "--browser",
         "chromium"
       ]
+    },
+    "story-maker": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "--project", "backend", "python", "-m", "app.mcp_server"],
+      "env": {
+        "HARNESS_DB": "data/harness.sqlite"
+      }
     }
   }
 }
