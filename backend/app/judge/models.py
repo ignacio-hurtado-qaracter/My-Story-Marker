@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
+
+Severity = Literal["alta", "media", "baja"]
 
 
 class CriterionScore(BaseModel):
@@ -12,6 +16,26 @@ class CriterionScore(BaseModel):
     justification: str = Field(
         min_length=1,
         description="En español, 1-3 frases, citando o refiriendo el texto evaluado.",
+    )
+
+
+class Issue(BaseModel):
+    """One defect the judge found (tuning 1). Only a concrete `alta` issue that names its
+    chapters blocks; the rest is feedback (`rubric.blocking_issues`)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    descripcion: str = Field(
+        min_length=1, description="En español: qué falla, citando el pasaje o el dato concreto."
+    )
+    capitulos: list[int] = Field(
+        default_factory=list, description="Números de los capítulos implicados."
+    )
+    severidad: Severity = Field(
+        description=(
+            "alta: un lector lo notaría y rompe la historia (contradicción comprobada, salto "
+            "imposible); media: descuido visible; baja: detalle o sospecha."
+        )
     )
 
 
@@ -25,9 +49,9 @@ class ChapterJudgement(BaseModel):
     comentario_general: str = Field(
         description="Feedback accionable para el editor: qué cambiar y dónde, en español."
     )
-    blocking_issues: list[str] = Field(
+    blocking_issues: list[Issue] = Field(
         default_factory=list,
-        description="Solo defectos bloqueantes graves de la rúbrica; vacío si no hay.",
+        description="Defectos de la lista de la rúbrica, cada uno con capítulos y severidad.",
     )
 
     def scores(self) -> dict[str, CriterionScore]:
@@ -41,9 +65,9 @@ class ChapterJudgement(BaseModel):
 
 class NovelJudgement(ChapterJudgement):
     final_satisfactorio: CriterionScore
-    contradicciones: list[str] = Field(
+    contradicciones: list[Issue] = Field(
         default_factory=list,
-        description="Contradicciones entre capítulos, cada una nombrando los capítulos.",
+        description="Contradicciones comprobadas entre capítulos, con capítulos y severidad.",
     )
     capitulos_a_reparar: list[int] = Field(
         default_factory=list, description="Números de los capítulos que conviene reescribir."
@@ -53,4 +77,4 @@ class NovelJudgement(ChapterJudgement):
         return {**super().scores(), "final_satisfactorio": self.final_satisfactorio}
 
 
-__all__ = ["ChapterJudgement", "CriterionScore", "NovelJudgement"]
+__all__ = ["ChapterJudgement", "CriterionScore", "Issue", "NovelJudgement", "Severity"]

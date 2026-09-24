@@ -173,7 +173,16 @@ def render_markdown(*, novel: bool = True) -> str:
         "",
     ]
     lines += [f"- {defect}" for defect in BLOCKING_DEFECTS]
-    lines.append("")
+    lines += [
+        "",
+        (
+            "Un defecto solo bloquea si es **concreto**: nombra los capítulos, cita el pasaje "
+            "o el dato y tiene severidad **alta** (un lector lo notaría y rompe la historia). "
+            "Una sospecha («posible», «parece», «revisar si») o un defecto de severidad media "
+            "o baja es feedback para el editor, no un bloqueo."
+        ),
+        "",
+    ]
     return "\n".join(lines)
 
 

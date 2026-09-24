@@ -23,7 +23,7 @@ from app.bible import ChapterVersion
 from app.commons.llm.protocol import Document, ModelClient
 from app.commons.observability import CallScope, load_prompt, traced_complete
 from app.commons.permissions import AgentRole
-from app.judge.models import ChapterJudgement, CriterionScore, NovelJudgement
+from app.judge.models import ChapterJudgement, CriterionScore, Issue, NovelJudgement
 from app.judge.rubric import evaluate, render_markdown
 from app.validators import ValidationContext, ValidationPoint, ValidationResult
 
@@ -35,6 +35,27 @@ EVIDENCE_LINE: Final = re.compile(r"^(?P<key>[a-z_]+): (?P<score>[1-5])/5\b")
 """Parses the per-criterion evidence lines back (`compare.py`)."""
 
 _default_client: ModelClient | None = None
+
+SPECULATIVE: Final = re.compile(
+    r"\b(posibles?|posiblemente|parecen?|podr[ií]a[n]?|quiz[aá]s?|tal vez|sugiere|sugiriendo|"
+    r"revisar si|no queda claro si)\b",
+    re.IGNORECASE,
+)
+
+
+def is_blocking(issue: Issue) -> bool:
+    """Tuning 1: only a concrete issue blocks — severity `alta`, at least one chapter named,
+    and no speculative wording. Everything else is feedback for the editor."""
+    return (
+        issue.severidad == "alta"
+        and bool(issue.capitulos)
+        and SPECULATIVE.search(issue.descripcion) is None
+    )
+
+
+def describe(issue: Issue) -> str:
+    chapters = ", ".join(str(n) for n in issue.capitulos) or "sin capítulo"
+    return f"[{issue.severidad}; cap. {chapters}] {issue.descripcion}"
 
 
 def _client(ctx: ValidationContext) -> ModelClient:
@@ -122,13 +143,16 @@ def _result(
     name: str,
     judgement: ChapterJudgement,
     extra_evidence: Sequence[str] = (),
-    extra_blocking: Sequence[str] = (),
+    extra_issues: Sequence[tuple[str, Issue]] = (),
 ) -> ValidationResult:
     scores = judgement.scores()
-    blocking = [*judgement.blocking_issues, *extra_blocking]
+    issues = [("", issue) for issue in judgement.blocking_issues] + list(extra_issues)
+    blocking = [prefix + describe(issue) for prefix, issue in issues if is_blocking(issue)]
+    advisory = [prefix + describe(issue) for prefix, issue in issues if not is_blocking(issue)]
     verdict = evaluate({key: value.score for key, value in scores.items()}, blocking)
     evidence = [f"{key}: {value.score}/5 — {value.justification}" for key, value in scores.items()]
     evidence += [f"bloqueante: {issue}" for issue in blocking]
+    evidence += [f"observación (no bloquea): {issue}" for issue in advisory]
     evidence += list(extra_evidence)
     if verdict.passed:
         explanation = f"Aprobado (media {verdict.mean:.2f}). {judgement.comentario_general}"
@@ -270,7 +294,7 @@ class JudgeNovel:
             self.name,
             judgement,
             extra_evidence=extra,
-            extra_blocking=[f"contradicción: {item}" for item in judgement.contradicciones],
+            extra_issues=[("contradicción: ", item) for item in judgement.contradicciones],
         )
 
 
@@ -280,7 +304,9 @@ __all__ = [
     "JudgeChapter",
     "JudgeNovel",
     "brief_summary",
+    "describe",
     "first_words",
+    "is_blocking",
     "last_words",
     "plan_entry",
 ]
