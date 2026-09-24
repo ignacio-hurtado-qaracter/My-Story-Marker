@@ -1,0 +1,283 @@
+/* reader/: the gift-novel reader (spec 014). Spec 003's visual identity — main's hero band,
+   cards, pills, accessible tokens from shared/ui/tokens.css — with every class prefixed
+   `reader-` so no rule leaks into another feature. */
+
+.reader {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.reader-state {
+  color: var(--muted);
+}
+
+/* ---------- The reader's own navigation ---------- */
+
+.reader-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.reader-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reader-nav a {
+  color: var(--ink-600);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.reader-nav a:hover,
+.reader-nav a[aria-current='page'] {
+  color: var(--accent);
+}
+
+.reader-nav-tools {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.reader-nav-label {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.reader-select {
+  min-height: 2.25rem;
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--ink);
+  font: inherit;
+}
+
+.reader-pdf {
+  min-height: 2.25rem;
+}
+
+/* ---------- Page heads: main's hero band ---------- */
+
+.reader-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.reader-hero {
+  padding: 2.25rem 2rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, var(--brand-50) 0%, var(--white) 100%);
+}
+
+.reader-lead {
+  margin: 0;
+  color: var(--ink-600);
+  font-size: 1.1rem;
+}
+
+.reader-news {
+  margin: 0.75rem 0 0;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid var(--brand);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--ink-600);
+}
+
+/* ---------- Novels and the chapter index ---------- */
+
+.reader-novels,
+.reader-toc {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reader-novels {
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+}
+
+.reader-novel-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.3rem;
+}
+
+.reader-novel-title a,
+.reader-toc-link {
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.reader-novel-title a:hover,
+.reader-toc-link:hover {
+  color: var(--accent);
+}
+
+.reader-toc-item {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+}
+
+.reader-toc-number {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 2.5rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-600), var(--accent));
+  color: var(--white);
+  font-weight: 700;
+}
+
+.reader-toc-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.reader-toc-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.reader-changed {
+  flex-shrink: 0;
+  font-weight: 700;
+}
+
+/* ---------- The chapter ---------- */
+
+.reader-chapter {
+  max-width: 46rem;
+  margin: 0 auto;
+}
+
+.reader-chapter-head .heading-1 {
+  margin-bottom: 0.5rem;
+}
+
+.reader-text {
+  position: relative;
+  font-size: 1.08rem;
+  line-height: 1.75;
+}
+
+.reader-float {
+  position: absolute;
+  z-index: 2;
+  padding: 0.4rem 0.9rem;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  box-shadow: var(--shadow);
+  color: var(--white);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.reader-change-hint {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.reader-change {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.reader-change-title {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.reader-change-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.reader-change-form label {
+  color: var(--ink-600);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.reader-change-form input,
+.reader-change-form textarea {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+}
+
+.reader-change-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.reader-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0.55rem 1.2rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--white);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.reader-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.reader-change-status p {
+  margin: 0;
+  color: var(--ink-600);
+}
+
+.reader-pager {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 599px) {
+  .reader-hero {
+    padding: 1.5rem 1.25rem;
+  }
+}
