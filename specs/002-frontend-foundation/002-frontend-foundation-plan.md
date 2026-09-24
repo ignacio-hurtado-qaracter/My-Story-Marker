@@ -252,7 +252,7 @@ criteria; each is also in the body of the commit named.
 | C5 | `check:api` regenerates in memory, not into a temp file (FR-API-03). | Same comparison, fewer files; ignores CRLF/LF. | `5f8b11f` |
 | C6 | The client looks up `globalThis.fetch` per call and uses an absolute `<origin>/api` base. | openapi-fetch captured `fetch` at import, before MSW patches it; Node's fetch under Vitest does not resolve relative URLs. Same behaviour in the browser. | `d664812` |
 | C7 | The graph3d test seam is `scene` (a lazy component), not `load` (a loader). | Creating a lazy component from a loader during render is rejected by react-hooks' static-components rule. | `510cd8c` |
-| C8 | A 404 on `GET /structure/chapters` is shown as "no chapters yet", not as an error panel. | A book without `chapters.yaml` is not a failure, and a retry could never fix it. Flagged to the user for confirmation. | `98aee2a` |
+| C8 | A 404 on `GET /structure/chapters` is shown as "no chapters yet", not as an error panel. | A book without `chapters.yaml` is not a failure, and a retry could never fix it. Accepted by the user on 2026-09-24. | `98aee2a` |
 | C9 | No `e2e/global-setup.ts`; the fixture copy lives in `e2e/backend.ts`. | Playwright starts its `webServer`s before global setup, so the backend command itself must prepare its story root. | `289a1ba` |
 | C10 | Nav links and table-of-contents links carry an inline 24 px target. | AC 11 found WCAG 2.2 target-size violations; there is no stylesheet in the plan's file list. | `289a1ba` |
 
