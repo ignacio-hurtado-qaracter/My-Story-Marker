@@ -1,0 +1,3 @@
+/.lake/
+# Regenerated on every run by backend/app/formal/lean_runner.py.
+/Chronology/Generated/*.lean
