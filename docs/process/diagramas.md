@@ -91,7 +91,7 @@ stateDiagram-v2
   [*] --> Configured : brief válido
   Configured --> Planned : Plan (versión 1, draft)
   Planned --> Scene : NextChapter
-  Scene --> Scene : WriteScene (pasa → siguiente escena; falla → reescribe, ≤ MAX_SCENE_RETRIES)
+  Scene --> Scene : WriteScene (pasa → siguiente escena, falla → reescribe, ≤ MAX_SCENE_RETRIES)
   Scene --> Editor : última escena aceptada
   Editor --> Close : Editor
   Close --> Scene : chapter_close falla (≤ MAX_CHAPTER_RETRIES, contador durable, CE2)
