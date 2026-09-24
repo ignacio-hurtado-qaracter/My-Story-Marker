@@ -1,0 +1,5 @@
+# Build scratch (regenerated on every run)
+.mmd/
+.html/
+.lo-profile/
+__pycache__/
