@@ -102,6 +102,8 @@ class Roles:
             "Cada hecho de plan/facts-checklist.txt debe quedar reconocible en la escena, con "
             "sus detalles concretos (objetos, lugares, acciones), contado con naturalidad, no "
             "como lista. No cuentes lo que el plan reserva al capítulo siguiente. "
+            "Fechas y cifras: si nombras un día de la semana, una edad o cuántos años han "
+            "pasado, usa exactamente los de plan/calendar.txt (o no los nombres). "
             "Solo prosa: sin títulos, sin encabezados, sin comentarios."
         )
         if scene == 1 and chapter > 1:
@@ -144,6 +146,8 @@ class Roles:
             "detalles concretos, integrado con naturalidad (nunca como lista). El capítulo "
             "respeta su «Marca temporal» (el comienzo deja claro cuándo ocurre respecto al "
             "capítulo anterior) y no repite el capítulo anterior ni anticipa el siguiente. "
+            "Cada día de la semana, edad o cantidad de años que nombre el texto coincide con "
+            "plan/calendar.txt; si uno no coincide, corrígelo o elimina el nombre del día. "
             "El summary empieza por la marca temporal. Devuelve title, text, summary (~120 "
             "palabras) e issues."
         )

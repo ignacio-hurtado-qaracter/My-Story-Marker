@@ -18,6 +18,7 @@ from app.commons.observability import Observer
 from app.novel.models import NovelPlan, PlanScene
 from app.novel.plan_check import parse_iso
 from app.tools import GET_CHAPTER_SUMMARY, QUERY_STORY_BIBLE, ToolNotFoundError
+from app.validators.programmatic.calendar import format_date_es
 from app.validators.programmatic.coverage import content_words, memory_parts
 
 TAIL_WORDS = 250
@@ -154,9 +155,11 @@ def chapter_plan_document(plan: NovelPlan, chapter: int, facts: Sequence[Fact]) 
     lines.append("")
     for scene in plan.scenes_of(chapter):
         used = "; ".join(f"{k} = {by_key.get(k, '?')}" for k in scene.facts_used)
+        day = parse_iso(scene.story_date)
+        when = f"{scene.story_date} ({format_date_es(day)})" if day else scene.story_date
         lines += [
             (
-                f"Escena {scene.scene} — fecha {scene.story_date} — lugar {scene.place} — "
+                f"Escena {scene.scene} — fecha {when} — lugar {scene.place} — "
                 f"~{scene.word_budget} palabras"
             ),
             f"  Personajes: {', '.join(scene.characters)}",

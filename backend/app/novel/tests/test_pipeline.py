@@ -280,3 +280,57 @@ def test_change_fact_rolls_back_when_the_version_cannot_be_created(
     assert repo.get_brief(novel_id) == brief_before
     assert len(repo.list_versions(novel_id)) == versions_before
     assert not repo.connection.in_transaction
+
+
+# spec 007 / AC 8 — calendar facts in the plan (tuning 2)
+def test_plan_calendar_enrichment() -> None:
+    import datetime as dt
+
+    from app.novel.calendar_facts import calendar_document, enrich_plan_calendar
+    from app.validators.programmatic.calendar import WEEKDAYS
+
+    day = dt.date(2026, 6, 24)
+    real = WEEKDAYS[day.weekday()]
+    wrong = WEEKDAYS[(day.weekday() + 5) % 7]
+    plan = NovelPlan(
+        title="t",
+        synopsis="s",
+        characters=[PlanCharacter(name="Tomás", role="protagonista")],
+        places=[PlanPlace(name="Casa")],
+        chapters=[
+            PlanChapter(
+                number=1,
+                title="c",
+                synopsis="s",
+                arc_role="setup",
+                time_marker=f"el {wrong} 24 de junio, tres días después",
+            )
+        ],
+        scenes=[
+            PlanScene(
+                chapter=1,
+                scene=1,
+                summary="x",
+                place="Casa",
+                characters=["Tomás"],
+                story_date=day.isoformat(),
+                facts_used=[],
+                word_budget=400,
+            )
+        ],
+        events=[],
+    )
+    enriched = enrich_plan_calendar(plan)
+    marker = enriched.chapters[0].time_marker
+    assert marker.startswith(f"el {real} 24 de junio")
+    assert marker.endswith(f"[fechas: {real} 24 de junio de 2026]")
+    assert enrich_plan_calendar(enriched).chapters[0].time_marker == marker  # idempotent
+    brief: dict[str, JsonValue] = {
+        "recipient": {"name": "Tomás", "birth_date": "1961-05-12"},
+        "memories": [{"title": "El primer día", "date": "1992-09-14"}],
+    }
+    text = calendar_document(enriched, 1, brief).text
+    assert f"Fecha: {real} 24 de junio de 2026 (usa exactamente" in text
+    assert "Edad de Tomás en el presente: 65 años" in text
+    assert "«El primer día» (14 de septiembre de 1992): hace 33 años cumplidos" in text
+    assert "Tomás tenía 31 años" in text

@@ -42,6 +42,7 @@ from app.commons.llm import ClaudeCodeModelClient, Document, ModelClient
 from app.commons.observability import Observer, get_observer
 from app.novel import context as cx
 from app.novel._bible_ext import load_plan, rename_cast, store_plan
+from app.novel.calendar_facts import calendar_document, chapter_calendar, enrich_plan_calendar
 from app.novel.chronology import chronology_problems, normalise_events, plan_births
 from app.novel.models import (
     ChangeResult,
@@ -155,6 +156,7 @@ def plan_for_validators(plan: NovelPlan) -> dict[str, object]:
             {
                 **chapter.model_dump(mode="json"),
                 "facts_used": sorted({k for s in scenes for k in s.facts_used}),
+                "calendar": chapter_calendar(plan, chapter.number),
                 "scenes": [s.model_dump(mode="json") for s in scenes],
             }
         )
@@ -265,7 +267,8 @@ def plan_novel(run: Run, chapters: int) -> NovelPlan:
         for problem in feedback[:10]:
             run.progress(f"  plan problem: {problem[:200]}")
         if not feedback:
-            return plan
+            # Tuning 2: real weekdays and dates, computed, never asked of the model.
+            return enrich_plan_calendar(plan)
     raise StopRunError("plan_limit", "; ".join(feedback)[:1000])
 
 
@@ -380,6 +383,7 @@ def write_scene(run: Run, version: int, chapter: int, scene: int, written: dict[
         cx.character_sheet_document(run.repo, run.novel_id, observer=run.observer),
         cx.chapter_plan_document(plan, chapter, facts),
         cx.facts_checklist_document(plan, chapter, facts, run.brief, scene=scene),
+        calendar_document(plan, chapter, run.brief),
         cx.text_document("manuscript/previous-tail.txt", tail or "(inicio de la novela)"),
         cx.forbidden_document(run.forbidden()),
         cx.names_document(run.names()),
@@ -426,6 +430,7 @@ def _editor_docs(run: Run, version: int, chapter: int) -> list[Document]:
         cx.brief_summary_document(run.brief),
         cx.chapter_plan_document(plan, chapter, facts),
         cx.facts_checklist_document(plan, chapter, facts, run.brief),
+        calendar_document(plan, chapter, run.brief),
         cx.character_sheet_document(run.repo, run.novel_id, observer=run.observer),
         cx.text_document(
             "manuscript/previous-chapter-summary.txt",
@@ -484,7 +489,9 @@ def _rewrite_task(feedback: str) -> str:
     return (
         "Reescribe el capítulo de manuscript/chapter-draft.txt corrigiendo exactamente lo que "
         "señala manuscript/feedback.txt (validadores). Mantén lo que funciona. Si el problema "
-        "es la longitud, amplía o recorta. Si aparece un término prohibido, elimínalo."
+        "es la longitud, amplía o recorta. Si aparece un término prohibido, elimínalo. Si "
+        "falla calendar_consistency, pon el día de la semana que dice el feedback o, más "
+        "sencillo, elimina el nombre del día y deja solo la fecha."
         if feedback
         else "Pule el capítulo de manuscript/chapter-draft.txt."
     )

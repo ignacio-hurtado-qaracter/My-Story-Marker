@@ -44,7 +44,7 @@ class PlanChapter(_Out):
         default="",
         description=(
             "Explicit story-time marker of the chapter's present action, relative to the "
-            "previous chapter (e.g. 'viernes 26 de junio de 2026, dos días después')"
+            "previous chapter (e.g. '26 de junio de 2026, dos días después')"
         ),
     )
     flashback: bool = Field(
