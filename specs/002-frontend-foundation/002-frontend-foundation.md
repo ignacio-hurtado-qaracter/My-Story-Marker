@@ -269,7 +269,7 @@ moves to `shared/` then.
 | AC 13 | `/graph3d` mounts a react-three-fiber canvas in the Playwright run, and the three.js chunk is requested only on that route. | **D** |
 | AC 14 | `npm audit --omit=dev --audit-level=high` reports nothing, and no version in `package.json` carries a range (`^`, `~`, `*`, `x`). | **A** |
 | AC 15 | A reviewer confirms that each feature folder is flat and self-contained, that `app/` only composes, that every `shared/ui/` component has two or more users and every single-user component sits in its feature, that every screen specifies its four states or why one does not apply, and that UI strings are Spanish while code and tests are English. | **I** |
-| AC 16 | Unknown routes render the not-found page inside the layout (header and health badge present), and `/` redirects to `/scenes`. | **T** |
+| AC 16 | Unknown routes render the not-found page inside the layout (header and health badge present). *(Revised 2026-09-24 by spec 003 revision 2: `/` no longer redirects to `/scenes`; it is the cover, verified by spec 003 AC 5–6.)* | **T** |
 | AC 17 | An MSW handler for a route `openapi.json` does not publish, or with a response of the wrong shape, fails `npm run typecheck` (a planted case under `@ts-expect-error` with a spec-linked comment). | **A** |
 | AC 18 | `/graph3d` renders the error panel when the three.js chunk fails to load, and when WebGL is unavailable. | **T** |
 
@@ -368,6 +368,12 @@ Nothing else is open. Deferred, each with its owner:
 - **Deferred to the turn spec:** the SSE transport and whether its event names or ordering
   need a line in `verification.md` (R3-2).
 - **Deferred to the first writing spec:** operator identity on writes (R2-5).
+- **Revised by spec 003 revision 2** (2026-09-24, re-approved by the agent under the user's
+  written delegation): `/` is the cover, not a redirect (FR-SHELL-03, AC 16); the navigation
+  is Portada · Índice · Personajes · Lugares with the brand linking to `/` and `/graph3d`
+  linked from the footer; `/scenes` is titled "Índice"; the cover also loads the planet chunk
+  lazily (FR-3D-01), while `/scenes` still never does (AC 13). This spec's test files are
+  updated only where an assertion names one of these.
 - **Superseded in part by spec 003** (2026-09-24): FR-3D-01's "empty scene" becomes spec
   003's decorative planet (FR-3D-03); `/scenes` also calls `GET /canon/project` for spec
   003's book header (FR-BOOK); plan 002 C10's inline targets move to CSS. Every acceptance
