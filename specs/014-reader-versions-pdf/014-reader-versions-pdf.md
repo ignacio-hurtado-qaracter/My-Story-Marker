@@ -84,6 +84,10 @@ are; the 3D graph page.
    words and `changed_vs_parent`. **T**
    *Clarified (browser-MCP finding 1): this holds under concurrent requests too — the
    per-request repository is opened with `check_same_thread=False`.*
+   *Clarified (browser-MCP finding 2): `GET /novels/{id}/bible?version=v` (and the PDF
+   sheet) shows each character and place with the name v's chapters use; names changed
+   later are mapped back from the `change` notes of later versions. The cast itself stays
+   unversioned (limit recorded in Open questions).*
 2. AC 2 — R03, R04, R06, E05: `export_pdf` writes a PDF with a cover (title, recipient,
    dedication), a "Novedades" page when version > 1, a linked index, the chapters and the
    character/place sheet with links, and internal links throughout. **T**
@@ -109,3 +113,8 @@ are; the 3D graph page.
 
 Closed on delegation: web + PDF (both); Vite proxy rather than FastAPI serving `dist`; jobs
 in memory; the reader shows published versions only; legacy pages kept, not primary.
+
+Known limitation (clarified, browser-MCP finding 2): `character`/`place` are not versioned.
+Names are mapped back per version from the `change` notes, but a character's
+`description` or `role` is shown as it is now in every version. Versioning the cast is a
+K1 design change (spec 005), not done.
