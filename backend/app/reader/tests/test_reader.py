@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi import FastAPI
@@ -11,7 +12,7 @@ from fastapi.testclient import TestClient
 
 from app.bible import BibleRepository
 from app.export import export_pdf
-from app.reader.changes import match_fact, resolve_change
+from app.reader.changes import ChangeJobs, match_fact, resolve_change
 from app.reader.dev_seed import NOVEL_ID, seed
 from app.reader.models import ChangeRequest
 from app.reader.router import get_bible_path, router
@@ -44,7 +45,7 @@ def test_chapter_index(db: Path) -> None:
 
     bible = client.get(f"/novels/{NOVEL_ID}/bible").json()
     chapters = {c["name"]: c["chapters"] for c in bible["characters"] + bible["places"]}
-    assert chapters["Toby"] == [1, 3]  # from fact usage
+    assert chapters["Nala"] == [1, 3]  # from fact usage
     assert chapters["El pueblo"] == [2]  # from the name search fallback
 
 
@@ -63,6 +64,23 @@ def test_change_resolution_is_deterministic(db: Path) -> None:
     assert (resolved.fact_key, resolved.new_value, resolved.resolved_by) == (
         "pet.toby.name", "Luna", "match"
     )
+
+    # The job hands the resolved fact to K4 `change_fact` (a stand-in for B3's here).
+    calls: list[tuple[str, str]] = []
+
+    def fake_change_fact(
+        repo: BibleRepository, novel_id: str, fact_key: str, new_value: str
+    ) -> object:
+        calls.append((fact_key, new_value))
+        return SimpleNamespace(new_version=3, changed_chapters=[1, 3], status="published")
+
+    jobs = ChangeJobs(change_fact_loader=lambda: fake_change_fact)
+    change = ChangeRequest(request="el perro se llama Luna")
+    job = jobs.submit(db, NOVEL_ID, change, background=False)
+    done = jobs.get(job.job_id)
+    assert calls == [("pet.toby.name", "Luna")]
+    assert done is not None
+    assert (done.status, done.new_version, done.changed_chapters) == ("done", 3, [1, 3])
 
 
 def test_pdf_export(db: Path, tmp_path: Path) -> None:

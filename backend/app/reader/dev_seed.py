@@ -101,8 +101,8 @@ def seed(repo: BibleRepository, novel_id: str = NOVEL_ID) -> bool:
         description="Bibliotecaria curiosa que hereda un faro.", fact_id=recipient.id,
     )
     repo.add_character(
-        novel_id, name="Toby", role="mascota",
-        description="Perro de aguas, fiel y ladrador.", fact_id=pet.id,
+        novel_id, name="Nala", role="mascota",
+        description="Perra de aguas, fiel y ladradora (Toby en la versión 1).", fact_id=pet.id,
     )
     repo.add_character(
         novel_id, name="El antiguo farero", role="secundario",
