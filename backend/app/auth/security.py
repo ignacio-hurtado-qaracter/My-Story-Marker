@@ -10,14 +10,14 @@ wrong for anything else.
 from __future__ import annotations
 
 import logging
-import os
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Final
 
 import bcrypt
 import jwt
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +36,21 @@ _DUMMY_HASH: Final[bytes] = bcrypt.hashpw(b"not-a-password", bcrypt.gensalt(roun
 _dev_secret: str | None = None
 
 
+class AuthEnv(BaseSettings):
+    """`AUTH_SECRET` and `AUTH_REQUIRED`, from the process environment or `backend/.env`
+    (the same sources as `app.commons.config.Settings`). Read per call, so a test's
+    environment applies at once."""
+
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    secret: str = Field(default="", validation_alias="AUTH_SECRET")
+    required: str = Field(default="1", validation_alias="AUTH_REQUIRED")
+
+    @property
+    def is_required(self) -> bool:
+        return self.required.strip().casefold() not in {"0", "false", "no", "off"}
+
+
 class InvalidTokenError(Exception):
     """The token is missing a claim, expired, or not signed with this secret."""
 
@@ -51,7 +66,7 @@ class TokenClaims(BaseModel):
 def auth_secret() -> str:
     """`AUTH_SECRET`, or a per-process random secret with a warning (dev only)."""
     global _dev_secret  # one generated secret per process, by design
-    configured = os.environ.get(SECRET_ENV, "")
+    configured = AuthEnv().secret
     if configured:
         if len(configured.encode("utf-8")) < MIN_SECRET_BYTES:
             message = f"{SECRET_ENV} must be at least {MIN_SECRET_BYTES} bytes long"
@@ -108,6 +123,7 @@ __all__ = [
     "BCRYPT_MAX_BYTES",
     "SECRET_ENV",
     "TOKEN_TTL",
+    "AuthEnv",
     "InvalidTokenError",
     "TokenClaims",
     "auth_secret",

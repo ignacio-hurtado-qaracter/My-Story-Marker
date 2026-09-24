@@ -11,7 +11,6 @@ novels this user may see -- is the repository's (`BibleRepository.scoped_to`).
 
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 from typing import Annotated, Final
 
@@ -19,7 +18,7 @@ from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
-from app.auth.security import InvalidTokenError, auth_secret, decode_token
+from app.auth.security import AuthEnv, InvalidTokenError, auth_secret, decode_token
 from app.bible import LOCAL_OWNER_ID
 
 REQUIRED_ENV: Final[str] = "AUTH_REQUIRED"
@@ -34,8 +33,7 @@ class AuthSettings:
 
 def get_auth_settings() -> AuthSettings:
     """Read per request, so a test's environment (or override) applies at once."""
-    raw = os.environ.get(REQUIRED_ENV, "1").strip().casefold()
-    return AuthSettings(required=raw not in {"0", "false", "no", "off"}, secret=auth_secret())
+    return AuthSettings(required=AuthEnv().is_required, secret=auth_secret())
 
 
 AuthSettingsDep = Annotated[AuthSettings, Depends(get_auth_settings)]
