@@ -88,7 +88,7 @@ def turn(
     """One interviewer step: merge the answer into the draft, return the next question."""
     interviewer = Interviewer(client, observer, novel_id=body.novel_id or new_novel_id(), repo=repo)
     interviewer.last_question = body.last_question
-    return interviewer.step(body.draft, body.answer)
+    return interviewer.safe_step(body.draft, body.answer)
 
 
 __all__ = ["get_bible", "router"]

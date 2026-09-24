@@ -73,7 +73,7 @@ def cmd_interview(args: argparse.Namespace) -> int:
                     draft = interviewer.add_free_text(draft, pasted)
                 _print("Texto guardado. " + interviewer.last_question)
                 continue
-            result = interviewer.step(draft, answer)
+            result = interviewer.safe_step(draft, answer)
             draft = result.draft
             _print(result.next_question)
             if result.done:

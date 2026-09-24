@@ -26,6 +26,7 @@ from app.commons.llm import ModelClient
 from app.commons.observability import NoopObserver, Observer
 from app.interview.brief import SCHEMA_VERSION, Brief, BriefReport, slug, validate_brief
 from app.interview.extract import ExtractedFacts, extract_facts_from_free_text
+from app.interview.interviewer import MODEL_ERRORS
 
 VALIDATOR_NAME: Final[str] = "brief_schema"
 VALIDATOR_POINT: Final[str] = "hook"
@@ -240,9 +241,19 @@ def ingest_brief(
                 from app.commons.llm import ClaudeCodeModelClient
 
                 client = ClaudeCodeModelClient()
-            extracted = extract_facts_from_free_text(
-                parsed.free_text, client, obs, repo=repo, novel_id=identifier
-            )
+            try:
+                extracted = extract_facts_from_free_text(
+                    parsed.free_text, client, obs, repo=repo, novel_id=identifier
+                )
+            except MODEL_ERRORS as error:
+                # Free text is optional context: a failed extraction is recorded, and the
+                # brief (already valid without it) is ingested with its interview facts only.
+                repo.log_policy_decision(
+                    policy="free_text_extraction",
+                    decision="skipped",
+                    novel_id=identifier,
+                    detail=type(error).__name__,
+                )
         with transaction(repo.connection):
             if exists:
                 repo.update_novel(

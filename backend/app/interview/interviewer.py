@@ -22,13 +22,30 @@ from typing import Final
 from pydantic import BaseModel, Field, JsonValue
 
 from app.bible import BibleRepository
-from app.commons.llm import Document, ModelClient
+from app.commons.llm import (
+    ContextBudgetExceeded,
+    Document,
+    MalformedModelOutput,
+    ModelCallFailed,
+    ModelClient,
+    ModelRefused,
+    OutputTruncated,
+)
 from app.commons.observability import CallScope, Observer, load_prompt, traced_complete
 from app.commons.permissions import AgentRole
 from app.interview.brief import BriefReport, Gender, Genre, Occasion, Tone, validate_brief
 from app.interview.extract import log_injection, prescan_injection
 
 PROMPT_NAME: Final[str] = "interviewer"
+
+MODEL_ERRORS: Final[tuple[type[Exception], ...]] = (
+    ModelCallFailed,
+    MalformedModelOutput,
+    OutputTruncated,
+    ModelRefused,
+    ContextBudgetExceeded,
+)
+"""What a role call may raise once `traced_complete`'s bounded retry is spent."""
 
 OPENING_QUESTION: Final[str] = (
     "¡Hola! Vamos a preparar una novela única. ¿Para quién es el regalo? "
@@ -127,6 +144,10 @@ class TurnResult(BaseModel):
     next_question: str
     done: bool
     report: BriefReport
+    degraded: str | None = Field(
+        default=None,
+        description="Set when the model call failed and the question is the deterministic one.",
+    )
 
 
 def merge(draft: Mapping[str, JsonValue], updates: BriefUpdate) -> dict[str, JsonValue]:
@@ -190,6 +211,28 @@ class Interviewer:
         merged["free_text"] = f"{previous}\n\n{text}" if isinstance(previous, str) else text
         return merged
 
+    def fallback(self, draft: Mapping[str, JsonValue], reason: str) -> TurnResult:
+        """The turn without the model: the draft unchanged and the deterministic question,
+        so a failed call never loses the interview (the client repeats the answer)."""
+        report = validate_brief(draft)
+        question = question_for(report) or self.last_question
+        self.last_question = question
+        return TurnResult(
+            novel_id=self.novel_id,
+            draft=dict(draft),
+            next_question=question,
+            done=False,
+            report=report,
+            degraded=reason,
+        )
+
+    def safe_step(self, draft: Mapping[str, JsonValue], answer: str) -> TurnResult:
+        """`step`, falling back to `fallback` when the model call fails or refuses."""
+        try:
+            return self.step(draft, answer)
+        except MODEL_ERRORS as error:
+            return self.fallback(draft, type(error).__name__)
+
     def step(self, draft: Mapping[str, JsonValue], answer: str) -> TurnResult:
         before = validate_brief(draft)
         prompt = load_prompt(PROMPT_NAME, self._observer)
@@ -237,6 +280,7 @@ class Interviewer:
 
 
 __all__ = [
+    "MODEL_ERRORS",
     "OPENING_QUESTION",
     "BriefUpdate",
     "InterviewTurn",
