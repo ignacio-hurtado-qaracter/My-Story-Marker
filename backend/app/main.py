@@ -26,6 +26,8 @@ from pydantic import BaseModel, Field
 
 from app.agents import service as agents_service
 from app.agents.router import router as agents_router
+from app.auth.router import router as auth_router
+from app.auth.security import auth_secret
 from app.canon.router import router as canon_router
 from app.cast.router import router as cast_router
 from app.commons.config import Settings, get_settings
@@ -145,6 +147,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     verify_store_root(settings)
     verify_embedding_model(app, settings)
+    auth_secret()  # spec 018: a short AUTH_SECRET fails here; a missing one warns once
     yield
 
 
@@ -202,6 +205,8 @@ def create_app() -> FastAPI:
     app.include_router(interview_router)
     # Spec 014 (K5): the gift-novel reader over the story bible, under `/novels`.
     app.include_router(reader_router)
+    # Spec 018 (X03, SEC-01): register and log in; the reader and interview require the token.
+    app.include_router(auth_router)
 
     # FR-AGENT-07, IF-05: `POST /scenes/{id}/audit` runs the auditor role for its semantic
     # half. `scenes` cannot import `agents` (NFR-04), so the route asks `commons.deps` for a

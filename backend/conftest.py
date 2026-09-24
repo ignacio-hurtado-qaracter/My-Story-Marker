@@ -36,6 +36,9 @@ import pytest
 
 # Offline suite never reaches Langfuse, even when the keys are in the environment (spec 010).
 os.environ.setdefault("LANGFUSE_ENABLED", "0")
+# Spec 018: the existing suites predate login and act as the built-in `local` owner. The
+# auth tests (app/auth/tests) set AUTH_REQUIRED=1 themselves.
+os.environ.setdefault("AUTH_REQUIRED", "0")
 from fastapi.testclient import TestClient
 
 from app.commons.config import get_settings
