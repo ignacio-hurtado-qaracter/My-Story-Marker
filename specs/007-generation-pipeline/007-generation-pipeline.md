@@ -80,7 +80,8 @@ H05 (deferred, see Open questions), the legacy `app/agents/**` turn loop (untouc
 
 Deviation from Figure 5: a `chapter_close` failure is repaired by an editor rewrite of the
 whole chapter with the evidence, not by rewriting only the flagged scene (cheaper on Haiku;
-the scenes are already merged by the editor).
+the scenes are already merged by the editor). *Clarified: Figure 5 now says so, and that
+resume restarts the first incomplete chapter from its first scene; no longer a deviation.*
 
 ## Acceptance criteria
 
