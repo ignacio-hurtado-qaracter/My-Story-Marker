@@ -80,7 +80,7 @@ The refactor **extends** spec 001, 002 and 003; it does not replace them.
 | Roles | Writer (`write`, `revise`, `digest`, `rollup`), style editor (`polish`), mechanical and semantic auditor (explanation now stored, DR-07), canoniser (`extract`) — all through `claude -p` with validated structured output |
 | Observability base | Turn record with model id, `prompt_version` (content hash) and token counts including cache reads |
 | Frontend | Spec 002 foundation and spec 003 rev. 2 reader: cover with a dedication (kept in the browser), chapter index, chapter reader, character and location sheets with the chapters where each appears |
-| Delivery | CI for backend and frontend, committed OpenAPI contract with schemathesis, exam checker, `.mcp.json` with Playwright MCP, `.claude/memory/`, README skeletons |
+| Delivery | CI for backend and frontend, committed OpenAPI contract with schemathesis, exam checker (`exam/`). **On branch `exam/rescope` only**, not yet here: `.mcp.json` with Playwright MCP, `.claude/memory/`, `.claude/commands/exam-gap.md`, root `README.md`, `presentacion/README.md`, `ejemplos/README.md`; B12 brings them by explicit paths |
 
 ---
 
@@ -108,8 +108,15 @@ The refactor **extends** spec 001, 002 and 003; it does not replace them.
   a block spec, after its own approval and plan.
 - **Out of the exam's scope** (question 2, default): payments, user accounts, printing,
   illustrations, audio, production deployment.
-- **Optional items** (`X01`–`X04`, MCP server, prose linters, login, security agent) until
-  every required block is `implemented`. They are listed as block B12-opt only.
+- **Optional items** until every required block is `implemented`. They are listed as block
+  B12-opt only, and are the exam's full optional list: a read-only MCP server (FastMCP)
+  with `list_novels`, `get_chapter`, `list_versions`, `query_story_bible`, `download_novel`
+  (`X01`); MCP write tools for reader changes, with permissions and confirmation; prose
+  linters (`X02`); a linter for manual edits that checks the story bible and forbidden
+  words and sends a changed fact back through the validators, Lean included; more Lean
+  invariants or general proofs; TLA+ of the MCP server or of concurrent regenerations;
+  login with SQLite, hashed passwords and tokens (`X03`); a security agent or skill with
+  `docs/security-report.md` (`X04`).
 - Rewriting what specs 001–003 already built, beyond what a block spec needs to extend it.
 - `main` and its legacy content. Moving `main` is a separate, explicit user decision.
 
@@ -141,7 +148,7 @@ the one that closes the requirement; B0 edits the docs for every *contradicts*, 
 | R02 navigable chapter index | — (built by spec 003 rev. 2) | absent in docs | Describe the reader in `architecture.md` | B0 docs, built |
 | R03 character and place sheets from the story bible, linked to chapters | — (built by spec 003 rev. 2 from the file stores) | absent in docs | Sheets read the story bible; chapter links come from fact usage per scene (decision 23) | B10 |
 | R04 cover with a personalised dedication | — (spec 003 keeps the dedication **in the browser only**) | absent | The dedication is a brief field, stored with the novel and rendered on the cover and in the PDF | B2 (field), B10 (render) |
-| R05 reader change request: find chapters using the fact, regenerate only those without breaking continuity | `reconcile(canon_change)` returns affected scenes ([architecture](../../docs/architecture.md#operations)) | partial | New operation **`change_fact(novel, fact, new_value)`**: update the fact, `reconcile`, regenerate only the affected scenes, re-run chapter-close validators, publish a new version | B10 (with B3) |
+| R05 reader change request: find chapters using the fact, regenerate only those without breaking continuity | `reconcile(canon_change)` returns affected scenes ([architecture](../../docs/architecture.md#operations)) | partial | The reader **selects a fragment or a fact on the page** and states the change ("the dog is called Nala"). New operation **`change_fact(novel, fact, new_value)`**: update the fact, `reconcile`, regenerate only the affected scenes, re-run chapter-close validators, publish a new version | B10 (with B3) |
 | R06 mark changed chapters | — | absent | "Changed" = chapter text hash differs from the previous version (decision 27) | B10 |
 | R07 keep the previous version | "Versioning is git's, not the record's" ([architecture](../../docs/architecture.md#draft)) | contradicts | Versions live in the authoritative database; publishing never overwrites (decision 27). The Draft section is rewritten | B1, B10 |
 
@@ -175,11 +182,11 @@ the one that closes the requirement; B0 edits the docs for every *contradicts*, 
 | V03 each mandatory brief element appears in some chapter, checked against SQLite facts | — | absent | Pre-publish validator over fact usage | B4 |
 | V04 brief and role outputs match their schema | Role outputs validated, never repaired (spec 001) | partial | Add the brief schema; report schema results as validators | B2, B4 |
 | V05 visual validation via browser MCP | Playwright for e2e flows ([verification](../../docs/verification.md#unit--integration-testing--t)) | partial | A pre-publish **visual check** run by an agent with Playwright MCP over cover, index and sheets; failures recorded and routed to the owning role; its real use documented | B12 (with B10) |
-| S01 LLM-as-judge with rubric (continuity, tone, narrative quality, natural personalisation), score and justification per criterion | LLM-as-judge for style only ([evals](../../docs/verification.md#evals--t-offline--d-online)) | partial | New **judge** role and rubric; per-criterion score and justification; chapter-close and pre-publish | B7 |
+| S01 LLM-as-judge with rubric (continuity, tone, narrative quality, natural personalisation), score and justification per criterion | LLM-as-judge for style only ([evals](../../docs/verification.md#evals--t-offline--d-online)) | partial | New **judge** role and rubric; per-criterion score and justification; chapter-close and pre-publish. The rubric names the defects the exam rejects: inconsistent characters, senseless time jumps, chapters that contradict each other, mechanical or repetitive prose, abrupt endings, and forced personalisation (decision D11) | B7 |
 | S02 human review of a full novel with the same rubric | Human gates on promotion and escalation only ([HITL](../../docs/verification.md#human-in-the-loop-review--i)) | absent | A human review protocol with the judge's rubric, and a comparison table | B7 |
 | Narrative quality overall | **U**: "Chapter forty lands" ([coverage matrix](../../docs/verification.md#coverage-matrix)) | contradicts | The exam requires minimum quality. The row becomes **I** (judge as machine I, plus human review); literary excellence stays **U** | B0, B7 |
-| L01–L04 Lean 4 | Theorem proving not applied to application code ([verification](../../docs/verification.md#formal-verification--theorem-proving--a)) | contradicts | Lean 4 verifies the **story's chronology**, generated from the database: temporal order and age against birth date (question 15 default); `lake build` gates publication; failures go back to the editor | B8 |
-| T01–T05 TLA+ of the harness flow | Model checking of permissions and turn, adoption step 9 ([model checking](../../docs/verification.md#model-checking--a)) | partial | TLA+ of configuration → planning → chapter writing → validation → publication, with retries, checkpoint resume and reader regeneration; three safety invariants and termination; TLC on 5 chapters × 2 retries; action-to-code mapping | B9 |
+| L01–L04 Lean 4 | Theorem proving not applied to application code ([verification](../../docs/verification.md#formal-verification--theorem-proving--a)) | contradicts | Lean 4 verifies the **story's chronology**: a Lean file generated from the database with events, moment, characters present, place and birth dates; at least temporal order and age against birth date (question 15 default); `lake build` runs automatically and gates publication; a failure blocks the version and goes back to the editor as feedback; its result is a Langfuse score. B8 shows **one real case** Lean caught that no other validator did, or documents why none was found | B8 |
+| T01–T05 TLA+ of the harness flow | Model checking of permissions and turn, adoption step 9 ([model checking](../../docs/verification.md#model-checking--a)) | partial | TLA+ of configuration → planning → chapter writing → validation → publication, with retries, checkpoint resume and reader regeneration; at least three safety invariants (never publish an unvalidated chapter; resume neither duplicates nor loses chapters; the previous version survives a regeneration; retries never exceed the limit) and liveness (every generation publishes or stops with an error); TLC on 5 chapters × 2 retries with its config in the repo; runs in development, not per generation; a README maps each action to the state or transition of the code; every counterexample TLC found is documented with the code change it caused | B9 |
 | EV1–EV3 five briefs, results table, one tuning iteration | Eval kinds listed; no briefs | absent | Five briefs (one prompt injection, one temporal incoherence), a validator × brief table, one tuning iteration tied to Langfuse prompt versions | B11 |
 
 #### 1.6 Observability (exam § 6)
@@ -187,8 +194,8 @@ the one that closes the requirement; B0 edits the docs for every *contradicts*, 
 | Req | What `docs/` says | Verdict | Resolution | Block |
 |---|---|---|---|---|
 | O01 one trace per generation, one session per novel | One trace per writing turn | contradicts | Session = novel (interview, generation, regenerations); trace = one generation or regeneration; turns become spans | B6 |
-| O02 spans per role and tool; tokens, cost, latency per call, chapter, novel | Spans per agent invocation | partial | Span names fixed per role and tool; cost computed from token counts and the pinned model price | B6 |
-| Validator scores to Langfuse | Human decisions as scores | partial | Every validator result is a score on its trace (contract K3) | B4, B6 |
+| O02 spans per role and tool; tokens, cost, latency per call, chapter, novel | Spans per agent invocation | partial | A named span for **every role** (interviewer, planner, writer, editor, judge, canoniser) and **every tool call**; cost computed from token counts and the pinned model price; totals per call, chapter and novel | B6 (every role's block emits through K2) |
+| Validator scores to Langfuse | Human decisions as scores | partial | Every validator result — programmatic, semantic and Lean — is a score on its trace (contract K3). TLC is not traced: it runs in development | B4, B6, B7, B8 |
 | O03 prompts versioned in Langfuse | Prompt version = content hash, local | partial | Prompts published to Langfuse; the version id is recorded per call | B6 |
 
 #### 1.7 Guardrails (exam § 7)
@@ -209,9 +216,9 @@ the one that closes the requirement; B0 edits the docs for every *contradicts*, 
 | E01–E05 README, example brief, `.env.example`, no secrets, example novel PDF | partial (README, `.env.example`, no-secrets check exist) | B12, B11 (example novel) |
 | E06 `CLAUDE.md` cared for and readable | partial: 17 lines deferring to `AGENTS.md` | B0 |
 | K01–K06 commands, memory, browser MCP config and documented use, skills and subagents documented | partial | B12 |
-| D01–D06 process docs: initial spec, trade-offs, explainers, diagrams, iteration log, red-team log | absent (`docs/process/` decided, decision 5) | B12 |
-| P01–P05 presentation, annexes, video | partial (README skeleton) | B12 |
-| E07–E08 MyFactory commit, submission email | manual | the user |
+| D01–D06 process docs: initial spec; trade-offs as options, criteria and choice (at least single- vs multi-agent, story-bible format, reading model, TLA+ integration with the real flow, Lean invariants prioritised); one short explainer per course concept applied; diagrams (harness architecture, TLA+ state machine, SQLite schema, validators with their execution point); iteration log of cause and effect after each eval, TLC counterexample or Lean failure; red-team log | absent (`docs/process/` decided, decision 5) | B12 |
+| P01–P05 technical-commercial presentation: main deck in PDF and in its editable format, annexes as separate descriptively named files, a README listing content and language, a demo video in `presentacion/` or linked from the README; all committed **before the storyMaker deadline** | partial (README skeleton on `exam/rescope`) | B12 |
+| E07–E08 MyFactory final commit; submission email with subject `[Harness Engineering] Entrega final — <name>`, both final-commit links and a sentence of at most three lines on the most important design decision. The final commit counts, not the email time | manual | the user |
 
 #### 1.9 Findings from specs 001 and 003 that touch the exam (question 32 default)
 
@@ -232,7 +239,7 @@ These bind every block. Numbers are the Process 0 question numbers.
 |---|---|
 | D1 (6, 24, 25) | **One authoritative SQLite database** (default path `data/harness.sqlite`, set by environment), separate from the derived index under `.index/`, with its own migrations. It holds the novel, its versions, the brief, facts and their usage per scene, chronology, forbidden-word lists, the policy decision log and validator results, all keyed by `novel_id`. Prose, canon and cast stay in files, **one store tree per novel** under a novels root. |
 | D2 (26) | **Brief facts are authoritative in the database.** Files the planner writes cite the fact id. A reader change updates the fact; `reconcile` finds the scenes; the owning role rewrites the file. A fact never has two versions. |
-| D3 (7, 20) | A chapter holds **3 to 5 scenes**; the planner splits the 1,000–1,500 words into scene budgets, about 200–500 words each. |
+| D3 (7, 20) | A novel has **10 chapters** of 1,000–1,500 words. A chapter holds **3 to 5 scenes**; the planner splits the 1,000–1,500 words into scene budgets, about 200–500 words each. |
 | D4 (21) | Validators run at **scene acceptance** (mechanical audit, forbidden words, schema) and at **chapter close** (length, exact names, brief coverage so far, judge); **pre-publish** runs brief coverage, Lean and the visual check. A chapter failure goes back to the scene holding the evidence. |
 | D5 (22) | Chapter checkpoint and resume as in round 2. |
 | D6 (23, 27) | Fact usage per scene; versions as rows with text and hash per chapter; nothing is deleted. |
@@ -240,6 +247,7 @@ These bind every block. Numbers are the Process 0 question numbers.
 | D8 (9) | Web reader first, PDF export from the backend. |
 | D9 (10, default) | Novel prose, root README and presentation in Spanish; `docs/`, specs and code in English. The embedder moves to the multilingual 384-d MiniLM before the first real rebuild. |
 | D10 (5) | `docs/process/` is a **record** area: it cites `docs/`, never defines design, and is edited without Process 1 unless it states how the system works. |
+| D11 (exam) | **Personalisation and narrative quality weigh the same.** The system must not optimise for the brief's data merely appearing. Every block that judges prose — the programmatic validators (B4), the editor (B3) and the judge (B7) — checks both: that the personal details are present and integrated naturally, and that the story works as a story. A chapter that passes coverage but fails quality, or the reverse, is not accepted. |
 
 ---
 
@@ -262,8 +270,8 @@ map fixes what each block owns so that parallel sessions never edit the same fil
 | **B9** | TLA+ harness model | `formal/tla/**` | B3 design (final mapping) | T01–T05 |
 | **B10** | Reader, versions and PDF | `backend/app/reader/**`, `backend/app/export/**`, `frontend/src/cover/**`, `frontend/src/bible/**`, `frontend/src/reader/**` | B1, B3 | R03–R07, E05 (render) |
 | **B11** | Evals and red-team | `evals/**` (except `human-review/`), `ejemplos/` | B2–B8, B10 | EV1–EV3, E02, E05 |
-| **B12** | Repo, process docs and presentation | `docs/process/**`, `.claude/skills/<harness-skill>/`, `.claude/commands/**`, `.claude/memory/**`, `README.md`, `.env.example`, `presentacion/**` | — (starts at once; closes last) | K01–K06, D01–D06, P01–P05, E01, H02, V05 (documentation) |
-| B12-opt | Optional items | decided later | all required blocks | X01–X04 |
+| **B12** | Repo, process docs and presentation | `docs/process/**`, `.claude/skills/<harness-skill>/`, `.claude/commands/**`, `.claude/memory/**`, `.mcp.json`, `README.md`, `.env.example`, `presentacion/**` | — (starts at once; closes last) | K01–K06, D01–D06, P01–P05, E01, H02, V05 (documentation) |
+| B12-opt | Optional items (full list in Scope, Out) | decided later | all required blocks | X01–X04 and the other optionals |
 
 #### Dependency graph
 
@@ -322,7 +330,7 @@ is a change to the provider's spec and goes back to `draft`.
 | Id | Provider | What it is | Consumers |
 |---|---|---|---|
 | **K1** | B1 | The authoritative schema and repository API: `novel`, `novel_version`, `chapter_version(text, hash)`, `brief`, `fact(source)`, `fact_usage(fact, scene)`, `chronology_event`, `event_participant`, `person(birth_date)`, `forbidden_term(scope)`, `policy_decision`, `validator_result`. Names are proposals; B1 fixes them | B2–B5, B7, B8, B10 |
-| **K2** | B6 | `observe`: open a session, trace and span by name; record tokens, cost, latency; attach a score. A no-op implementation for tests and offline runs | B3, B4, B5, B7 |
+| **K2** | B6 | `observe`: open a session, trace and span by name; record tokens, cost, latency; attach a score. A no-op implementation for tests and offline runs | B2, B3, B4, B5, B7, B8, B10 |
 | **K3** | B4 | The validator protocol: `name`, `point` (`scene_accept` · `chapter_close` · `pre_publish` · `hook`), `run(context) → ValidationResult(passed, score?, evidence, explanation)`; results persisted through K1 and scored through K2 | B3, B5, B7, B8 |
 | **K4** | B3 | Hook points of the pipeline by name (`before_scene_accept`, `before_chapter_close`, `before_publish`) where registered validators run | B4, B5, B8, B10 |
 | **K5** | B10 | `change_fact` and `publish_version` operations and their routes | B11, frontend |
@@ -416,7 +424,7 @@ After approval, B0 runs Process 1 on each doc, one `docs:` commit per conceptual
 | `definitions.md` | Brief and Recipient in Layer 0; brief validation rules (required fields, age × genre/tone); Fact with `source` and usage per scene; forbidden-word normaliser next to invariant 7; chapter = 3–5 scenes, 1,000–1,500 words |
 | `domain-knowledge.md` | Brief → facts → canon in the entity graph; chronology events and birth dates on the story axis |
 | `architecture.md` | Governing principle keeps "canon small, prose disposable" and adds the brief as the root; authoritative database beside the derived index (Memory, Storage layout); Figure 3 gains interviewer and judge rows and the planner as a model-invoked architect; Figure 4 becomes a chapter loop with scene turns, chapter close and publication; operations `change_fact` and `publish_version`; Draft versioning moves to the database; the reader as the frontend's first purpose; the read-only MCP tools |
-| `verification.md` | Validator registry and execution points; Lean 4 over the story chronology; TLA+ over the harness flow; LLM-as-judge with the exam rubric and human review; Langfuse session per novel and scores; guardrail levels; coverage matrix rows for every new requirement; "Chapter forty lands" split into minimum quality (**I**) and literary excellence (**U**) |
+| `verification.md` | The balance of personalisation and narrative quality (D11) as a principle every prose check follows; validator registry and execution points; Lean 4 over the story chronology; TLA+ over the harness flow; LLM-as-judge with the exam rubric and human review; Langfuse session per novel and scores; guardrail levels; coverage matrix rows for every new requirement; "Chapter forty lands" split into minimum quality (**I**) and literary excellence (**U**) |
 | `AGENTS.md` | Documentation map gains `docs/process/`; the parallel-work protocol of § 5 |
 | `CLAUDE.md` | Rewritten to be readable on its own (E06): what the project is, how to run a generation, where the rules are, skills, commands, MCP |
 
