@@ -436,6 +436,52 @@
         "title": "Axiom",
         "type": "object"
       },
+      "BibleEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "chapters": {
+            "description": "R03: chapters of the version where it appears.",
+            "items": {
+              "type": "integer"
+            },
+            "title": "Chapters",
+            "type": "array"
+          },
+          "description": {
+            "default": "",
+            "title": "Description",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "character",
+              "place"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "default": "",
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name"
+        ],
+        "title": "BibleEntry",
+        "type": "object"
+      },
       "Calendar": {
         "additionalProperties": false,
         "description": "DR-09. One culture's way of naming the time that `epoch_zero` counts.\n\nCalendars are presentation, not arithmetic. Nothing in the harness computes with them -\nthe invariants subtract raw hours - so `conversion` is prose stating how this calendar\nrelates to the epoch, for a human and for the writer's context, and is deliberately not\na machine-evaluated expression. Getting a second calendar wrong is a flavour error;\ngetting `epoch_zero` wrong would be an arithmetic one, which is why they are separate.",
@@ -562,6 +608,20 @@
         "title": "Certainty",
         "type": "string"
       },
+      "ChangeAccepted": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id"
+        ],
+        "title": "ChangeAccepted",
+        "type": "object"
+      },
       "ChangeEvent": {
         "additionalProperties": false,
         "description": "DR-08. One registered change to a body or a memory.\n\nThis is what lets a scar, an amputation, a memory wipe or a conditioning be told apart\nfrom a continuity error. Invariant 3 (stable bodies) asks that a physical attribute in\nthe prose match `immutable_physical`; the exception it allows is exactly one of these,\ndated at or before the scene under audit. The same record covers the `Knows -> Unaware`\nedge of the knowledge lifecycle, which is why `attribute` is either an\n`immutable_physical` key or the `fact_ref` that was forgotten.\n\n**Failure mode: registering the change after the checker complains.** A ChangeEvent is\na decision taken before the prose, not an excuse written after it. Nothing in the shape\ncan enforce that - it is a discipline, and the provenance log is where it is visible -\nbut it is the reason `cause` is required: a change with no cause is a plot hole with a\nreceipt, and demanding the cause at write time is what makes the retrofit feel like\nwhat it is.\n\n`scene` dates the event on the story axis through the scene record. Before that scene\nthe old value holds, which is what the auditor compares against.",
@@ -612,6 +672,139 @@
           "cause"
         ],
         "title": "ChangeEvent",
+        "type": "object"
+      },
+      "ChangeJob": {
+        "additionalProperties": false,
+        "properties": {
+          "changed_chapters": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Changed Chapters",
+            "type": "array"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "fact_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fact Key"
+          },
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "new_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Value"
+          },
+          "new_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Version"
+          },
+          "novel_id": {
+            "title": "Novel Id",
+            "type": "string"
+          },
+          "resolved_by": {
+            "anyOf": [
+              {
+                "enum": [
+                  "request",
+                  "match",
+                  "model"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resolved By"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "resolving",
+              "running",
+              "done",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "job_id",
+          "novel_id",
+          "status"
+        ],
+        "title": "ChangeJob",
+        "type": "object"
+      },
+      "ChangeRequest": {
+        "additionalProperties": false,
+        "description": "R05: what the reader asks for. `fragment` is the selected text, if any.",
+        "properties": {
+          "fact_key": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fact Key"
+          },
+          "fragment": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fragment"
+          },
+          "request": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Request",
+            "type": "string"
+          }
+        },
+        "required": [
+          "request"
+        ],
+        "title": "ChangeRequest",
         "type": "object"
       },
       "ChangesFile": {
@@ -712,6 +905,152 @@
           "arc"
         ],
         "title": "Chapter",
+        "type": "object"
+      },
+      "ChapterDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "changed": {
+            "title": "Changed",
+            "type": "boolean"
+          },
+          "facts": {
+            "items": {
+              "$ref": "#/components/schemas/FactRef"
+            },
+            "title": "Facts",
+            "type": "array"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next"
+          },
+          "novel_id": {
+            "title": "Novel Id",
+            "type": "string"
+          },
+          "previous": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          },
+          "words": {
+            "title": "Words",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "novel_id",
+          "version",
+          "n",
+          "title",
+          "text",
+          "words",
+          "changed"
+        ],
+        "title": "ChapterDetail",
+        "type": "object"
+      },
+      "ChapterEntry": {
+        "additionalProperties": false,
+        "properties": {
+          "changed_vs_parent": {
+            "description": "R06: the chapter's hash differs from the parent version's.",
+            "title": "Changed Vs Parent",
+            "type": "boolean"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "words": {
+            "title": "Words",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "n",
+          "title",
+          "words",
+          "changed_vs_parent"
+        ],
+        "title": "ChapterEntry",
+        "type": "object"
+      },
+      "ChapterIndex": {
+        "additionalProperties": false,
+        "properties": {
+          "chapters": {
+            "items": {
+              "$ref": "#/components/schemas/ChapterEntry"
+            },
+            "title": "Chapters",
+            "type": "array"
+          },
+          "novel_id": {
+            "title": "Novel Id",
+            "type": "string"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "novel_id",
+          "version",
+          "status",
+          "chapters"
+        ],
+        "title": "ChapterIndex",
         "type": "object"
       },
       "ChaptersFile": {
@@ -1319,6 +1658,30 @@
           "target_field"
         ],
         "title": "FactRecord",
+        "type": "object"
+      },
+      "FactRef": {
+        "additionalProperties": false,
+        "properties": {
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "value",
+          "kind"
+        ],
+        "title": "FactRef",
         "type": "object"
       },
       "FactStatus": {
@@ -2084,6 +2447,129 @@
           "estimate"
         ],
         "title": "ModelCallRecord",
+        "type": "object"
+      },
+      "NovelDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "current_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Version"
+          },
+          "dedication": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dedication"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "recipient": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipient"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/VersionInfo"
+            },
+            "title": "Versions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "NovelDetail",
+        "type": "object"
+      },
+      "NovelSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "current_version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The latest published version; None while nothing is published.",
+            "title": "Current Version"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "recipient": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipient"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "NovelSummary",
         "type": "object"
       },
       "Outcome": {
@@ -3542,6 +4028,47 @@
         "title": "StepStatus",
         "type": "string"
       },
+      "StoryBible": {
+        "additionalProperties": false,
+        "properties": {
+          "characters": {
+            "items": {
+              "$ref": "#/components/schemas/BibleEntry"
+            },
+            "title": "Characters",
+            "type": "array"
+          },
+          "novel_id": {
+            "title": "Novel Id",
+            "type": "string"
+          },
+          "places": {
+            "items": {
+              "$ref": "#/components/schemas/BibleEntry"
+            },
+            "title": "Places",
+            "type": "array"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "novel_id",
+          "characters",
+          "places"
+        ],
+        "title": "StoryBible",
+        "type": "object"
+      },
       "StyleBible": {
         "additionalProperties": false,
         "description": "DR-01, DR-02, DR-10. The whole of `canon/style.md`: the rules of the textual surface.\n\nThe cheapest layer to maintain and the one that prevents the most drift, because readers\nnotice a change of voice long before they notice a change of plot. It is the second half\nof the fixed block (FR-OPS-03), and the style editor and the auditor read it as well as\nthe writer.\n\n**Failure mode** (`definitions.md` StyleBible): writing it abstractly. A rule such as\n\"dense but not ornate\" is not imitable; two or three paragraphs of canonical sample prose\nare, because the writer can copy the cadence directly instead of inferring it from an\nadjective. That sample is what `body` holds, and it is the reason this record is a\nMarkdown file rather than a YAML one.\n\n`language` is here rather than in configuration because the prose language is a fact\nabout this novel, not about this deployment. FR-LLM-10 and Decision R2-9 read it from\nthis file: role prompts stay in English, and the writer and the style editor are told in\ntheir instruction which language to write the prose in.",
@@ -4410,6 +4937,53 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "VersionInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "changed_chapters": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Changed Chapters",
+            "type": "array"
+          },
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "note": {
+            "default": "",
+            "title": "Note",
+            "type": "string"
+          },
+          "parent": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "status",
+          "created_at"
+        ],
+        "title": "VersionInfo",
         "type": "object"
       },
       "Via": {
@@ -7683,6 +8257,449 @@
         "summary": "Write a draft",
         "tags": [
           "manuscript"
+        ]
+      }
+    },
+    "/novels": {
+      "get": {
+        "description": "Every novel, with its current (latest published) version.",
+        "operationId": "list_novels_novels_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NovelSummary"
+                  },
+                  "title": "Response List Novels Novels Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Novels",
+        "tags": [
+          "reader"
+        ]
+      }
+    },
+    "/novels/{novel_id}": {
+      "get": {
+        "description": "Title, recipient, personalised dedication (R04) and the versions.",
+        "operationId": "get_novel_novels__novel_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "novel_id",
+            "required": true,
+            "schema": {
+              "title": "Novel Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NovelDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Novel",
+        "tags": [
+          "reader"
+        ]
+      }
+    },
+    "/novels/{novel_id}/bible": {
+      "get": {
+        "description": "Character and place sheets with the chapters where each appears (R03).",
+        "operationId": "story_bible_novels__novel_id__bible_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "novel_id",
+            "required": true,
+            "schema": {
+              "title": "Novel Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Default: the current version.",
+            "in": "query",
+            "name": "version",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Default: the current version.",
+              "title": "Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StoryBible"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Story Bible",
+        "tags": [
+          "reader"
+        ]
+      }
+    },
+    "/novels/{novel_id}/changes": {
+      "post": {
+        "description": "R05: resolve the fact to change and run `change_fact` in the background.",
+        "operationId": "request_change_novels__novel_id__changes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "novel_id",
+            "required": true,
+            "schema": {
+              "title": "Novel Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Change",
+        "tags": [
+          "reader"
+        ]
+      }
+    },
+    "/novels/{novel_id}/changes/{job_id}": {
+      "get": {
+        "description": "Poll a change: queued \u2192 resolving \u2192 running \u2192 done | failed.",
+        "operationId": "change_status_novels__novel_id__changes__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "novel_id",
+            "required": true,
+            "schema": {
+              "title": "Novel Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChangeJob"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change Status",
+        "tags": [
+          "reader"
+        ]
+      }
+    },
+    "/novels/{novel_id}/versions": {
+      "get": {
+        "description": "Every version with its parent and changed chapters; none is ever deleted (R07).",
+        "operationId": "list_versions_novels__novel_id__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "novel_id",
+            "required": true,
+            "schema": {
+              "title": "Novel Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/VersionInfo"
+                  },
+                  "title": "Response List Versions Novels  Novel Id  Versions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Versions",
+        "tags": [
+          "reader"
+        ]
+      }
+    },
+    "/novels/{novel_id}/versions/{version}/chapters": {
+      "get": {
+        "description": "The navigable index (R01), each chapter marked when changed vs the parent (R06).",
+        "operationId": "chapter_index_novels__novel_id__versions__version__chapters_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "novel_id",
+            "required": true,
+            "schema": {
+              "title": "Novel Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChapterIndex"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Chapter Index",
+        "tags": [
+          "reader"
+        ]
+      }
+    },
+    "/novels/{novel_id}/versions/{version}/chapters/{n}": {
+      "get": {
+        "description": "One chapter's text, whether it changed, and the facts it uses.",
+        "operationId": "read_chapter_novels__novel_id__versions__version__chapters__n__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "novel_id",
+            "required": true,
+            "schema": {
+              "title": "Novel Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "n",
+            "required": true,
+            "schema": {
+              "title": "N",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChapterDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Read Chapter",
+        "tags": [
+          "reader"
+        ]
+      }
+    },
+    "/novels/{novel_id}/versions/{version}/pdf": {
+      "get": {
+        "description": "The interactive PDF of this version (cover, novedades, index, sheets).",
+        "operationId": "download_pdf_novels__novel_id__versions__version__pdf_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "novel_id",
+            "required": true,
+            "schema": {
+              "title": "Novel Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "title": "Version",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/pdf": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Pdf",
+        "tags": [
+          "reader"
         ]
       }
     },

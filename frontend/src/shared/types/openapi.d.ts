@@ -1029,6 +1029,186 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/novels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Novels
+         * @description Every novel, with its current (latest published) version.
+         */
+        get: operations["list_novels_novels_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/novels/{novel_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Novel
+         * @description Title, recipient, personalised dedication (R04) and the versions.
+         */
+        get: operations["get_novel_novels__novel_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/novels/{novel_id}/bible": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Story Bible
+         * @description Character and place sheets with the chapters where each appears (R03).
+         */
+        get: operations["story_bible_novels__novel_id__bible_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/novels/{novel_id}/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Change
+         * @description R05: resolve the fact to change and run `change_fact` in the background.
+         */
+        post: operations["request_change_novels__novel_id__changes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/novels/{novel_id}/changes/{job_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Change Status
+         * @description Poll a change: queued → resolving → running → done | failed.
+         */
+        get: operations["change_status_novels__novel_id__changes__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/novels/{novel_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Versions
+         * @description Every version with its parent and changed chapters; none is ever deleted (R07).
+         */
+        get: operations["list_versions_novels__novel_id__versions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/novels/{novel_id}/versions/{version}/chapters": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Chapter Index
+         * @description The navigable index (R01), each chapter marked when changed vs the parent (R06).
+         */
+        get: operations["chapter_index_novels__novel_id__versions__version__chapters_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/novels/{novel_id}/versions/{version}/chapters/{n}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Chapter
+         * @description One chapter's text, whether it changed, and the facts it uses.
+         */
+        get: operations["read_chapter_novels__novel_id__versions__version__chapters__n__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/novels/{novel_id}/versions/{version}/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download Pdf
+         * @description The interactive PDF of this version (cover, novedades, index, sheets).
+         */
+        get: operations["download_pdf_novels__novel_id__versions__version__pdf_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/permissions": {
         parameters: {
             query?: never;
@@ -1274,7 +1454,7 @@ export interface components {
          * @description FR-PERM-01, transcribed from Figure 3 and in its order.
          * @enum {string}
          */
-        AgentRole: "architect" | "world_builder" | "writer" | "style_editor" | "auditor" | "canoniser";
+        AgentRole: "architect" | "world_builder" | "writer" | "style_editor" | "auditor" | "canoniser" | "interviewer" | "planner" | "editor" | "judge";
         /**
          * Arc
          * @description One arc of `structure/arcs.yaml`: the largest container, and pure plan.
@@ -1555,6 +1735,33 @@ export interface components {
              */
             statement: string;
         };
+        /** BibleEntry */
+        BibleEntry: {
+            /**
+             * Chapters
+             * @description R03: chapters of the version where it appears.
+             */
+            chapters?: number[];
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "character" | "place";
+            /** Name */
+            name: string;
+            /**
+             * Role
+             * @default
+             */
+            role: string;
+        };
         /**
          * Calendar
          * @description DR-09. One culture's way of naming the time that `epoch_zero` counts.
@@ -1651,6 +1858,11 @@ export interface components {
          * @enum {string}
          */
         Certainty: "unaware" | "suspects" | "believes" | "knows" | "believes_falsely";
+        /** ChangeAccepted */
+        ChangeAccepted: {
+            /** Job Id */
+            job_id: string;
+        };
         /**
          * ChangeEvent
          * @description DR-08. One registered change to a body or a memory.
@@ -1703,6 +1915,45 @@ export interface components {
              * @description The value after the change; empty for a forgotten fact.
              */
             to: string;
+        };
+        /** ChangeJob */
+        ChangeJob: {
+            /** Changed Chapters */
+            changed_chapters?: number[];
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Fact Key */
+            fact_key?: string | null;
+            /** Job Id */
+            job_id: string;
+            /** New Value */
+            new_value?: string | null;
+            /** New Version */
+            new_version?: number | null;
+            /** Novel Id */
+            novel_id: string;
+            /** Resolved By */
+            resolved_by?: ("request" | "match" | "model") | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "resolving" | "running" | "done" | "failed";
+        };
+        /**
+         * ChangeRequest
+         * @description R05: what the reader asks for. `fragment` is the selected text, if any.
+         */
+        ChangeRequest: {
+            /** Fact Key */
+            fact_key?: string | null;
+            /** Fragment */
+            fragment?: string | null;
+            /** Request */
+            request: string;
         };
         /**
          * ChangesFile
@@ -1774,6 +2025,56 @@ export interface components {
              * @description Target tension on exit, 0-10. Equal to `target_tension_in` means the container is designed to leave the reader exactly where it found them.
              */
             target_tension_out: number;
+        };
+        /** ChapterDetail */
+        ChapterDetail: {
+            /** Changed */
+            changed: boolean;
+            /** Facts */
+            facts?: components["schemas"]["FactRef"][];
+            /** N */
+            n: number;
+            /** Next */
+            next?: number | null;
+            /** Novel Id */
+            novel_id: string;
+            /** Previous */
+            previous?: number | null;
+            /** Text */
+            text: string;
+            /** Title */
+            title: string;
+            /** Version */
+            version: number;
+            /** Words */
+            words: number;
+        };
+        /** ChapterEntry */
+        ChapterEntry: {
+            /**
+             * Changed Vs Parent
+             * @description R06: the chapter's hash differs from the parent version's.
+             */
+            changed_vs_parent: boolean;
+            /** N */
+            n: number;
+            /** Title */
+            title: string;
+            /** Words */
+            words: number;
+        };
+        /** ChapterIndex */
+        ChapterIndex: {
+            /** Chapters */
+            chapters: components["schemas"]["ChapterEntry"][];
+            /** Novel Id */
+            novel_id: string;
+            /** Parent */
+            parent?: number | null;
+            /** Status */
+            status: string;
+            /** Version */
+            version: number;
         };
         /**
          * ChaptersFile
@@ -2220,6 +2521,15 @@ export interface components {
             target_field: string;
             /** Written Scenes */
             written_scenes?: string[];
+        };
+        /** FactRef */
+        FactRef: {
+            /** Key */
+            key: string;
+            /** Kind */
+            kind: string;
+            /** Value */
+            value: string;
         };
         /**
          * FactStatus
@@ -2803,6 +3113,39 @@ export interface components {
              * @description The model passed as `--model` (FR-LLM-03).
              */
             requested_model: string;
+        };
+        /** NovelDetail */
+        NovelDetail: {
+            /** Current Version */
+            current_version?: number | null;
+            /** Dedication */
+            dedication?: string | null;
+            /** Id */
+            id: string;
+            /** Recipient */
+            recipient?: string | null;
+            /** Status */
+            status: string;
+            /** Title */
+            title?: string | null;
+            /** Versions */
+            versions?: components["schemas"]["VersionInfo"][];
+        };
+        /** NovelSummary */
+        NovelSummary: {
+            /**
+             * Current Version
+             * @description The latest published version; None while nothing is published.
+             */
+            current_version?: number | null;
+            /** Id */
+            id: string;
+            /** Recipient */
+            recipient?: string | null;
+            /** Status */
+            status: string;
+            /** Title */
+            title?: string | null;
         };
         /**
          * Outcome
@@ -3877,6 +4220,17 @@ export interface components {
          * @enum {string}
          */
         StepStatus: "completed" | "rejected" | "failed";
+        /** StoryBible */
+        StoryBible: {
+            /** Characters */
+            characters: components["schemas"]["BibleEntry"][];
+            /** Novel Id */
+            novel_id: string;
+            /** Places */
+            places: components["schemas"]["BibleEntry"][];
+            /** Version */
+            version?: number | null;
+        };
         /**
          * StyleBible
          * @description DR-01, DR-02, DR-10. The whole of `canon/style.md`: the rules of the textual surface.
@@ -4480,6 +4834,24 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /** VersionInfo */
+        VersionInfo: {
+            /** Changed Chapters */
+            changed_chapters?: number[];
+            /** Created At */
+            created_at: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /** Parent */
+            parent?: number | null;
+            /** Status */
+            status: string;
+            /** Version */
+            version: number;
         };
         /**
          * Via
@@ -6438,6 +6810,286 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ProvenanceRecord"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_novels_novels_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NovelSummary"][];
+                };
+            };
+        };
+    };
+    get_novel_novels__novel_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                novel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NovelDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    story_bible_novels__novel_id__bible_get: {
+        parameters: {
+            query?: {
+                /** @description Default: the current version. */
+                version?: number | null;
+            };
+            header?: never;
+            path: {
+                novel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StoryBible"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_change_novels__novel_id__changes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                novel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangeAccepted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_status_novels__novel_id__changes__job_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                novel_id: string;
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChangeJob"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_versions_novels__novel_id__versions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                novel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionInfo"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    chapter_index_novels__novel_id__versions__version__chapters_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                novel_id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChapterIndex"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_chapter_novels__novel_id__versions__version__chapters__n__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                novel_id: string;
+                version: number;
+                n: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChapterDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_pdf_novels__novel_id__versions__version__pdf_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                novel_id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": unknown;
                 };
             };
             /** @description Validation Error */
