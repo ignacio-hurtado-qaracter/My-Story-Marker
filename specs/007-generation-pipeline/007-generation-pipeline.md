@@ -26,6 +26,12 @@ docs:
 > [`004-contracts.md`](../004-exam-refactor-programme/004-contracts.md) and the TLC rules
 > CE1–CE4 of [`formal/tla/COUNTEREXAMPLES.md`](../../formal/tla/COUNTEREXAMPLES.md).
 
+> **Revised 2026-09-24 — tuning iteration 1** (programme 004, EV3; approval delegated by
+> the user for this session, so status stays `approved`). Reason: the live 10-chapter
+> example and the 'before' evals stopped on overlapping chapters, vague time jumps and a
+> single repair round spent on chapters the judge had not asked for. Changes are listed
+> under Design, "Tuning iteration 1", and AC 7.
+
 ## Motivation
 
 Spec 004 § 1 rows H01 (planner, writer, editor/critic), H06 (bounded retries at chapter
@@ -37,7 +43,7 @@ chapters that use it). Without this block nothing turns a validated brief into a
 In: `app.novel` — planner, writer, editor roles and their prompts; the chapter loop of
 [Figure 5](../../docs/architecture.md#figure-5--one-novel-generation); hook points
 `before_scene_accept`, `before_chapter_close`, `before_publish`; checkpoints and resume;
-one repair round; `change_fact`; the CLI; guarded validator registration (`setup.py`).
+bounded repair rounds (two since tuning iteration 1); `change_fact`; the CLI; guarded validator registration (`setup.py`).
 
 Out: the brief schema and interview (B2 — a minimal local ingest fallback only), the
 validators themselves (B4, B5, B7, B8, B10), HTTP routes (B10), the read-only MCP tools of
@@ -63,8 +69,9 @@ H05 (deferred, see Open questions), the legacy `app/agents/**` turn loop (untouc
   counting only runs after the last `pre_publish` failure of the version (the repair round
   reopens the budget). Pass → `save_chapter_and_checkpoint` (CE1, CE3).
 - **Publish.** `pre_publish` pass → `published`. Fail → in one transaction `blocked`,
-  `repair_rounds = 1` and the named chapters' checkpoints reset (CE4); the editor repairs
-  those chapters, `chapter_close` again, `pre_publish` again; a second failure ends in
+  `repair_rounds + 1` and the named chapters' checkpoints reset (CE4); the editor repairs
+  those chapters, `chapter_close` again, `pre_publish` again; a failure once
+  `repair_rounds = MAX_REPAIR_ROUNDS` (2 since tuning iteration 1, was 1) ends in
   `stopped_error` with the version left `blocked`.
 - **Resume.** `generate` on an existing novel reuses the stored plan and continues the latest
   non-published version at `first_incomplete_chapter`.
@@ -77,6 +84,25 @@ H05 (deferred, see Open questions), the legacy `app/agents/**` turn loop (untouc
   `sink=repo`; scores `novel_cost_usd`, `novel_tokens`; flush at the end.
 - **No validator registered for a point** → the point passes (the pipeline works before
   other blocks merge).
+
+**Tuning iteration 1.**
+
+- *Plan.* `PlanChapter` gains `time_marker` (the explicit story time of the chapter's
+  present action relative to the previous chapter) and `flashback`. `check_plan` also
+  rejects a missing `time_marker`, non-flashback chapters whose anchor date (latest scene
+  date) goes backwards, and two chapters that tell the same core (synopsis content words,
+  names left out, overlap ≥ 60 % of the smaller one and ≥ 4 words). `MAX_REPLANS = 2`
+  (3 planner calls) because the check grew.
+- *Context.* Writer and editor read `plan/facts-checklist.txt`: every fact assigned to the
+  scene or chapter, one per line, memories with their title, description and distinctive
+  words (a document, never instruction text: fact values are data, R2). The chapter plan
+  document carries the chapter's time marker and the previous and next chapters' synopses
+  ("do not repeat" / "do not anticipate"); the first scene of a chapter opens anchoring the
+  time jump; the editor's summary starts with the time marker.
+- *Repair.* At most `MAX_REPAIR_ROUNDS = 2` rounds (TLC re-run, spec 013). The chapters
+  reopened for a failed `judge_novel` are its `capitulos_a_reparar` and the chapters of its
+  `alta` issues, not every chapter its justifications mention; the repair reads the
+  feedback plus the neighbouring chapters' stored summaries.
 
 Deviation from Figure 5: a `chapter_close` failure is repaired by an editor rewrite of the
 whole chapter with the evidence, not by rewriting only the flagged scene (cheaper on Haiku;
@@ -101,6 +127,11 @@ resume restarts the first incomplete chapter from its first scene; no longer a d
    one replan). **T**.
 6. AC 6 — observability: one trace per run in the novel's session, role spans with prompt
    versions, cost score. **D** (Langfuse on the live smoke).
+7. AC 7 — tuning iteration 1: a plan without time markers, going backwards without
+   `flashback`, or with two chapters on the same core is replanned; writer and editor read
+   the facts checklist and the neighbours' synopses; a failed `judge_novel` reopens only the
+   chapters it names, at most two rounds. **T** (`test_pipeline.py` with time markers,
+   `test_judge.py`) · **D** (`evals/results/after/`, `evals/results/tuning.md`).
 
 ## Verification plan
 
