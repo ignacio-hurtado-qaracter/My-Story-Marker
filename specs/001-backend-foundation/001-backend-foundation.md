@@ -1,7 +1,7 @@
 ---
 id: 001
 title: Backend v1 — stores, permissions, index, operations, agent roles and the writing turn
-status: approved            # draft · approved · implemented · superseded
+status: implemented         # draft · approved · implemented · superseded
 supersedes: null
 docs:
   - docs/architecture.md#governing-principle
@@ -637,6 +637,11 @@ Answered by the user on 2026-09-23, after plan steps 1-8 were implemented.
 ---
 
 ## Open questions
+
+**Closed as `implemented`** (2026-09-24), by the agent on the user's explicit delegation
+("cierralo tú"), before merge rather than after it. Every criterion's verification is in
+place and passing (local gate on `bffa35f`: 1622 passed; live runs in
+`backend/tests/live/last_run.md`). The items deferred below stay open as named findings.
 
 **Add-only promotion, and why this spec went to `draft` and back** (Process 2, rule 10;
 2026-09-24). The user ordered: "The canoniser must not check collisions with canon; the

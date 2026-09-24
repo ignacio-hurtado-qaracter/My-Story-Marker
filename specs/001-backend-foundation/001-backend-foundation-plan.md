@@ -1,6 +1,9 @@
 ---
 spec: 001                 # the approved spec this plan implements
-status: approved             # draft · approved · done
+status: done                 # draft · approved · done
+
+> **Done** (2026-09-24): every step committed and every criterion verified; closed with the
+> spec by the agent on the user's explicit delegation.
 ---
 
 Implementation plan for [`001-backend-foundation.md`](./001-backend-foundation.md)
