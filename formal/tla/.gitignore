@@ -1,0 +1,7 @@
+# TLC toolchain, fetched by run-tlc.sh (spec 013)
+tools/
+# TLC working state
+states/
+*.bin
+# trace-exploration specs TLC writes next to the model on a violation
+*_TTrace_*.tla
