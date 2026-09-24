@@ -604,3 +604,8 @@ a.bible-appearance-chapter:hover .bible-appearance-title {
     background-position: -100% 0;
   }
 }
+
+/* Spec 014: the Personajes and Lugares groups of the sheets page. */
+.bible-sheet-group {
+  margin-bottom: 2.5rem;
+}
