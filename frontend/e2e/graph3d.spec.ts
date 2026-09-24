@@ -1,8 +1,8 @@
 // three.js loads only on /graph3d, and mounts a canvas there. Spec 002, AC 13 and NFR-01.
 import { expect, test, type Page } from '@playwright/test'
 
-/** The lazily loaded scene chunk is named after its module, graph3d/EmptyScene.tsx. */
-const SCENE_CHUNK = /\/assets\/EmptyScene-[^/]+\.js$/
+/** The lazily loaded scene chunk is named after its module, graph3d/PlanetScene.tsx. */
+const SCENE_CHUNK = /\/assets\/PlanetScene-[^/]+\.js$/
 
 function recordScripts(page: Page): string[] {
   const urls: string[] = []

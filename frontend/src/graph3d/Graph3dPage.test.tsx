@@ -1,10 +1,11 @@
-// The /graph3d states: spec 002, FR-3D-01 and AC 18. The scene and the WebGL check are
-// injected: jsdom has no WebGL, so no test here mounts real three.js (that is AC 13's
-// Playwright run). Each scene is a React.lazy stub, so its loader stands in for the dynamic
-// import of the three.js chunk.
+// The /graph3d states: spec 002, FR-3D-01 and AC 18; the pause toggle and reduced motion:
+// spec 003, FR-3D-04 and AC 7. The scene and the WebGL check are injected: jsdom has no WebGL,
+// so no test here mounts real three.js (that is AC 13's Playwright run). Each scene is a
+// React.lazy stub, so its loader stands in for the dynamic import of the three.js chunk.
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { lazy, type ComponentType } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { Graph3dPage } from './Graph3dPage'
 
@@ -17,6 +18,36 @@ function StubScene() {
 }
 
 const webglOn = () => true
+
+/** A stub scene that shows the `paused` flag it receives (spec 003, AC 7). */
+function PausedProbe({ paused }: { paused: boolean }) {
+  return <p>{`paused=${String(paused)}`}</p>
+}
+
+function probeScene() {
+  return lazy(() => Promise.resolve({ default: PausedProbe }))
+}
+
+/** Replaces window.matchMedia with one that reports `prefers-reduced-motion: reduce` or not. */
+function stubReducedMotion(reduce: boolean) {
+  vi.stubGlobal(
+    'matchMedia',
+    (query: string): MediaQueryList => ({
+      matches: reduce && query === '(prefers-reduced-motion: reduce)',
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  )
+}
+
+function toggle() {
+  return screen.getByRole('button', { name: 'Pausar animación' })
+}
 
 describe('Graph3dPage', () => {
   // spec 002 / AC 18
@@ -61,5 +92,55 @@ describe('Graph3dPage', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent('Cargando vista 3D…')
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  describe('pause toggle and reduced motion', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals()
+    })
+
+    // spec 003 / AC 7
+    it('starts playing, with the toggle not pressed', async () => {
+      stubReducedMotion(false)
+
+      render(<Graph3dPage scene={probeScene()} webglAvailable={webglOn} />)
+
+      expect(await screen.findByText('paused=false')).toBeInTheDocument()
+      expect(toggle()).toHaveAttribute('aria-pressed', 'false')
+    })
+
+    // spec 003 / AC 7
+    it('pauses the scene when the toggle is pressed, keeping its label', async () => {
+      stubReducedMotion(false)
+      render(<Graph3dPage scene={probeScene()} webglAvailable={webglOn} />)
+      await screen.findByText('paused=false')
+
+      await userEvent.click(toggle())
+
+      expect(screen.getByText('paused=true')).toBeInTheDocument()
+      expect(toggle()).toHaveAttribute('aria-pressed', 'true')
+      expect(toggle()).toHaveTextContent(/^Pausar animación$/)
+    })
+
+    // spec 003 / AC 7
+    it('starts paused under prefers-reduced-motion: reduce', async () => {
+      stubReducedMotion(true)
+
+      render(<Graph3dPage scene={probeScene()} webglAvailable={webglOn} />)
+
+      expect(await screen.findByText('paused=true')).toBeInTheDocument()
+      expect(toggle()).toHaveAttribute('aria-pressed', 'true')
+    })
+
+    // spec 003 / AC 7
+    it('still renders, playing, when matchMedia does not exist', async () => {
+      vi.stubGlobal('matchMedia', undefined)
+
+      render(<Graph3dPage scene={probeScene()} webglAvailable={webglOn} />)
+
+      expect(screen.getByRole('heading', { level: 1, name: 'Grafo 3D' })).toBeInTheDocument()
+      expect(await screen.findByText('paused=false')).toBeInTheDocument()
+      expect(toggle()).toHaveAttribute('aria-pressed', 'false')
+    })
   })
 })

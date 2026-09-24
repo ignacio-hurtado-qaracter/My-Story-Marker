@@ -1,5 +1,6 @@
 // The 3D canvas behind React.lazy and Suspense. Spec 002, FR-3D-01 and FR-3D-02 (it lives in
-// graph3d/, not shared/three/, because graph3d/ is its only user).
+// graph3d/, not shared/three/, because graph3d/ is its only user); the scene is spec 003's
+// planet (FR-3D-03), which receives the page's `paused` flag (FR-3D-04, FR-3D-05).
 //
 // States: loading is the text fallback while the three.js chunk arrives; error is the shared
 // ErrorPanel, when WebGL is unavailable (checked before the chunk is requested) or the chunk
@@ -9,10 +10,10 @@ import { Component, lazy, Suspense, type ComponentType, type ReactNode } from 'r
 
 import { ErrorPanel } from '../shared/ui'
 
-// The only reference to EmptyScene in graph3d/, and it is dynamic (NFR-01). Created once, at
-// module load: a lazy component created during render would remount, and request the chunk
-// again, on every render.
-const LazyEmptyScene = lazy(() => import('./EmptyScene').then((module) => ({ default: module.EmptyScene })))
+// The only reference to PlanetScene in graph3d/, and it is dynamic (NFR-01), so its chunk is
+// named PlanetScene-*.js. Created once, at module load: a lazy component created during render
+// would remount, and request the chunk again, on every render.
+const LazyPlanetScene = lazy(() => import('./PlanetScene').then((module) => ({ default: module.PlanetScene })))
 
 let webglAvailableCache: boolean | undefined
 
@@ -56,23 +57,29 @@ class ChunkErrorBoundary extends Component<ChunkErrorBoundaryProps, ChunkErrorBo
 }
 
 export interface LazyCanvasProps {
+  /** True while the scene's animation is paused; forwarded to the scene (spec 003, FR-3D-04). */
+  paused: boolean
   /**
    * The scene, normally a React.lazy component so that rendering it requests its chunk.
-   * Defaults to the lazily imported EmptyScene; tests pass a lazy stub.
+   * Defaults to the lazily imported PlanetScene; tests pass a lazy stub (spec 003, FR-3D-05).
    */
-  scene?: ComponentType
+  scene?: ComponentType<{ paused: boolean }>
   /** Reports whether WebGL is available. Defaults to isWebGLAvailable. */
   webglAvailable?: () => boolean
 }
 
-export function LazyCanvas({ scene: Scene = LazyEmptyScene, webglAvailable = isWebGLAvailable }: LazyCanvasProps) {
+export function LazyCanvas({
+  paused,
+  scene: Scene = LazyPlanetScene,
+  webglAvailable = isWebGLAvailable,
+}: LazyCanvasProps) {
   if (!webglAvailable()) {
     return <ErrorPanel message="Tu navegador no admite WebGL, que la vista 3D necesita." />
   }
   return (
     <ChunkErrorBoundary>
       <Suspense fallback={<p role="status">Cargando vista 3D…</p>}>
-        <Scene />
+        <Scene paused={paused} />
       </Suspense>
     </ChunkErrorBoundary>
   )

@@ -1,0 +1,65 @@
+/* /graph3d in main's hero look: an orange-50 to white gradient around the decorative planet.
+   Spec 003, FR-3D-03/04. Imported by Graph3dPage, so it ships with the page, not the lazy
+   three.js chunk. */
+
+.graph3d {
+  display: grid;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, var(--brand-50) 0%, var(--white) 100%);
+}
+
+.graph3d-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.graph3d-lead {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--muted);
+}
+
+/* The pressed state is a filled accent button with white text (5.39:1), like the active nav
+   pill; the hover variant keeps it, so .btn-ghost:hover never turns the text accent on accent. */
+.graph3d-toggle[aria-pressed='true'],
+.graph3d-toggle[aria-pressed='true']:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--white);
+}
+
+/* The canvas area: the loading text and the error panel are centred in it; the planet fills it. */
+.graph3d-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 60vh;
+  min-height: 18rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 45%, var(--brand-50) 0%, var(--white) 70%);
+}
+
+.graph3d-stage > [role='status'] {
+  margin: 0;
+  color: var(--muted);
+}
+
+.planet-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+@media (max-width: 599px) {
+  .graph3d {
+    padding: 1rem;
+  }
+}
