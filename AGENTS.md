@@ -16,7 +16,7 @@
 
 ## Rules
 
-- Backend is dewith python + FastAPI
+- Backend is done with Python + FastAPI
 - Frontend with React + three.js
 - Limit of concurrent tokens of context: 100k tokens
 - SQL Lite -> con sin vector compatible
