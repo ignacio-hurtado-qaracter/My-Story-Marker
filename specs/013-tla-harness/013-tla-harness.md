@@ -101,5 +101,8 @@ All closed on the delegation; recorded here as decisions.
 4. **Repair round.** A failed `pre_publish` marks the version `blocked` and sends a
    nondeterministic non-empty subset of chapters back through the chapter loop, once
    (`MAX_REPAIR_ROUNDS = 1`); a second failure stops with an error.
+   *Revised 2026-09-24 — tuning iteration 1 (approval delegated; status unchanged): the
+   pipeline allows `MAX_REPAIR_ROUNDS = 2`; the `.cfg` follows and TLC was re-run with it
+   (`formal/tla/tlc-output.txt`: no error, 5,492,531 distinct states, depth 127).*
 5. **Toolchain.** `tla2tools.jar` v1.8.0 from the TLA+ GitHub releases, pinned by URL and
    SHA-256 in `run-tlc.sh`, downloaded into the git-ignored `formal/tla/tools/`.
