@@ -3,7 +3,7 @@
 The hook scripts under `.claude/hooks/` stay stdlib-only for speed and call this module
 only for chapter files (and to log a denial):
 
-    python -m app.policy.hooks check-chapter PATH [--novel-id ID] [--db PATH]
+    python -m app.policy.hooks check-chapter LABEL [--novel-id ID] [--db PATH]  # text on stdin
     python -m app.policy.hooks check-text [--novel-id ID] [--db PATH]      # text on stdin
     python -m app.policy.hooks log --policy P --decision D [--term T] [--detail S] [--db PATH]
 
@@ -11,6 +11,8 @@ Exit 0 when the text passes, 2 with the problems on stderr when it does not (the
 Code convention for "block and feed back"). Terms come from the authoritative database at
 `--db` / `HARNESS_DB` when that file exists; otherwise from a throw-away in-memory database
 that has only the migrations applied — so the seed list lives in one place, migration 1300.
+The chapter text always arrives on stdin (the stdlib hook script reads the file), so this
+module opens no file itself: the database goes through `BibleRepository` only.
 """
 
 from __future__ import annotations
@@ -22,6 +24,7 @@ from typing import Final
 
 from app.bible import BibleRepository, word_count
 from app.commons.config import get_settings
+from app.commons.db.authoritative import open_authoritative
 from app.policy.engine import PolicyEngine
 
 WORDS_MIN: Final[int] = 1000
@@ -36,7 +39,7 @@ def _db_path(db: str | None) -> Path:
 def open_repo(db: str | None = None) -> BibleRepository:
     """The real database when it exists, else an in-memory one with the seed applied."""
     path = _db_path(db)
-    return BibleRepository.open(path if path.is_file() else ":memory:")
+    return BibleRepository(open_authoritative(path if path.is_file() else ":memory:"))
 
 
 def prose_words(text: str) -> int:
@@ -88,7 +91,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m app.policy.hooks")
     sub = parser.add_subparsers(dest="command", required=True)
     chapter = sub.add_parser("check-chapter")
-    chapter.add_argument("path")
+    chapter.add_argument("label", help="the chapter's path, for the message only")
     text = sub.add_parser("check-text")
     log = sub.add_parser("log")
     log.add_argument("--policy", required=True)
@@ -104,7 +107,7 @@ def main(argv: list[str] | None = None) -> int:
         path = _db_path(args.db)
         if not path.is_file():
             return 1
-        with BibleRepository.open(path) as repo:
+        with BibleRepository(open_authoritative(path)) as repo:
             repo.log_policy_decision(
                 policy=args.policy,
                 decision=args.decision,
@@ -116,9 +119,8 @@ def main(argv: list[str] | None = None) -> int:
 
     with open_repo(args.db) as repo:
         if args.command == "check-chapter":
-            content = Path(args.path).read_text(encoding="utf-8")
-            problems = chapter_problems(repo, content, novel_id=args.novel_id)
-            return _report(problems, f"El capítulo {args.path}")
+            problems = chapter_problems(repo, sys.stdin.read(), novel_id=args.novel_id)
+            return _report(problems, f"El capítulo {args.label}")
         problems = forbidden_problems(repo, sys.stdin.read(), args.novel_id)
         return _report(problems, "El texto")
 
