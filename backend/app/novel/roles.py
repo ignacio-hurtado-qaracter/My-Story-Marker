@@ -126,7 +126,10 @@ class Roles:
             f"{task}\n\nEl capítulo final debe tener entre {words_min} y {words_max} palabras "
             f"(objetivo: unas {target}). Conserva exactamente los nombres de "
             "bible/exact-names.txt y los hechos del plan; ningún término de "
-            "bible/forbidden-terms.txt. Devuelve title, text, summary (~120 palabras) e issues."
+            "bible/forbidden-terms.txt. Cada hecho de «Hechos a integrar» del plan debe "
+            "aparecer al menos una vez con su expresión literal (si el hecho es «un faro», "
+            "el texto contiene «un faro»). Devuelve title, text, summary (~120 palabras) e "
+            "issues."
         )
         return self._call(
             AgentRole.EDITOR,

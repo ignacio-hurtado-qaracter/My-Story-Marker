@@ -884,14 +884,19 @@ def _open_version(run: Run) -> NovelVersion:
 _NAME_KINDS: Final[frozenset[str]] = frozenset({"recipient", "person", "pet", "place"})
 
 
-def _replace_values(data: JsonValue, old: str, new: str) -> JsonValue:
+def _replace_values(data: JsonValue, pattern: re.Pattern[str], new: str) -> JsonValue:
+    """Every string value of the brief with the old name replaced as a whole word."""
     if isinstance(data, str):
-        return new if data == old else data
+        return pattern.sub(new, data)
     if isinstance(data, list):
-        return [_replace_values(item, old, new) for item in data]
+        return [_replace_values(item, pattern, new) for item in data]
     if isinstance(data, dict):
-        return {k: _replace_values(v, old, new) for k, v in data.items()}
+        return {k: _replace_values(v, pattern, new) for k, v in data.items()}
     return data
+
+
+def _name_pattern(old: str) -> re.Pattern[str]:
+    return re.compile(rf"(?<!\w){re.escape(old)}(?!\w)")
 
 
 def change_fact(
@@ -927,6 +932,22 @@ def change_fact(
     old = fact.value
     affected = set(repo.chapters_using_fact(fact.id, version=published.version))
     affected |= {s.chapter for s in plan.scenes if fact_key in s.facts_used}
+    is_name = fact_key.endswith(".name") or fact.kind in _NAME_KINDS
+    pattern = _name_pattern(old)
+    derived: list[Fact] = []
+    if is_name and old:
+        # A name also lives inside other facts ("El rescate de Toby") and in the prose of
+        # chapters that never "used" the name fact: all of them change with it.
+        derived = [
+            f for f in run.facts() if f.id != fact.id and pattern.search(f.value) is not None
+        ]
+        for other in derived:
+            affected |= set(repo.chapters_using_fact(other.id, version=published.version))
+        affected |= {
+            c.chapter
+            for c in repo.list_chapters(novel_id, published.version)
+            if pattern.search(c.text) is not None
+        }
     affected = {c for c in affected if 1 <= c <= len(plan.chapters)}
     session = run.observer.start_session(novel_id)
     new_version: NovelVersion | None = None
@@ -938,15 +959,15 @@ def change_fact(
         run.trace_id = trace.id
         try:
             repo.update_fact_value(fact.id, new_value)
-            is_name = fact_key.endswith(".name") or fact.kind in _NAME_KINDS
             if is_name and old:
                 rename_cast(repo, novel_id, old, new_value)
-                pattern = re.compile(rf"\b{re.escape(old)}\b")
+                for other in derived:
+                    repo.update_fact_value(other.id, pattern.sub(new_value, other.value))
                 plan = NovelPlan.model_validate_json(pattern.sub(new_value, plan.model_dump_json()))
                 store_plan(repo, novel_id, plan)
                 brief = repo.get_brief(novel_id)
                 if brief is not None:
-                    updated = _replace_values(dict(brief.data), old, new_value)
+                    updated = _replace_values(dict(brief.data), pattern, new_value)
                     if isinstance(updated, dict):
                         repo.save_brief(novel_id, updated, valid=brief.valid)
                         run.brief = updated
