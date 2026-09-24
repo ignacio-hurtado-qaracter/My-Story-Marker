@@ -1,7 +1,7 @@
 ---
 id: 004
 title: Exam refactor programme — confront docs/ with the exam brief, and split the work into parallel block specs
-status: draft            # draft · approved · implemented · superseded
+status: approved         # draft · approved · implemented · superseded
 supersedes: null
 docs:
   - docs/architecture.md#governing-principle
@@ -20,6 +20,8 @@ docs:
   - docs/verification.md#accepted-risks-u-register
 ---
 
+> **Approved 2026-09-24** by the user's explicit delegation for this session ("apruebo todo lo que vayamos a hacer en esta sesión"). Deviations adopted at approval are recorded in the plan, § Deviations.
+>
 > **Process 0 status: closed.** Rounds 1–4 are recorded in
 > [`exam/process-0/`](../../exam/process-0/). On 2026-09-24 the user accepted every default
 > of [Open questions](#open-questions) and changed one decision: a chapter holds **3 to 5
