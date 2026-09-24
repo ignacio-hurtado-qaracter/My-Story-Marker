@@ -436,6 +436,41 @@
         "title": "Axiom",
         "type": "object"
       },
+      "BriefReport": {
+        "description": "What `validate_brief` answers. `valid` iff all three lists are empty.",
+        "properties": {
+          "contradictions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Contradictions",
+            "type": "array"
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Errors",
+            "type": "array"
+          },
+          "missing": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing",
+            "type": "array"
+          },
+          "valid": {
+            "title": "Valid",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "valid"
+        ],
+        "title": "BriefReport",
+        "type": "object"
+      },
       "Calendar": {
         "additionalProperties": false,
         "description": "DR-09. One culture's way of naming the time that `epoch_zero` counts.\n\nCalendars are presentation, not arithmetic. Nothing in the harness computes with them -\nthe invariants subtract raw hours - so `conversion` is prose stating how this calendar\nrelates to the epoch, for a human and for the writer's context, and is deliberately not\na machine-evaluated expression. Getting a second calendar wrong is a flavour error;\ngetting `epoch_zero` wrong would be an arithmetic one, which is why they are separate.",
@@ -1771,6 +1806,49 @@
         "title": "IndexStatus",
         "type": "object"
       },
+      "IngestRequest": {
+        "properties": {
+          "brief": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "description": "A brief with the brief.v1.json shape.",
+            "title": "Brief",
+            "type": "object"
+          },
+          "novel_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The id minted at the start of the interview, if any.",
+            "title": "Novel Id"
+          }
+        },
+        "required": [
+          "brief"
+        ],
+        "title": "IngestRequest",
+        "type": "object"
+      },
+      "IngestResponse": {
+        "properties": {
+          "novel_id": {
+            "title": "Novel Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "novel_id"
+        ],
+        "title": "IngestResponse",
+        "type": "object"
+      },
+      "JsonValue": {},
       "KindIndex": {
         "description": "IF-03, `GET /canon/{kind}`: the identifiers of one kind, and nothing else.\n\nIdentifiers rather than records, because a list route that returned every axiom's full\ntext would be the easiest way there is to spend the 100k context cap (NFR-05) from the\nclient side, and it would do it without any of the ranking that FR-OPS-02 exists to\napply. A caller that wants a record asks for it by id.",
         "properties": {
@@ -4338,21 +4416,52 @@
         "title": "TurnRecord",
         "type": "object"
       },
-      "TurnRequest": {
-        "additionalProperties": false,
-        "description": "IF-06, the body of `POST /agents/turns`: the scene to write. Nothing else -- the scene\nrecord says what the scene is for, and the stores say everything the roles may read.",
+      "TurnResult": {
+        "description": "What a caller gets back: the merged draft, the question to ask, and the report.",
         "properties": {
-          "scene_id": {
-            "description": "The scene to run one turn on (FR-TURN-01).",
-            "pattern": "^\\d{3}$",
-            "title": "Scene Id",
+          "degraded": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Set when the model call failed and the question is the deterministic one.",
+            "title": "Degraded"
+          },
+          "done": {
+            "title": "Done",
+            "type": "boolean"
+          },
+          "draft": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Draft",
+            "type": "object"
+          },
+          "next_question": {
+            "title": "Next Question",
             "type": "string"
+          },
+          "novel_id": {
+            "title": "Novel Id",
+            "type": "string"
+          },
+          "report": {
+            "$ref": "#/components/schemas/BriefReport"
           }
         },
         "required": [
-          "scene_id"
+          "novel_id",
+          "draft",
+          "next_question",
+          "done",
+          "report"
         ],
-        "title": "TurnRequest",
+        "title": "TurnResult",
         "type": "object"
       },
       "TurnStep": {
@@ -4652,6 +4761,61 @@
         ],
         "title": "WriteRecord",
         "type": "object"
+      },
+      "app__agents__models__TurnRequest": {
+        "additionalProperties": false,
+        "description": "IF-06, the body of `POST /agents/turns`: the scene to write. Nothing else -- the scene\nrecord says what the scene is for, and the stores say everything the roles may read.",
+        "properties": {
+          "scene_id": {
+            "description": "The scene to run one turn on (FR-TURN-01).",
+            "pattern": "^\\d{3}$",
+            "title": "Scene Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scene_id"
+        ],
+        "title": "TurnRequest",
+        "type": "object"
+      },
+      "app__interview__router__TurnRequest": {
+        "properties": {
+          "answer": {
+            "description": "The client's last answer. Untrusted data.",
+            "title": "Answer",
+            "type": "string"
+          },
+          "draft": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "title": "Draft",
+            "type": "object"
+          },
+          "last_question": {
+            "default": "\u00a1Hola! Vamos a preparar una novela \u00fanica. \u00bfPara qui\u00e9n es el regalo? Dime su nombre, su edad y qu\u00e9 relaci\u00f3n tienes con esa persona.",
+            "title": "Last Question",
+            "type": "string"
+          },
+          "novel_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Omit on the first turn.",
+            "title": "Novel Id"
+          }
+        },
+        "required": [
+          "answer"
+        ],
+        "title": "TurnRequest",
+        "type": "object"
       }
     }
   },
@@ -4844,7 +5008,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TurnRequest"
+                "$ref": "#/components/schemas/app__agents__models__TurnRequest"
               }
             }
           },
@@ -6956,6 +7120,129 @@
         "summary": "Index Status",
         "tags": [
           "index"
+        ]
+      }
+    },
+    "/interview/briefs": {
+      "post": {
+        "description": "Validate and ingest a brief into the story bible; returns the novel id.",
+        "operationId": "ingest_interview_briefs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IngestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Invalid brief; `detail` is its BriefReport."
+          }
+        },
+        "summary": "Ingest",
+        "tags": [
+          "interview"
+        ]
+      }
+    },
+    "/interview/turn": {
+      "post": {
+        "description": "One interviewer step: merge the answer into the draft, return the next question.",
+        "operationId": "turn_interview_turn_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__interview__router__TurnRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TurnResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Turn",
+        "tags": [
+          "interview"
+        ]
+      }
+    },
+    "/interview/validate": {
+      "post": {
+        "description": "Missing fields, contradictions and schema errors of a brief.",
+        "operationId": "validate_interview_validate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/JsonValue"
+                },
+                "title": "Brief",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BriefReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Validate",
+        "tags": [
+          "interview"
         ]
       }
     },
