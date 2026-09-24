@@ -1,0 +1,11 @@
+# Spec 012 (B8). Core Lean only: no Mathlib, no dependencies, so `lake build` needs
+# nothing but the pinned toolchain.
+name = "chronology"
+version = "0.1.0"
+defaultTargets = ["Chronology"]
+
+[[lean_lib]]
+name = "Chronology"
+# `Chronology.+` is the root and every submodule, so a generated
+# `Chronology/Generated/Story.lean` is part of the library and `lake build` checks it.
+globs = ["Chronology.+"]

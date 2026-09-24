@@ -1,0 +1,16 @@
+{
+  "novel_id": "sample-incoherent",
+  "characters": [
+    {"id": "c1", "name": "Lucía", "birth_date": "1990-05-12"},
+    {"id": "c2", "name": "Tomás", "birth_date": "1948-11-30"}
+  ],
+  "places": [
+    {"id": "p1", "name": "Valencia"},
+    {"id": "p2", "name": "Madrid"}
+  ],
+  "events": [
+    {"id": "e1", "seq": 1, "story_date": "2020-05-11", "place_id": "p1", "participants": ["c1"], "kind": "normal", "declared_ages": {"c1": 30}, "chapter": 1, "description": "Declared 30 one day before the birthday: aged wrong."},
+    {"id": "e2", "seq": 2, "story_date": "2020-06-01", "place_id": "p1", "participants": ["c1", "c2"], "kind": "normal", "chapter": 2, "description": "Lunch in Valencia."},
+    {"id": "e3", "seq": 3, "story_date": "2020-06-01", "place_id": "p2", "participants": ["c2"], "kind": "normal", "chapter": 2, "description": "Same day, Tomás also in Madrid: bilocated."}
+  ]
+}
