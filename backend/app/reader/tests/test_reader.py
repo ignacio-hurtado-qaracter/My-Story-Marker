@@ -13,7 +13,12 @@ from fastapi.testclient import TestClient
 
 from app.bible import BibleRepository
 from app.export import export_pdf
-from app.reader.changes import ChangeJobs, match_fact, resolve_change
+from app.reader.changes import (
+    ChangeJobs,
+    ChangeResolutionError,
+    match_fact,
+    resolve_change,
+)
 from app.reader.dev_seed import NOVEL_ID, seed
 from app.reader.models import ChangeRequest
 from app.reader.router import get_bible_path, router
@@ -121,3 +126,22 @@ def test_concurrent_requests_all_succeed(db: Path) -> None:
         with ThreadPoolExecutor(max_workers=20) as pool:
             codes = list(pool.map(fetch, range(20)))
     assert codes == [200] * 20
+
+
+# security report SEC-04: the planner's internal `plan` fact is neither listed nor editable.
+def test_change_cannot_target_the_internal_plan_fact(db: Path) -> None:
+    with BibleRepository.open(db) as repo:
+        repo.add_fact(NOVEL_ID, key="plan.v1", value="{}", kind="plan", source="planner")
+    app = FastAPI()
+    app.include_router(router)
+    app.dependency_overrides[get_bible_path] = lambda: db
+    client = TestClient(app)
+    response = client.post(
+        f"/novels/{NOVEL_ID}/changes", json={"fact_key": "plan.v1", "request": "es {}"}
+    )
+    assert response.status_code == 422
+    with BibleRepository.open(db) as repo, pytest.raises(ChangeResolutionError):
+        resolve_change(
+            repo, NOVEL_ID, ChangeRequest(fact_key="plan.v1", request="es {}"), client=None
+        )
+

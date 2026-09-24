@@ -26,7 +26,7 @@ from app.commons.deps import get_model_client
 from app.commons.llm import ModelClient
 from app.export.pdf import export_pdf, pdf_filename
 from app.reader import service
-from app.reader.changes import ChangeJobs
+from app.reader.changes import ChangeJobs, editable_fact
 from app.reader.models import (
     ChangeAccepted,
     ChangeJob,
@@ -153,7 +153,7 @@ def request_change(
         repo.get_novel(novel_id)
     except BibleNotFoundError as error:
         raise _not_found(error) from error
-    if change.fact_key and repo.find_fact(novel_id, change.fact_key) is None:
+    if change.fact_key and editable_fact(repo, novel_id, change.fact_key) is None:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"the novel has no fact {change.fact_key!r}",

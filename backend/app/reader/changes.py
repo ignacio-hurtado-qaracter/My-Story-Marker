@@ -32,6 +32,9 @@ from app.reader.models import ChangeJob, ChangeRequest
 
 PIPELINE_MODULE: Final[str] = "app.novel.pipeline"
 
+HIDDEN_FACT_KINDS: Final[frozenset[str]] = frozenset({"plan"})
+"""Internal facts (the planner's `plan.v1`) a reader may neither see nor change (SEC-04)."""
+
 # A kind keyword in the request narrows the candidates to the facts of that kind.
 _KIND_WORDS: Final[dict[str, tuple[str, ...]]] = {
     "pet": ("perro", "perra", "gato", "gata", "mascota", "perrito", "gatito", "loro",
@@ -58,6 +61,17 @@ _TRIM: Final[str] = " \t\n\"'«»“”.,;:!?¡¿"
 
 class ChangeResolutionError(Exception):
     """The request names no fact of the novel, or the model named one that does not exist."""
+
+
+def editable_fact(repo: BibleRepository, novel_id: str, key: str) -> Fact | None:
+    """The fact `key` of the novel when a reader may change it; None otherwise (SEC-04)."""
+    fact = repo.find_fact(novel_id, key)
+    return None if fact is None or fact.kind in HIDDEN_FACT_KINDS else fact
+
+
+def editable_facts(repo: BibleRepository, novel_id: str) -> list[Fact]:
+    return [f for f in repo.list_facts(novel_id) if f.kind not in HIDDEN_FACT_KINDS]
+
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,11 +152,11 @@ def resolve_change(
     observer: Observer | None = None,
 ) -> ResolvedChange:
     """Which fact, and its new value. Raises `ChangeResolutionError` when nothing fits."""
-    facts = repo.list_facts(novel_id)
+    facts = editable_facts(repo, novel_id)
     fragment = change.fragment or ""
     new_value = extract_new_value(change.request)
     if change.fact_key:
-        if repo.find_fact(novel_id, change.fact_key) is None:
+        if editable_fact(repo, novel_id, change.fact_key) is None:
             message = f"the novel has no fact {change.fact_key!r}"
             raise ChangeResolutionError(message)
         if new_value is not None:
@@ -175,7 +189,7 @@ def resolve_change(
     )
     choice = completion.output
     key = change.fact_key or choice.fact_key
-    if repo.find_fact(novel_id, key) is None:
+    if editable_fact(repo, novel_id, key) is None:
         message = f"the model chose {key!r}, which is not a fact of the novel"
         raise ChangeResolutionError(message)
     value = new_value or choice.new_value.strip(_TRIM)
@@ -287,9 +301,12 @@ class ChangeJobs:
 
 
 __all__ = [
+    "HIDDEN_FACT_KINDS",
     "ChangeJobs",
     "ChangeResolutionError",
     "ResolvedChange",
+    "editable_fact",
+    "editable_facts",
     "extract_new_value",
     "load_change_fact",
     "match_fact",
