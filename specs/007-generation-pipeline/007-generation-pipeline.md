@@ -86,6 +86,8 @@ the scenes are already merged by the editor).
 
 1. AC 1 — H01: a generation runs planner → writer (3 scenes per chapter) → editor for every
    chapter and publishes a version with N chapters. **T** (fake client) · **D** (live smoke).
+   *Clarified (red-team R2): no role document carries the raw `free_text`; only facts
+   extracted from it (`source = free_text`) do, and the stored brief keeps it. **T***
 2. AC 2 — H06: scene retries ≤ 2, chapter retries ≤ 2 counted from persisted rows, one
    repair round; exhaustion ends in `stopped_error` with the reason. **T** · **I**.
 3. AC 3 — M04: a run stopped after chapter k resumes at k+1 and never duplicates or rewrites
