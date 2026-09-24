@@ -17,7 +17,8 @@ import hashlib
 import json
 import sqlite3
 import uuid
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Iterator, Mapping, Sequence
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final, Self
@@ -119,6 +120,14 @@ class BibleRepository:
 
     def close(self) -> None:
         self._db.close()
+
+    @contextmanager
+    def transaction(self) -> Iterator[Self]:
+        """One atomic unit over several repository calls (`BEGIN IMMEDIATE` ... `COMMIT`,
+        or a SAVEPOINT when already inside one). Methods that open their own transaction
+        nest inside it, so everything commits or rolls back together."""
+        with transaction(self._db):
+            yield self
 
     def __enter__(self) -> Self:
         return self

@@ -15,6 +15,7 @@ helped.
 
 from __future__ import annotations
 
+import itertools
 import sqlite3
 import time
 from collections.abc import Callable, Iterator
@@ -29,6 +30,9 @@ BUSY_TIMEOUT_MS: Final[int] = 5_000
 
 RETRY_ATTEMPTS: Final[int] = 3
 RETRY_BACKOFF_SECONDS: Final[float] = 0.05
+
+_SAVEPOINTS = itertools.count(1)
+"""Savepoint names: unique per process, so nested units never share one."""
 
 
 def vector_extension_available() -> bool:
@@ -136,7 +140,23 @@ def transaction(connection: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
     can then only surface at one point, the `BEGIN`, after the busy timeout, which is exactly
     where `with_retry` can retry the whole unit of work. A deferred transaction could fail at
     its first write with half its reads already acted on.
+
+    Nested inside an open transaction it becomes a SAVEPOINT: the inner unit rolls back on
+    its own if its body raises, and commits only with the outer one (spec 007, clarified:
+    `change_fact` wraps several repository writes, some of which open their own).
     """
+    if connection.in_transaction:
+        name = f"sp_{next(_SAVEPOINTS)}"
+        connection.execute(f"savepoint {name}")
+        try:
+            yield connection
+        except BaseException:
+            with suppress(sqlite3.Error):
+                connection.execute(f"rollback to {name}")
+                connection.execute(f"release {name}")
+            raise
+        connection.execute(f"release {name}")
+        return
     connection.execute("begin immediate")
     try:
         yield connection

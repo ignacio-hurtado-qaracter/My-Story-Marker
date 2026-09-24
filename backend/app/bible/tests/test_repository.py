@@ -158,3 +158,21 @@ def test_tlc_rules(repo: BibleRepository) -> None:
     assert [c.chapter for c in repo.list_chapters(novel.id, 1)] == [1, 2, 3]
     with pytest.raises(VersionFrozenError):
         repo.set_version_status(novel.id, 1, "draft")
+
+
+# spec 007 / AC 4 (clarified): repo.transaction() nests methods that open their own.
+def test_transaction_nests_and_rolls_back(repo: BibleRepository) -> None:
+    novel = repo.create_novel(title="T")
+    fact = repo.add_fact(novel.id, key="pet.name", value="Toby", kind="pet", source="interview")
+    with pytest.raises(RuntimeError), repo.transaction():
+        repo.update_fact_value(fact.id, "Nala")
+        repo.create_version(novel.id)  # opens its own transaction: now a savepoint
+        raise RuntimeError
+    assert repo.get_fact(fact.id).value == "Toby"
+    assert repo.list_versions(novel.id) == []
+    with repo.transaction():
+        repo.update_fact_value(fact.id, "Nala")
+        repo.create_version(novel.id)
+    assert repo.get_fact(fact.id).value == "Nala"
+    assert len(repo.list_versions(novel.id)) == 1
+    assert not repo.connection.in_transaction

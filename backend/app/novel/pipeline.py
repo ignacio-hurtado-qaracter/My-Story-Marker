@@ -955,31 +955,38 @@ def change_fact(
     ) as trace:
         run.trace_id = trace.id
         try:
-            repo.update_fact_value(fact.id, new_value)
-            if is_name and old:
-                rename_cast(repo, novel_id, old, new_value)
-                for other in derived:
-                    repo.update_fact_value(other.id, pattern.sub(new_value, other.value))
-                plan = NovelPlan.model_validate_json(pattern.sub(new_value, plan.model_dump_json()))
-                store_plan(repo, novel_id, plan)
-                brief = repo.get_brief(novel_id)
-                if brief is not None:
-                    updated = _replace_values(dict(brief.data), pattern, new_value)
-                    if isinstance(updated, dict):
-                        repo.save_brief(novel_id, updated, valid=brief.valid)
-                        run.brief = updated
-                if fact_key == "recipient.name":
-                    repo.update_novel(novel_id, recipient_name=new_value)
+            # TLA+ `ChangeFact` is one atomic step (formal/tla/README.md, rule 5): the new
+            # value, the renames, the brief, the plan and version v+1 commit together, or
+            # none of them does and the fact keeps its old value.
+            with repo.transaction():
+                repo.update_fact_value(fact.id, new_value)
+                if is_name and old:
+                    rename_cast(repo, novel_id, old, new_value)
+                    for other in derived:
+                        repo.update_fact_value(other.id, pattern.sub(new_value, other.value))
+                    plan = NovelPlan.model_validate_json(
+                        pattern.sub(new_value, plan.model_dump_json())
+                    )
+                    store_plan(repo, novel_id, plan)
+                    brief = repo.get_brief(novel_id)
+                    if brief is not None:
+                        updated = _replace_values(dict(brief.data), pattern, new_value)
+                        if isinstance(updated, dict):
+                            repo.save_brief(novel_id, updated, valid=brief.valid)
+                            run.brief = updated
+                    if fact_key == "recipient.name":
+                        repo.update_novel(novel_id, recipient_name=new_value)
+                note = {"change": {"key": fact_key, "old": old, "new": new_value}}
+                created = repo.create_version_from(
+                    novel_id,
+                    published.version,
+                    copy_chapters_except=affected,
+                    note=json.dumps(note, ensure_ascii=False),
+                    trace_id=trace.id,
+                )
+                record_plan_usage(run, plan, created.version)
+            new_version = created
             run.plan = plan
-            note = {"change": {"key": fact_key, "old": old, "new": new_value}}
-            new_version = repo.create_version_from(
-                novel_id,
-                published.version,
-                copy_chapters_except=affected,
-                note=json.dumps(note, ensure_ascii=False),
-                trace_id=trace.id,
-            )
-            record_plan_usage(run, plan, new_version.version)
             run.progress(
                 f"change_fact {fact_key}: version {new_version.version} from "
                 f"{published.version}, chapters {sorted(affected)}"

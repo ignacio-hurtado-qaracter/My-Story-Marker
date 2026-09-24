@@ -24,7 +24,7 @@ from app.novel.models import (
     PlanScene,
     SceneDraft,
 )
-from app.novel.pipeline import generate
+from app.novel.pipeline import change_fact, generate
 from app.novel.placeholders import PLACEHOLDER
 from app.novel.plan_check import check_plan
 from app.validators import (
@@ -228,3 +228,30 @@ def test_placeholder_guard() -> None:
     assert PLACEHOLDER.search("Entonces [NOMBRE_ANONIMIZADO] sonrió.")
     assert PLACEHOLDER.search("[PERSONA] y Toby") is not None
     assert PLACEHOLDER.search("Marta [sonrió] en 2024 [1]") is None
+
+
+# spec 007 / AC 4 (clarified): change_fact is one transaction, as TLA+ `ChangeFact` assumes.
+def test_change_fact_rolls_back_when_the_version_cannot_be_created(
+    repo: BibleRepository, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    novel_id = ingest_brief(repo, _brief(1))
+    result = generate(repo, novel_id, client=fake(1), observer=NoopObserver(), register=False)
+    assert result.status == "published", result.detail
+    pet = next(f for f in repo.list_facts(novel_id) if f.value == "Toby")
+    brief_before = repo.get_brief(novel_id)
+    versions_before = len(repo.list_versions(novel_id))
+
+    def boom(*_: object, **__: object) -> object:
+        message = "simulated failure inside create_version_from"
+        raise RuntimeError(message)
+
+    monkeypatch.setattr(repo, "create_version_from", boom)
+    with pytest.raises(RuntimeError, match="simulated failure"):
+        change_fact(
+            repo, novel_id, pet.key, "Nala", client=fake(1), observer=NoopObserver(), register=False
+        )
+    assert repo.get_fact(pet.id).value == "Toby"
+    assert "Nala" not in {c.name for c in repo.list_characters(novel_id)}
+    assert repo.get_brief(novel_id) == brief_before
+    assert len(repo.list_versions(novel_id)) == versions_before
+    assert not repo.connection.in_transaction
