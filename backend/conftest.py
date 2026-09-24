@@ -25,6 +25,7 @@ answer scripts its own fake and overrides `get_model_client` on `fixture_client.
 
 from __future__ import annotations
 
+import os
 import shutil
 import socket
 from collections.abc import Iterator, Mapping, Sequence
@@ -32,6 +33,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+
+# Offline suite never reaches Langfuse, even when the keys are in the environment (spec 010).
+os.environ.setdefault("LANGFUSE_ENABLED", "0")
 from fastapi.testclient import TestClient
 
 from app.commons.config import get_settings
