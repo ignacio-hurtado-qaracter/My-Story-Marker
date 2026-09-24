@@ -1,0 +1,82 @@
+{
+  "recipient": {
+    "name": "Tomás Arriaga",
+    "age": 65,
+    "gender": "masculino",
+    "birth_date": "1961-05-12",
+    "relation_to_buyer": "padre",
+    "traits": ["paciente", "bromista", "curioso", "generoso con su tiempo"],
+    "hobbies": ["la carpintería", "las rutas en bicicleta", "los crucigramas del domingo"],
+    "profession": "maestro de escuela rural"
+  },
+  "occasion": "jubilación",
+  "buyer_name": "Irene",
+  "dedication": "Para papá, que enseñó a leer a medio valle y ahora por fin tiene tiempo para escribir su propia historia. Con todo nuestro cariño, Irene y Daniel.",
+  "people": [
+    {
+      "name": "Lucía",
+      "relation": "esposa",
+      "traits": ["risueña", "valiente", "gran cocinera"],
+      "birth_date": "1963-09-02"
+    },
+    {
+      "name": "Irene",
+      "relation": "hija",
+      "traits": ["organizada", "cabezota", "cariñosa"],
+      "birth_date": "1990-02-17"
+    },
+    {
+      "name": "Daniel",
+      "relation": "hijo",
+      "traits": ["soñador", "músico", "despistado"],
+      "birth_date": "1994-11-08"
+    }
+  ],
+  "pets": [
+    {
+      "name": "Canela",
+      "species": "perra",
+      "description": "Perra mestiza de color canela, adoptada en 2018, que le acompaña al taller y duerme bajo el banco de carpintero."
+    }
+  ],
+  "places": [
+    {
+      "name": "Valdelosa",
+      "description": "Pueblo de montaña con una escuela de una sola aula donde Tomás dio clase durante treinta años."
+    },
+    {
+      "name": "el taller del garaje",
+      "description": "Un garaje convertido en taller de carpintería, oloroso a serrín y barniz, con una radio antigua."
+    }
+  ],
+  "memories": [
+    {
+      "title": "El primer día en la escuela de Valdelosa",
+      "description": "Llegó con una maleta de cartón y nueve alumnos le esperaban en la única aula; la estufa no funcionaba y dio la primera clase con abrigo.",
+      "date": "1992-09-14",
+      "place": "Valdelosa",
+      "people": []
+    },
+    {
+      "title": "La cuna de madera para Daniel",
+      "description": "Pasó tres meses de noches en el taller construyendo la cuna de su hijo; Lucía le llevaba café y le corregía las medidas.",
+      "date": "1994-10-20",
+      "place": "el taller del garaje",
+      "people": ["Lucía"]
+    },
+    {
+      "title": "La ruta en bici hasta el lago con Irene",
+      "description": "Irene y él pedalearon sesenta kilómetros hasta el lago; se perdieron, compartieron un bocadillo y volvieron de noche cantando.",
+      "date": "2016-07-03",
+      "place": null,
+      "people": ["Irene"]
+    }
+  ],
+  "genre": "aventura",
+  "tone": "emotivo",
+  "length": {"chapters": 10, "words_min": 1000, "words_max": 1500},
+  "language": "es",
+  "forbidden_terms": ["Remedios", "despido", "hospital"],
+  "mandatory_elements": ["la última clase antes de jubilarse", "Canela en el taller"],
+  "free_text": null
+}

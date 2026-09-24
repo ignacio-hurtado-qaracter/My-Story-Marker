@@ -1,0 +1,33 @@
+{
+  "recipient": {
+    "name": "Leo",
+    "age": 6,
+    "gender": "masculino",
+    "birth_date": "2020-02-11",
+    "relation_to_buyer": "hijo",
+    "traits": ["inquieto", "cariñoso"],
+    "hobbies": ["los dinosaurios"],
+    "profession": null
+  },
+  "occasion": "cumpleaños",
+  "buyer_name": "Sara",
+  "dedication": "Para Leo, en su sexto cumpleaños.",
+  "people": [],
+  "pets": [],
+  "places": [],
+  "memories": [
+    {
+      "title": "El dinosaurio del museo",
+      "description": "Leo se quedó media hora mirando el esqueleto del diplodocus y quiso ponerle nombre.",
+      "date": "2025-10-12",
+      "place": null,
+      "people": []
+    }
+  ],
+  "genre": "romance",
+  "tone": "oscuro",
+  "language": "es",
+  "forbidden_terms": [],
+  "mandatory_elements": [],
+  "free_text": null
+}

@@ -1,0 +1,70 @@
+{
+  "recipient": {
+    "name": "Andrés Olmedo",
+    "age": 46,
+    "gender": "masculino",
+    "birth_date": "1980-04-20",
+    "relation_to_buyer": "marido",
+    "traits": ["competitivo", "nostálgico", "muy familiar"],
+    "hobbies": ["ciclismo", "las barbacoas"],
+    "profession": "ingeniero de caminos"
+  },
+  "occasion": "aniversario",
+  "buyer_name": "Marta",
+  "dedication": "Para Andrés, por dieciocho años de pedaladas juntos. Marta.",
+  "people": [
+    {"name": "Marta", "relation": "esposa", "traits": ["paciente", "risueña"], "birth_date": "1981-12-01"},
+    {"name": "Julia", "relation": "hermana, que se mudó a vivir a Canadá en 2010 y no ha vuelto", "traits": ["aventurera"], "birth_date": "1983-07-09"}
+  ],
+  "pets": [
+    {"name": "Trueno", "species": "perro", "description": "Pastor alemán de la infancia de Andrés; murió en noviembre de 2005."}
+  ],
+  "places": [
+    {"name": "Valencia", "description": "Ciudad de la familia de Marta, junto al mar."},
+    {"name": "Bilbao", "description": "Ciudad natal de Andrés."}
+  ],
+  "memories": [
+    {
+      "title": "La carrera de bicis de los diez años",
+      "description": "Con 10 años, Andrés ganó la carrera de bicicletas del barrio con una bici prestada y Trueno corriendo a su lado.",
+      "date": "1994-06-15",
+      "place": "Bilbao",
+      "people": []
+    },
+    {
+      "title": "El día que se fue Trueno",
+      "description": "Trueno murió de viejo en el jardín de sus padres; Andrés lo enterró bajo el manzano.",
+      "date": "2005-11-03",
+      "place": "Bilbao",
+      "people": []
+    },
+    {
+      "title": "La boda y el perro invitado",
+      "description": "En su boda con Marta, Trueno llevó los anillos atados al collar y Julia leyó un poema.",
+      "date": "2008-09-13",
+      "place": "Valencia",
+      "people": ["Marta", "Julia"]
+    },
+    {
+      "title": "La barbacoa del verano de 2015",
+      "description": "Julia se encargó de la parrilla en la barbacoa familiar y quemó todas las sardinas.",
+      "date": "2015-07-18",
+      "place": "Valencia",
+      "people": ["Julia", "Marta"]
+    },
+    {
+      "title": "El concierto en Bilbao",
+      "description": "Andrés y Marta fueron a un concierto al aire libre en Bilbao y bailaron bajo la lluvia.",
+      "date": "2015-07-18",
+      "place": "Bilbao",
+      "people": ["Marta"]
+    }
+  ],
+  "genre": "realista",
+  "tone": "nostálgico",
+  "length": {"chapters": 3, "words_min": 1000, "words_max": 1500},
+  "language": "es",
+  "forbidden_terms": [],
+  "mandatory_elements": [],
+  "free_text": null
+}

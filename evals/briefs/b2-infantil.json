@@ -1,0 +1,48 @@
+{
+  "recipient": {
+    "name": "Martina",
+    "age": 7,
+    "gender": "femenino",
+    "birth_date": "2019-03-02",
+    "relation_to_buyer": "sobrina",
+    "traits": ["preguntona", "alegre", "valiente con los bichos"],
+    "hobbies": ["dibujar dragones", "buscar caracoles después de la lluvia"],
+    "profession": null
+  },
+  "occasion": "cumpleaños",
+  "buyer_name": "tía Carla",
+  "dedication": "Para Martina, que a los siete años ya sabe que los caracoles también tienen prisa. Te quiere, tía Carla.",
+  "people": [
+    {"name": "Hugo", "relation": "hermano pequeño", "traits": ["risueño", "glotón"]},
+    {"name": "abuelo Ramón", "relation": "abuelo", "traits": ["cuentacuentos", "tranquilo"]}
+  ],
+  "pets": [
+    {"name": "Bigotes", "species": "gato", "description": "Gato gris que siempre duerme en la caja de los lápices."}
+  ],
+  "places": [
+    {"name": "el huerto del abuelo", "description": "Huerto con tomateras altas y un espantapájaros con sombrero de paja."}
+  ],
+  "memories": [
+    {
+      "title": "El caracol campeón",
+      "description": "Martina organizó una carrera de caracoles en el huerto y el más lento ganó porque los demás se fueron a comer lechuga.",
+      "date": "2025-04-19",
+      "place": "el huerto del abuelo",
+      "people": ["abuelo Ramón", "Hugo"]
+    },
+    {
+      "title": "Bigotes y los lápices",
+      "description": "Bigotes se durmió en la caja de lápices y salió con la cola pintada de azul.",
+      "date": "2026-01-06",
+      "place": null,
+      "people": ["Hugo"]
+    }
+  ],
+  "genre": "fábula",
+  "tone": "tierno",
+  "length": {"chapters": 3, "words_min": 1000, "words_max": 1500},
+  "language": "es",
+  "forbidden_terms": ["muerte", "sangre", "pesadilla"],
+  "mandatory_elements": ["una moraleja sobre la paciencia"],
+  "free_text": null
+}
