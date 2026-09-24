@@ -90,7 +90,8 @@ def test_ingest_creates_facts_and_characters() -> None:
         assert ("Abuela Carmen", "abuela", "1940-01-10") in cast
         assert ("Toby", "mascota", None) in cast
         assert [p.name for p in repo.list_places(novel_id)] == ["Cádiz"]
-        assert [t.term for t in repo.list_forbidden_terms(novel_id)] == ["exnovio"]
+        novel_terms = [t.term for t in repo.list_forbidden_terms(novel_id) if t.scope == "novel"]
+        assert novel_terms == ["exnovio"]
         results = repo.list_validator_results(novel_id, name="brief_schema")
         assert [r.passed for r in results] == [True]
 

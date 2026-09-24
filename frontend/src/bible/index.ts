@@ -1,2 +1,3 @@
-// Public surface of bible/: only what app/ wires (spec 003, plan decision Q8; architecture rule 2).
-export { CharactersRoutes, LocationsRoutes } from './routes'
+// Public surface of bible/: the character and place sheets app/ wires under the reader
+// (spec 014; architecture rule 2).
+export { BiblePage as BibleRoute } from './BiblePage'

@@ -1,3 +1,3 @@
-// Public surface of cover/: only what app/ wires, at the index route "/" (spec 003, FR-IA-01,
-// FR-COVER; plan 003 Q8).
+// Public surface of cover/: only what app/ wires, at `/novelas/:novelId` (spec 014; spec 003,
+// FR-COVER).
 export { CoverPage as CoverRoute } from './CoverPage'

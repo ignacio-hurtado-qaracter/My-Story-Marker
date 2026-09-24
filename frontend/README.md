@@ -21,6 +21,42 @@ no CORS configuration. The target is `http://127.0.0.1:8000` (the backend's `uvi
 default); set `VITE_BACKEND_URL` to point elsewhere. Start the backend as its
 [README](../backend/README.md) says.
 
+## Reading a novel (spec 014)
+
+The web reader is served by the Vite dev server (or `vite preview` after `npm run build`),
+whose `/api` proxy reaches the backend; FastAPI does not serve `dist/`. From the repository
+root, in two terminals:
+
+```sh
+# 1. backend: the story bible at HARNESS_DB (default data/harness.sqlite)
+cd backend
+uv run python -m app.reader.dev_seed          # optional: a 3-chapter, 2-version demo novel "demo-faro"
+STORY_ROOT=tests/fixtures/repo uv run uvicorn app.main:app --port 8000
+
+# 2. frontend
+cd frontend
+npm run dev                                   # http://localhost:5173
+```
+
+`/` lists the novels; `/novelas/<id>` is the cover (title, recipient, dedication from the
+API), then `indice` (chapters changed against the previous version are marked
+"modificado"), `capitulos/<n>`, and `personajes` (character and place sheets linking to the
+chapters where each appears). `?v=<n>` reads an earlier published version; the version
+selector and the PDF link are in the reader's bar. Selecting text in a chapter shows
+**Pedir un cambio**: the request goes to `POST /novels/<id>/changes`, the page polls the job
+and, when the new version is published, switches to its index. (`STORY_ROOT` is only the
+legacy harness's startup check; any tree with `canon/project.md` will do.)
+
+**Visual check** (exam § 5a): with both servers running,
+
+```sh
+NOVEL_ID=demo-faro BASE_URL=http://127.0.0.1:5173 npx playwright test --config e2e/visual-check.config.ts
+```
+
+checks the cover, the index, a chapter and the sheets, and writes screenshots to
+`screenshots/visual-check/`. The backend's `pre_publish` validator `visual_check` runs the
+same spec when `VISUAL_CHECK=1` (and `BASE_URL`) are set and the reader answers.
+
 ## Scripts
 
 | Script | What it does |

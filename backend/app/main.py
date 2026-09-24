@@ -43,6 +43,7 @@ from app.commons.permissions import AgentRole, readable_patterns, writable_patte
 from app.interview.router import router as interview_router
 from app.ledger.router import router as ledger_router
 from app.manuscript.router import router as manuscript_router
+from app.reader.router import router as reader_router
 from app.scenes.router import router as scenes_router
 from app.scenes.router import structure_router
 
@@ -199,6 +200,8 @@ def create_app() -> FastAPI:
     app.include_router(index_router())
     # Spec 006 (B2): the interview and brief routes, backed by the story bible (K1).
     app.include_router(interview_router)
+    # Spec 014 (K5): the gift-novel reader over the story bible, under `/novels`.
+    app.include_router(reader_router)
 
     # FR-AGENT-07, IF-05: `POST /scenes/{id}/audit` runs the auditor role for its semantic
     # half. `scenes` cannot import `agents` (NFR-04), so the route asks `commons.deps` for a

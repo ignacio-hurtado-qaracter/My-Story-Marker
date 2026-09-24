@@ -14,15 +14,15 @@ interface NavItem {
   prefixes?: readonly string[]
 }
 
+// Spec 014: the reader's own navigation (Portada, Índice, Personajes y lugares, versions)
+// lives inside each novel; the shell lists the novels and keeps the harness's scene pages.
 const NAV: readonly NavItem[] = [
-  { label: 'Portada', to: '/', exact: '/' },
-  { label: 'Índice', to: '/scenes', prefixes: ['/scenes', '/chapters'] },
-  { label: 'Personajes', to: '/characters', prefixes: ['/characters'] },
-  { label: 'Lugares', to: '/locations', prefixes: ['/locations'] },
+  { label: 'Novelas', to: '/', exact: '/', prefixes: ['/novelas'] },
+  { label: 'Escenas', to: '/scenes', prefixes: ['/scenes', '/chapters'] },
 ]
 
 function isCurrent(item: NavItem, pathname: string): boolean {
-  if (item.exact !== undefined) return pathname === item.exact
+  if (item.exact !== undefined && pathname === item.exact) return true
   return (item.prefixes ?? []).some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
 }
 

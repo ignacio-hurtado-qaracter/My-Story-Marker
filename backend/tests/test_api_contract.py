@@ -172,8 +172,29 @@ SPEC_006_INTERVIEW = frozenset(
 )
 """Spec 006 (B2): the interview and brief routes."""
 
+K5_READER = frozenset(
+    {
+        ("GET", "/novels"),
+        ("GET", "/novels/{}"),
+        ("GET", "/novels/{}/versions"),
+        ("GET", "/novels/{}/versions/{}/chapters"),
+        ("GET", "/novels/{}/versions/{}/chapters/{}"),
+        ("GET", "/novels/{}/versions/{}/pdf"),
+        ("GET", "/novels/{}/bible"),
+        ("POST", "/novels/{}/changes"),
+        ("GET", "/novels/{}/changes/{}"),
+    }
+)
+"""Spec 014 (contract K5): the gift-novel reader over the story bible."""
+
 EXPECTED_ROUTES = (
-    META_ROUTES | IF_03_READS | IF_04_WRITES | IF_05_OPERATIONS | IF_06_AGENTS | SPEC_006_INTERVIEW
+    META_ROUTES
+    | IF_03_READS
+    | IF_04_WRITES
+    | IF_05_OPERATIONS
+    | IF_06_AGENTS
+    | SPEC_006_INTERVIEW
+    | K5_READER
 )
 
 
