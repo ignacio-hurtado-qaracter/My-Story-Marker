@@ -1,0 +1,265 @@
+{
+  "brief": "b2-infantil",
+  "label": "after",
+  "novel_id": "eval-after-b2-infantil",
+  "expected": "published; child-safe tone, 3 chapters",
+  "chapters_requested": 3,
+  "validation": {
+    "valid": true,
+    "missing": [],
+    "contradictions": [],
+    "errors": []
+  },
+  "injection_prescan": [],
+  "has_free_text": false,
+  "forbidden_terms": [
+    "muerte",
+    "sangre",
+    "pesadilla"
+  ],
+  "started_at": "2026-09-24T21:18:52+00:00",
+  "generation": {
+    "command": [
+      "/home/user/My-Story-Marker/.claude/worktrees/agent-acc3faa2d69652de5/backend/.venv/bin/python3",
+      "-m",
+      "app.novel.cli",
+      "generate",
+      "--brief",
+      "/home/user/My-Story-Marker/.claude/worktrees/agent-acc3faa2d69652de5/evals/briefs/b2-infantil.json",
+      "--novel-id",
+      "eval-after-b2-infantil"
+    ],
+    "exit_code": 0,
+    "timed_out": false,
+    "duration_s": 1292.0,
+    "log": "evals/results/after/logs/b2-infantil.log"
+  },
+  "outcome": "ok",
+  "db_found": true,
+  "validators": {
+    "brief_schema": {
+      "passed": true,
+      "units": 1,
+      "failed_units": [],
+      "rows_total": 1,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "no_placeholders": {
+      "passed": true,
+      "units": 12,
+      "failed_units": [],
+      "rows_total": 12,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "schema_role_output": {
+      "passed": true,
+      "units": 9,
+      "failed_units": [],
+      "rows_total": 9,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "forbidden_words_scene": {
+      "passed": true,
+      "units": 9,
+      "failed_units": [],
+      "rows_total": 9,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "chapter_length": {
+      "passed": true,
+      "units": 3,
+      "failed_units": [],
+      "rows_total": 3,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "exact_names": {
+      "passed": true,
+      "units": 3,
+      "failed_units": [],
+      "rows_total": 3,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "prose_repetition": {
+      "passed": true,
+      "units": 3,
+      "failed_units": [],
+      "rows_total": 3,
+      "rows_failed": 0,
+      "min_score": 0.9
+    },
+    "fact_usage_recorder": {
+      "passed": true,
+      "units": 3,
+      "failed_units": [],
+      "rows_total": 3,
+      "rows_failed": 0,
+      "min_score": null
+    },
+    "forbidden_words_chapter": {
+      "passed": true,
+      "units": 3,
+      "failed_units": [],
+      "rows_total": 3,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "judge_chapter": {
+      "passed": true,
+      "units": 3,
+      "failed_units": [],
+      "rows_total": 3,
+      "rows_failed": 0,
+      "min_score": 0.85
+    },
+    "schema_brief": {
+      "passed": true,
+      "units": 1,
+      "failed_units": [],
+      "rows_total": 1,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "brief_coverage": {
+      "passed": true,
+      "units": 1,
+      "failed_units": [],
+      "rows_total": 1,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "judge_novel": {
+      "passed": true,
+      "units": 1,
+      "failed_units": [],
+      "rows_total": 1,
+      "rows_failed": 0,
+      "min_score": 0.84
+    },
+    "visual_check": {
+      "passed": true,
+      "units": 1,
+      "failed_units": [],
+      "rows_total": 1,
+      "rows_failed": 0,
+      "min_score": null
+    },
+    "lean_chronology": {
+      "passed": true,
+      "units": 1,
+      "failed_units": [],
+      "rows_total": 1,
+      "rows_failed": 0,
+      "min_score": 1.0
+    }
+  },
+  "policy": {
+    "forbidden_words": {
+      "allow": 12
+    }
+  },
+  "injection_decisions": [],
+  "cost": {
+    "novel_id": "eval-after-b2-infantil",
+    "calls": 17,
+    "input_tokens": 153,
+    "output_tokens": 160312,
+    "cache_read": 0,
+    "cache_creation": 132754,
+    "cost_usd": 0.967656,
+    "latency_s": 1284.557,
+    "by_chapter": [
+      {
+        "chapter": null,
+        "calls": 2,
+        "input_tokens": 18,
+        "output_tokens": 24347,
+        "cache_read": 0,
+        "cost_usd": 0.140551,
+        "latency_s": 193.204
+      },
+      {
+        "chapter": 1,
+        "calls": 5,
+        "input_tokens": 45,
+        "output_tokens": 43387,
+        "cache_read": 0,
+        "cost_usd": 0.263678,
+        "latency_s": 369.254
+      },
+      {
+        "chapter": 2,
+        "calls": 5,
+        "input_tokens": 45,
+        "output_tokens": 41321,
+        "cache_read": 0,
+        "cost_usd": 0.25724,
+        "latency_s": 320.853
+      },
+      {
+        "chapter": 3,
+        "calls": 5,
+        "input_tokens": 45,
+        "output_tokens": 51257,
+        "cache_read": 0,
+        "cost_usd": 0.306188,
+        "latency_s": 401.246
+      }
+    ],
+    "by_role": {
+      "editor": 0.242112,
+      "judge": 0.170997,
+      "planner": 0.090225,
+      "writer": 0.464321
+    }
+  },
+  "prompts": [
+    {
+      "role": "editor",
+      "prompt_name": "editor",
+      "prompt_version": "4",
+      "calls": 3
+    },
+    {
+      "role": "judge",
+      "prompt_name": "judge_chapter",
+      "prompt_version": "2",
+      "calls": 3
+    },
+    {
+      "role": "judge",
+      "prompt_name": "judge_novel",
+      "prompt_version": "2",
+      "calls": 1
+    },
+    {
+      "role": "planner",
+      "prompt_name": "planner",
+      "prompt_version": "4",
+      "calls": 1
+    },
+    {
+      "role": "writer",
+      "prompt_name": "writer",
+      "prompt_version": "4",
+      "calls": 9
+    }
+  ],
+  "final": {
+    "version": 1,
+    "status": "published",
+    "repair_rounds": 0,
+    "note": "",
+    "chapters": 3,
+    "words": [
+      1144,
+      1123,
+      1096
+    ]
+  }
+}

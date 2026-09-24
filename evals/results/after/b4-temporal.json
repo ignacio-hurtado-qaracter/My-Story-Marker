@@ -1,0 +1,273 @@
+{
+  "brief": "b4-temporal",
+  "label": "after",
+  "novel_id": "eval-after-b4-temporal",
+  "expected": "lean_chronology or judge_novel catch the planted incoherences",
+  "chapters_requested": 3,
+  "validation": {
+    "valid": true,
+    "missing": [],
+    "contradictions": [],
+    "errors": []
+  },
+  "injection_prescan": [],
+  "has_free_text": false,
+  "forbidden_terms": [],
+  "started_at": "2026-09-24T21:18:52+00:00",
+  "generation": {
+    "command": [
+      "/home/user/My-Story-Marker/.claude/worktrees/agent-acc3faa2d69652de5/backend/.venv/bin/python3",
+      "-m",
+      "app.novel.cli",
+      "generate",
+      "--brief",
+      "/home/user/My-Story-Marker/.claude/worktrees/agent-acc3faa2d69652de5/evals/briefs/b4-temporal.json",
+      "--novel-id",
+      "eval-after-b4-temporal"
+    ],
+    "exit_code": null,
+    "timed_out": true,
+    "duration_s": 2700.0,
+    "log": "evals/results/after/logs/b4-temporal.log"
+  },
+  "outcome": "timeout",
+  "db_found": true,
+  "validators": {
+    "brief_schema": {
+      "passed": true,
+      "units": 1,
+      "failed_units": [],
+      "rows_total": 1,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "no_placeholders": {
+      "passed": true,
+      "units": 12,
+      "failed_units": [],
+      "rows_total": 17,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "schema_role_output": {
+      "passed": true,
+      "units": 9,
+      "failed_units": [],
+      "rows_total": 9,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "forbidden_words_scene": {
+      "passed": true,
+      "units": 9,
+      "failed_units": [],
+      "rows_total": 9,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "chapter_length": {
+      "passed": true,
+      "units": 3,
+      "failed_units": [],
+      "rows_total": 8,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "exact_names": {
+      "passed": true,
+      "units": 3,
+      "failed_units": [],
+      "rows_total": 8,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "prose_repetition": {
+      "passed": true,
+      "units": 3,
+      "failed_units": [],
+      "rows_total": 8,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "fact_usage_recorder": {
+      "passed": true,
+      "units": 3,
+      "failed_units": [],
+      "rows_total": 8,
+      "rows_failed": 0,
+      "min_score": null
+    },
+    "forbidden_words_chapter": {
+      "passed": true,
+      "units": 3,
+      "failed_units": [],
+      "rows_total": 8,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "judge_chapter": {
+      "passed": false,
+      "units": 3,
+      "failed_units": [
+        {
+          "chapter": 1,
+          "scene": null,
+          "explanation": "Suspende (continuidad < 3; bloqueante: [alta; cap. 1] El capítulo afirma que Andrés tiene 'catorce años' en la carrera de junio 1994, cuando el brief declara textualmente 'Con 10 años, Andrés ganó la carrera de bicicletas del barrio' (memory.la-carrera-de-bicis-de-los-diez-anos, 1994-06-15). Hay un desajuste de cuatro años entre ambas fuentes.). Corregir continuidad (2/5): El capítulo contradice el brief en un dato clave: dice que Andrés tiene 'catorce años' en la carrera de junio 1994, pero el brief especifica explícitamente 'Con 10 años, Andrés ganó la carrera de bicicletas del barrio' en esa fecha. Aunque el capítulo es correcto matemáticamente (nace 1980-04-20), rompe la coherencia con los datos narrativos proporcionados. Para el editor: El capítulo tiene prosa agradable, arco claro y nostalgia auténtica. Sin embargo, debe resolver la contradicción de edad antes de aprobarse. Opciones: (1) Cambiar '14 años' por '10 años' en el párrafo de apertura y ajustar los detalles narrativos (perro menos reflexivo, lenguaje más lúdico); (2) Corregir el brief para que la carrera ocurra cuando Andrés tenía 14 años. La recomendación es verificar cuándo sucedió realmente esta carrera en la biografía de Andrés y mantener coherencia en toda la novela. Una vez resuelto, el capítulo ofrece una base sólida: conservar la musicalidad de la prosa, el ritmo tripartito y el tono melancólico del final."
+        }
+      ],
+      "rows_total": 7,
+      "rows_failed": 4,
+      "min_score": 0.75
+    },
+    "schema_brief": {
+      "passed": true,
+      "units": 1,
+      "failed_units": [],
+      "rows_total": 1,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "brief_coverage": {
+      "passed": true,
+      "units": 1,
+      "failed_units": [],
+      "rows_total": 1,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "judge_novel": {
+      "passed": false,
+      "units": 1,
+      "failed_units": [
+        {
+          "chapter": null,
+          "scene": null,
+          "explanation": "Suspende (continuidad < 3; bloqueante: [alta; cap. 2] Salto temporal sin sentido en Cap. 2: el resumen dice 'trece años después de enterrar a Trueno' en 2008, cuando Trueno fue enterrado en 2005 (Cap. 1). Esto rompe la verosimilitud de la timeline.; bloqueante: [alta; cap. 1, 3] Capítulos que se contradicen: Cap. 1 establece que Andrés tenía 10 años en 1994; Cap. 3 resumen afirma que cumple 46 años en 2026. Dado que el Cap. 3 final menciona 'treinta y dos años atrás', Andrés debería tener 42 años, no 46.; bloqueante: contradicción: [alta; cap. 1, 2] Cap. 2 resumen afirma 'En 2008, trece años después de enterrar a Trueno', pero Cap. 1 y el brief establecen que Trueno fue enterrado en otoño de 2005. Eso son solo 3 años después, no 13. Contradicción matemática clara.; bloqueante: contradicción: [alta; cap. 1, 3] Cap. 1 declara que Andrés tenía 'diez años' en 1994. Cap. 3 final dice 'donde todo había comenzado treinta y dos años atrás' (2026 - 32 = 1994), lo que implicaría que Andrés tiene 42 años en 2026. Sin embargo, el resumen del Cap. 3 afirma que 'cumple cuarenta y seis años'. Esta es una inconsistencia interna de la timeline.). Corregir continuidad (2/5): Hay dos contradicciones de continuidad verificables: Cap. 2 dice 'trece años después de enterrar a Trueno' en 2008, cuando Trueno fue enterrado en 2005 (solo 3 años); y Cap. 3 resumen afirma que Andrés cumple 46 años, mientras que Cap. 1 establece que tenía 10 años en 1994 (hace 32 años, lo que implica 42 años en 2026). Para el editor: La novela tiene una estructura narrativa potente y una prosa vivida, con un arco emotivo claro que transforma a Andrés de competidor a hombre que valora el viaje compartido. La personalización es natural y el tono nostálgico está bien mantenido. Sin embargo, hay dos contradicciones críticas de continuidad que rompen la coherencia de la historia:\n\n1. **Cap. 2 requiere corrección urgente:** Cambiar \"trece años después de enterrar a Trueno\" a \"tres años después\". La boda fue en 2008 y Trueno fue enterrado en 2005 (3 años antes), no 13.\n\n2. **Cap. 3 (resumen) requiere alineación:** El resumen afirma que Andrés cumple 46 años, pero el Cap. 3 final establece \"hace treinta y dos años atrás\" (1994), lo que implicaría 42 años. Elegir: o cambiar 46 a 42 años en el resumen, o ajustar la fecha de la carrera en Cap. 1.\n\nUna vez corregidas estas inconsistencias de timeline, la novela aprobará. La calidad narrativa y la personalización son sólidas."
+        }
+      ],
+      "rows_total": 1,
+      "rows_failed": 1,
+      "min_score": 0.72
+    },
+    "visual_check": {
+      "passed": true,
+      "units": 1,
+      "failed_units": [],
+      "rows_total": 1,
+      "rows_failed": 0,
+      "min_score": null
+    },
+    "lean_chronology": {
+      "passed": true,
+      "units": 1,
+      "failed_units": [],
+      "rows_total": 1,
+      "rows_failed": 0,
+      "min_score": 1.0
+    }
+  },
+  "policy": {
+    "forbidden_words": {
+      "allow": 17
+    }
+  },
+  "injection_decisions": [],
+  "cost": {
+    "novel_id": "eval-after-b4-temporal",
+    "calls": 29,
+    "input_tokens": 279,
+    "output_tokens": 316018,
+    "cache_read": 16285,
+    "cache_creation": 279839,
+    "cost_usd": 1.931796,
+    "latency_s": 2692.318,
+    "by_chapter": [
+      {
+        "chapter": null,
+        "calls": 3,
+        "input_tokens": 37,
+        "output_tokens": 75592,
+        "cache_read": 7622,
+        "cost_usd": 0.444187,
+        "latency_s": 590.679
+      },
+      {
+        "chapter": 1,
+        "calls": 12,
+        "input_tokens": 116,
+        "output_tokens": 124929,
+        "cache_read": 8663,
+        "cost_usd": 0.765921,
+        "latency_s": 1088.144
+      },
+      {
+        "chapter": 2,
+        "calls": 8,
+        "input_tokens": 72,
+        "output_tokens": 60678,
+        "cache_read": 0,
+        "cost_usd": 0.387977,
+        "latency_s": 565.146
+      },
+      {
+        "chapter": 3,
+        "calls": 6,
+        "input_tokens": 54,
+        "output_tokens": 54819,
+        "cache_read": 0,
+        "cost_usd": 0.333711,
+        "latency_s": 448.35
+      }
+    ],
+    "by_role": {
+      "editor": 0.593604,
+      "judge": 0.505461,
+      "planner": 0.347251,
+      "writer": 0.48548
+    }
+  },
+  "prompts": [
+    {
+      "role": "editor",
+      "prompt_name": "editor",
+      "prompt_version": "4",
+      "calls": 10
+    },
+    {
+      "role": "judge",
+      "prompt_name": "judge_chapter",
+      "prompt_version": "2",
+      "calls": 7
+    },
+    {
+      "role": "judge",
+      "prompt_name": "judge_novel",
+      "prompt_version": "2",
+      "calls": 1
+    },
+    {
+      "role": "planner",
+      "prompt_name": "planner",
+      "prompt_version": "3",
+      "calls": 2
+    },
+    {
+      "role": "writer",
+      "prompt_name": "writer",
+      "prompt_version": "4",
+      "calls": 9
+    }
+  ],
+  "final": {
+    "version": 1,
+    "status": "blocked",
+    "repair_rounds": 1,
+    "note": "",
+    "chapters": 3,
+    "words": [
+      1084,
+      1078,
+      1205
+    ]
+  }
+}
