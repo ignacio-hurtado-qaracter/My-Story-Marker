@@ -5,20 +5,28 @@ load it is published to Langfuse prompt management under the same name with the 
 `production`, **only when its content changed** (the served `production` text differs), and
 the call records the Langfuse version number. Offline, or when Langfuse fails, the version
 is `sha-<first 12 hex of the SHA-256>` so every call still carries a stable version id.
+
+The file is package data, not a store, so it is read through `pkgutil.get_data` like the
+legacy role prompts in `app.agents.roles` (never a file primitive outside the store layer:
+spec 001 AC 3). The name is one lowercase identifier, so it cannot address anything else.
 """
 
 from __future__ import annotations
 
 import hashlib
+import pkgutil
+import re
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Final
 
 from app.commons.observability.langfuse_observer import LangfuseObserver, _warn
 from app.commons.observability.protocol import Observer
 
-PROMPTS_DIR: Final[Path] = Path(__file__).resolve().parents[2] / "prompts"
-"""`backend/app/prompts/`."""
+PROMPTS_PACKAGE: Final[str] = "app"
+PROMPTS_SUBDIR: Final[str] = "prompts"
+"""`backend/app/prompts/<name>.md`."""
+
+_NAME = re.compile(r"^[a-z][a-z0-9_-]{0,63}$")
 
 PRODUCTION_LABEL: Final[str] = "production"
 
@@ -45,10 +53,23 @@ def content_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def read_prompt_text(name: str) -> str:
+    """The text of `app/prompts/<name>.md`, or `FileNotFoundError`."""
+    if _NAME.fullmatch(name) is None:
+        message = f"a prompt name is one lowercase identifier: {name!r}"
+        raise ValueError(message)
+    data = pkgutil.get_data(PROMPTS_PACKAGE, f"{PROMPTS_SUBDIR}/{name}.md")
+    if data is None:  # pragma: no cover - only for loaders without get_data
+        message = f"prompt {name!r} not found"
+        raise FileNotFoundError(message)
+    return data.decode("utf-8")
+
+
 def load_prompt(
-    name: str, observer: Observer | None = None, *, directory: Path | None = None
+    name: str, observer: Observer | None = None, *, text: str | None = None
 ) -> PromptRef:
-    """Read `<directory>/<name>.md` and resolve its version (publishing it if needed).
+    """Read `app/prompts/<name>.md` (or use `text`) and resolve its version, publishing it
+    to Langfuse if its content changed.
 
     `observer` defaults to `get_observer()`; pass a `NoopObserver` to stay offline.
     """
@@ -56,8 +77,8 @@ def load_prompt(
         from app.commons.observability import get_observer
 
         observer = get_observer()
-    path = (directory or PROMPTS_DIR) / f"{name}.md"
-    text = path.read_text(encoding="utf-8")
+    if text is None:
+        text = read_prompt_text(name)
     digest = content_hash(text)
     offline = f"sha-{digest[:12]}"
     cached = _cache.get((name, digest))
@@ -97,4 +118,12 @@ def _publish(observer: LangfuseObserver, name: str, text: str, digest: str) -> s
     return version
 
 
-__all__ = ["PRODUCTION_LABEL", "PROMPTS_DIR", "PromptRef", "content_hash", "load_prompt"]
+__all__ = [
+    "PRODUCTION_LABEL",
+    "PROMPTS_PACKAGE",
+    "PROMPTS_SUBDIR",
+    "PromptRef",
+    "content_hash",
+    "load_prompt",
+    "read_prompt_text",
+]

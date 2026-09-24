@@ -50,10 +50,7 @@ def test_traced_complete_records_call(tmp_path: Path) -> None:
         ]
     )
     observer = NoopObserver()
-    prompt_dir = tmp_path / "prompts"
-    prompt_dir.mkdir()
-    (prompt_dir / "writer.md").write_text("Escribe.", encoding="utf-8")
-    prompt = load_prompt("writer", observer, directory=prompt_dir)
+    prompt = load_prompt("writer", observer, text="Escribe.")
     assert prompt.version.startswith("sha-")
 
     with observer.trace("generation", session_id=novel.id) as trace:
