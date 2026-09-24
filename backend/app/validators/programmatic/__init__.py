@@ -13,6 +13,7 @@ idempotent because the registry replaces a validator of the same name at the sam
 | ``schema_brief`` | pre_publish | yes (skipped-pass without a schema) | interviewer |
 | ``lean_chronology`` | pre_publish | yes (missing toolchain fails) | editor |
 | ``prose_repetition`` | chapter_close, hook | soft (fails only when severe) | editor |
+| ``calendar_consistency`` | chapter_close | yes | editor (fix or drop the weekday) |
 
 ``ctx.extra`` keys read: ``brief`` (dict), ``plan`` (dict), ``role_output`` (pydantic model
 or mapping), ``role_output_model`` (pydantic class), ``feedback_role`` (str).
@@ -20,6 +21,7 @@ or mapping), ``role_output_model`` (pydantic class), ``feedback_role`` (str).
 
 from __future__ import annotations
 
+from app.validators.programmatic.calendar import CalendarConsistency
 from app.validators.programmatic.chronology import LeanChronology
 from app.validators.programmatic.coverage import BriefCoverage, FactUsageRecorder
 from app.validators.programmatic.length import ChapterLength
@@ -38,6 +40,7 @@ def all_validators() -> list[Validator]:
         ChapterLength(),
         ExactNames(),
         ProseRepetition(),
+        CalendarConsistency(),
         FactUsageRecorder(),
         SchemaBrief(),
         BriefCoverage(),
@@ -56,6 +59,7 @@ def register_validators() -> None:
 
 __all__ = [
     "BriefCoverage",
+    "CalendarConsistency",
     "ChapterLength",
     "ExactNames",
     "FactUsageRecorder",

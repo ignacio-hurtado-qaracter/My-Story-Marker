@@ -179,3 +179,26 @@ def test_lean_runs(repo: BibleRepository, tmp_path: Path) -> None:
     )
     result = LeanChronology().run(_ctx(repo, novel.id, ""))
     assert result.passed, result.explanation
+
+
+# spec 008 / AC 8 — calendar_consistency (tuning 2)
+def test_calendar_consistency_weekdays(repo: BibleRepository) -> None:
+    import datetime as dt
+
+    from app.validators.programmatic.calendar import WEEKDAYS, CalendarConsistency
+
+    novel = repo.create_novel()
+    real = WEEKDAYS[dt.date(2026, 6, 21).weekday()]
+    wrong = WEEKDAYS[(dt.date(2026, 6, 21).weekday() + 2) % 7]
+    plan = {"chapters": [{"number": 1, "scenes": [{"story_date": "2026-06-21"}]}]}
+    check = CalendarConsistency()
+    bad = check.run(_ctx(repo, novel.id, f"El {wrong} 21 de junio de 2026 llovió.", plan=plan))
+    assert not bad.passed
+    assert f"«{wrong} 21 de junio de 2026»" in bad.explanation
+    assert f"es {real}" in bad.explanation and "elimínalo" in bad.explanation
+    # the year comes from the plan; the day may be written in words
+    text = f"{wrong.capitalize()}, el veintiuno de junio."
+    assert not check.run(_ctx(repo, novel.id, text, plan=plan)).passed
+    text = f"El {real} 21 de junio de 2026 llovió. El 21 de junio, {real}."
+    assert check.run(_ctx(repo, novel.id, text)).passed
+    assert "calendar_consistency" in _registered_names()
