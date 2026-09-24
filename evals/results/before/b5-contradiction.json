@@ -1,0 +1,25 @@
+{
+  "brief": "b5-contradiction",
+  "label": "before",
+  "novel_id": "eval-before-b5-contradiction",
+  "expected": "rejected by brief validation (age x genre/tone, missing length)",
+  "chapters_requested": null,
+  "validation": {
+    "valid": false,
+    "missing": [
+      "length"
+    ],
+    "contradictions": [
+      "recipient.age=6 vs tone=oscuro: un tono oscuro no es apto para menos de 12 años",
+      "recipient.age=6 vs genre=romance: el romance no es apto para menos de 12 años"
+    ],
+    "errors": []
+  },
+  "injection_prescan": [],
+  "has_free_text": false,
+  "forbidden_terms": [],
+  "started_at": "2026-09-24T20:00:56+00:00",
+  "generation": null,
+  "outcome": "rejected_by_validation",
+  "db_found": null
+}

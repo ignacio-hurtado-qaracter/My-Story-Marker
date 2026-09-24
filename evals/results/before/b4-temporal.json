@@ -1,0 +1,80 @@
+{
+  "brief": "b4-temporal",
+  "label": "before",
+  "novel_id": "eval-before-b4-temporal",
+  "expected": "lean_chronology or judge_novel catch the planted incoherences",
+  "chapters_requested": 3,
+  "validation": {
+    "valid": true,
+    "missing": [],
+    "contradictions": [],
+    "errors": []
+  },
+  "injection_prescan": [],
+  "has_free_text": false,
+  "forbidden_terms": [],
+  "started_at": "2026-09-24T19:55:16+00:00",
+  "generation": {
+    "command": [
+      "/tmp/claude-0/-home-user-My-Story-Marker/282336dc-0790-5508-a410-cfbfbdfef576/scratchpad/integ/backend/.venv/bin/python3",
+      "-m",
+      "app.novel.cli",
+      "generate",
+      "--brief",
+      "/tmp/claude-0/-home-user-My-Story-Marker/282336dc-0790-5508-a410-cfbfbdfef576/scratchpad/integ/evals/briefs/b4-temporal.json",
+      "--novel-id",
+      "eval-before-b4-temporal"
+    ],
+    "exit_code": 1,
+    "timed_out": false,
+    "duration_s": 339.9,
+    "log": "evals/results/before/logs/b4-temporal.log"
+  },
+  "outcome": "pipeline_error",
+  "db_found": true,
+  "validators": {
+    "brief_schema": {
+      "passed": true,
+      "units": 1,
+      "failed_units": [],
+      "rows_total": 1,
+      "rows_failed": 0,
+      "min_score": 1.0
+    }
+  },
+  "policy": {},
+  "injection_decisions": [],
+  "cost": {
+    "novel_id": "eval-before-b4-temporal",
+    "calls": 2,
+    "input_tokens": 18,
+    "output_tokens": 46200,
+    "cache_read": 0,
+    "cache_creation": 14714,
+    "cost_usd": 0.249411,
+    "latency_s": 335.491,
+    "by_chapter": [
+      {
+        "chapter": null,
+        "calls": 2,
+        "input_tokens": 18,
+        "output_tokens": 46200,
+        "cache_read": 0,
+        "cost_usd": 0.249411,
+        "latency_s": 335.491
+      }
+    ],
+    "by_role": {
+      "planner": 0.249411
+    }
+  },
+  "prompts": [
+    {
+      "role": "planner",
+      "prompt_name": "planner",
+      "prompt_version": "2",
+      "calls": 2
+    }
+  ],
+  "final": null
+}

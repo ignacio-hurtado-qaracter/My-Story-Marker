@@ -1,0 +1,271 @@
+{
+  "brief": "b2-infantil",
+  "label": "before",
+  "novel_id": "eval-before-b2-infantil",
+  "expected": "published; child-safe tone, 3 chapters",
+  "chapters_requested": 3,
+  "validation": {
+    "valid": true,
+    "missing": [],
+    "contradictions": [],
+    "errors": []
+  },
+  "injection_prescan": [],
+  "has_free_text": false,
+  "forbidden_terms": [
+    "muerte",
+    "sangre",
+    "pesadilla"
+  ],
+  "started_at": "2026-09-24T19:55:16+00:00",
+  "generation": {
+    "command": [
+      "/tmp/claude-0/-home-user-My-Story-Marker/282336dc-0790-5508-a410-cfbfbdfef576/scratchpad/integ/backend/.venv/bin/python3",
+      "-m",
+      "app.novel.cli",
+      "generate",
+      "--brief",
+      "/tmp/claude-0/-home-user-My-Story-Marker/282336dc-0790-5508-a410-cfbfbdfef576/scratchpad/integ/evals/briefs/b2-infantil.json",
+      "--novel-id",
+      "eval-before-b2-infantil"
+    ],
+    "exit_code": 1,
+    "timed_out": false,
+    "duration_s": 1476.3,
+    "log": "evals/results/before/logs/b2-infantil.log"
+  },
+  "outcome": "pipeline_error",
+  "db_found": true,
+  "validators": {
+    "brief_schema": {
+      "passed": true,
+      "units": 1,
+      "failed_units": [],
+      "rows_total": 1,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "no_placeholders": {
+      "passed": true,
+      "units": 12,
+      "failed_units": [],
+      "rows_total": 13,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "schema_role_output": {
+      "passed": true,
+      "units": 9,
+      "failed_units": [],
+      "rows_total": 9,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "forbidden_words_scene": {
+      "passed": true,
+      "units": 9,
+      "failed_units": [],
+      "rows_total": 9,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "chapter_length": {
+      "passed": true,
+      "units": 3,
+      "failed_units": [],
+      "rows_total": 4,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "exact_names": {
+      "passed": true,
+      "units": 3,
+      "failed_units": [],
+      "rows_total": 4,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "prose_repetition": {
+      "passed": true,
+      "units": 3,
+      "failed_units": [],
+      "rows_total": 4,
+      "rows_failed": 0,
+      "min_score": 0.9
+    },
+    "fact_usage_recorder": {
+      "passed": true,
+      "units": 3,
+      "failed_units": [],
+      "rows_total": 4,
+      "rows_failed": 0,
+      "min_score": null
+    },
+    "forbidden_words_chapter": {
+      "passed": true,
+      "units": 3,
+      "failed_units": [],
+      "rows_total": 4,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "judge_chapter": {
+      "passed": true,
+      "units": 3,
+      "failed_units": [],
+      "rows_total": 4,
+      "rows_failed": 0,
+      "min_score": 0.9
+    },
+    "schema_brief": {
+      "passed": true,
+      "units": 1,
+      "failed_units": [],
+      "rows_total": 2,
+      "rows_failed": 0,
+      "min_score": 1.0
+    },
+    "brief_coverage": {
+      "passed": false,
+      "units": 1,
+      "failed_units": [
+        {
+          "chapter": null,
+          "scene": null,
+          "explanation": "Faltan 1 de 7 elementos obligatorios del brief: memory.el-caracol-campeon = «El caracol campeón: Martina organizó una carrera de caracoles en el huerto y el más lento ganó porque los demás se fueron a comer lechuga. (2025-04-19)» (el plan lo asignaba al capítulo 2). Intégralos de forma natural en el capítulo asignado (no como una lista)."
+        }
+      ],
+      "rows_total": 2,
+      "rows_failed": 2,
+      "min_score": 0.857
+    },
+    "judge_novel": {
+      "passed": true,
+      "units": 1,
+      "failed_units": [],
+      "rows_total": 2,
+      "rows_failed": 0,
+      "min_score": 0.84
+    },
+    "visual_check": {
+      "passed": true,
+      "units": 1,
+      "failed_units": [],
+      "rows_total": 2,
+      "rows_failed": 0,
+      "min_score": null
+    },
+    "lean_chronology": {
+      "passed": true,
+      "units": 1,
+      "failed_units": [],
+      "rows_total": 2,
+      "rows_failed": 0,
+      "min_score": 1.0
+    }
+  },
+  "policy": {
+    "forbidden_words": {
+      "allow": 13
+    }
+  },
+  "injection_decisions": [],
+  "cost": {
+    "novel_id": "eval-before-b2-infantil",
+    "calls": 21,
+    "input_tokens": 197,
+    "output_tokens": 185568,
+    "cache_read": 7254,
+    "cache_creation": 156788,
+    "cost_usd": 1.124747,
+    "latency_s": 1468.073,
+    "by_chapter": [
+      {
+        "chapter": null,
+        "calls": 3,
+        "input_tokens": 35,
+        "output_tokens": 36962,
+        "cache_read": 7254,
+        "cost_usd": 0.221753,
+        "latency_s": 303.464
+      },
+      {
+        "chapter": 1,
+        "calls": 5,
+        "input_tokens": 45,
+        "output_tokens": 24027,
+        "cache_read": 0,
+        "cost_usd": 0.161032,
+        "latency_s": 204.788
+      },
+      {
+        "chapter": 2,
+        "calls": 8,
+        "input_tokens": 72,
+        "output_tokens": 75878,
+        "cache_read": 0,
+        "cost_usd": 0.453483,
+        "latency_s": 615.545
+      },
+      {
+        "chapter": 3,
+        "calls": 5,
+        "input_tokens": 45,
+        "output_tokens": 48701,
+        "cache_read": 0,
+        "cost_usd": 0.288479,
+        "latency_s": 344.275
+      }
+    ],
+    "by_role": {
+      "editor": 0.345476,
+      "judge": 0.255361,
+      "planner": 0.1175,
+      "writer": 0.40641
+    }
+  },
+  "prompts": [
+    {
+      "role": "editor",
+      "prompt_name": "editor",
+      "prompt_version": "3",
+      "calls": 5
+    },
+    {
+      "role": "judge",
+      "prompt_name": "judge_chapter",
+      "prompt_version": "1",
+      "calls": 4
+    },
+    {
+      "role": "judge",
+      "prompt_name": "judge_novel",
+      "prompt_version": "1",
+      "calls": 2
+    },
+    {
+      "role": "planner",
+      "prompt_name": "planner",
+      "prompt_version": "2",
+      "calls": 1
+    },
+    {
+      "role": "writer",
+      "prompt_name": "writer",
+      "prompt_version": "3",
+      "calls": 9
+    }
+  ],
+  "final": {
+    "version": 1,
+    "status": "blocked",
+    "repair_rounds": 1,
+    "note": "{\"stop_reason\": \"repair_limit: - brief_coverage: Faltan 1 de 7 elementos obligatorios del brief: memory.el-caracol-campeon = «El caracol campeón: Martina organizó una carrera de caracoles en el huerto y el más lento ganó porque los demás se fueron a comer lechuga. (2025-04-19)» (el plan lo asignaba al capítulo 2). Intégralos de forma natural en el capítulo asignado (no como una lista). Evidencia: falta: memory.el-caracol-campeon = «El caracol campeón: Martina organizó una carrera de caracoles en el huerto y el más lento ganó porque los demás se fueron a comer lechuga. (2025-04-19)» (el plan lo asignaba al capítulo 2); uso registrado pero no presente en el texto: memory.el-caracol-campeon cap. [2]\"}",
+    "chapters": 3,
+    "words": [
+      1007,
+      1106,
+      1119
+    ]
+  }
+}
