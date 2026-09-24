@@ -117,28 +117,42 @@ minute on 4 workers.
 
 ## Mapping: TLA+ action → code
 
-> **To be confirmed against code in wave C.** The pipeline (spec 007, B3) and the
-> repository (spec 005, B1) are being written in parallel; the names below are the ones
-> fixed in plan 004 and in the B9 brief. Wave C checks each row against the code and
-> either confirms it or updates the model.
+**Confirmed against the code** at `340ede7` (spec 007 pipeline, spec 005 repository). Every
+function below exists under that name; the pipeline is `backend/app/novel/pipeline.py`
+(`pipeline.`), the repository `backend/app/bible/repository.py` (`repo.`).
 
-| TLA+ action | Expected code | State or transition in the code |
+| TLA+ action | Code | State or transition in the code |
 |---|---|---|
-| `Init` (`pc = "Configured"`) | brief validated by the interview (B2) | a `brief` row exists and validates; no `novel_version` row |
-| `Plan` | `backend/app/novel/pipeline.py` `plan_novel` | inserts `novel_version(version = 1, status = draft, changed_chapters = all)` and the plan |
-| `NextChapter` | `pipeline.py` `write_chapter` loop, `resume` | picks the lowest chapter of the version whose `checkpoint` is not complete; none left → pre-publish |
-| `WriteScene` | `pipeline.py` `write_chapter` + `run_scene_validators` | writes one scene, runs hook `before_scene_accept` → `run_point(scene_accept)` (forbidden words, schema); fail → rewrite the scene, at most `MAX_SCENE_RETRIES`, then stop |
-| `Editor` | `pipeline.py` `write_chapter` (editor role) | style editor + auditor pass over the assembled chapter |
-| `CloseChapter` | `pipeline.py` `close_chapter` | hook `before_chapter_close` → `run_point(chapter_close)` (length, exact names, judge); failure count read from `validator_result` (CE2); fail → rewrite, at most `MAX_CHAPTER_RETRIES`, then stop |
-| `Checkpoint` | `pipeline.py` `checkpoint` → `backend/app/bible/repository.py` (checkpoint) | **one transaction**: upsert `chapter_version(version, chapter, text, hash)` and set `checkpoint.status = complete`; refused for a published version (CE1, CE3) |
-| `PrePublish` (pass) | `pipeline.py` `publish_version` | hook `before_publish` → `run_point(pre_publish)` (brief coverage, Lean, visual); result persisted |
-| `PrePublish` (fail, repair) | `pipeline.py` `publish_version` → `repository.py` (versions) | one transaction: `novel_version.status = blocked`, repair round + 1 (CE4), reopened chapters' `checkpoint.status` reset |
-| `PrePublish` (fail, exhausted) | `pipeline.py` `publish_version` | version stays `blocked`; the run ends `StoppedError` |
-| `Publish` | `pipeline.py` `publish_version` → `repository.py` (versions) | `novel_version.status = published`; its `chapter_version` rows are never written again |
-| `ChangeFact` | `pipeline.py` `change_fact` → `repository.py` (versions) | one transaction: update the `fact`, insert `novel_version(v+1, parent = v, status = draft, changed_chapters = A)`, copy the other chapters' `chapter_version` rows and complete checkpoints; version v untouched |
+| `Init` (`pc = "Configured"`) | `app/interview/service.py` `ingest_brief` | a `brief` row exists and validates (`brief_schema`, point `hook`); no `novel_version` row |
+| `Plan` | `pipeline.plan_novel` → `persist_plan` → `record_plan_usage`; `pipeline._open_version` → `repo.create_version` | one planner call, `check_plan` + `chronology_problems`, at most `MAX_REPLANS = 1`; the plan is stored as fact `plan.v1`; `novel_version(version = 1, status = draft)` |
+| `NextChapter` / `Resume` | `pipeline._chapter_loop` via `repo.first_incomplete_chapter`; entered from `generate` (`resume` is the same call) | the lowest chapter of the version without a `complete` checkpoint; none left → `publish_version` |
+| `WriteScene` | `pipeline.write_scene` → `before_scene_accept` → `run_point(SCENE_ACCEPT)` | writer call, then `schema_role_output`, `forbidden_words_scene`, `no_placeholders`; fail → rewrite with feedback, at most `MAX_SCENE_RETRIES = 2` (loop counter **in memory**, see below), then `StopRunError` → `stopped_error` |
+| `Editor` | `pipeline.write_chapter` → `pipeline._edit` | the editor joins the three scenes (or repairs a reopened chapter, or rewrites a changed one) plus one bounded length adjustment |
+| `CloseChapter` | `pipeline.close_chapter` → `before_chapter_close` → `run_point(CHAPTER_CLOSE)` | budget read by `_chapter_close_runs` from `repo.count_chapter_attempts` (persisted `chapter_close` runs since the chapter was last reopened, **CE2**); fail → the rejected text goes to `repo.record_chapter_attempt` and the editor rewrites, at most `MAX_CHAPTER_RETRIES = 2`, then `stopped_error` |
+| `Checkpoint` | `pipeline.checkpoint` → `repo.save_chapter_and_checkpoint` | **one transaction**: upsert `chapter_version(version, chapter)` and `checkpoint.status = complete` (**CE1**); refused for a published version (**CE3**) |
+| `PrePublish` (pass) / `Publish` | `pipeline.publish_version` → `before_publish` → `run_point(PRE_PUBLISH)`; `repo.set_version_status(…, "published")` | `schema_brief`, `brief_coverage`, `lean_chronology`, `judge_novel`, `visual_check`; results persisted; the version becomes `published` and its rows are never written again |
+| `PrePublish` (fail, repair) | `pipeline.publish_version` → `repo.block_version(…, repair_rounds = repair_rounds + 1)` + `repo.set_checkpoint(…, "pending")` | one transaction: `status = blocked`, repair round + 1 (**CE4**), the chapters named by `chapters_named` reopened; `_chapter_loop` runs again |
+| `PrePublish` (fail, exhausted) | `pipeline.publish_version` → `pipeline._stop` | `repair_rounds >= MAX_REPAIR_ROUNDS = 1`: the version stays `blocked`, the novel `stopped_error` with `stop_reason` in the version note |
+| `ChangeFact` | `pipeline.change_fact` → `repo.update_fact_value` → `repo.create_version_from(parent, copy_chapters_except = affected)` → `_chapter_loop` | new version v+1 (draft, parent = latest published) with the unaffected chapters and their checkpoints copied in one transaction; only the affected chapters are rewritten; version v untouched |
 | `Crash` | process killed (container restart, exception, `kill`) | memory lost; SQLite keeps committed transactions |
-| `Resume` | `pipeline.py` `resume` → `repository.py` (checkpoint, versions) | reads the latest `novel_version`: none → plan; published → nothing to do; draft or blocked → continue at the first chapter without a complete checkpoint, with retry and repair counts read from the database |
-| `Done` | — | terminal stutter: `Published` or `StoppedError` |
+| `Resume` | `pipeline.generate` / `resume` → `load_plan`, `_open_version`, `first_incomplete_chapter` | no version → plan; latest published → "already published"; draft or blocked → continue at the first chapter without a complete checkpoint, with chapter and repair budgets read from the database |
+| `Done` | — | terminal: `RunResult.status` ∈ `published`, `stopped_error` |
+
+**Divergences between the model and the code** (found while confirming the table; recorded
+in [`docs/process/iteraciones.md`](../../docs/process/iteraciones.md#divergencias-encontradas-al-mapear-tla-a-código)):
+
+1. *Scene retry counter in memory.* `write_scene` counts rewrites in a local loop, so a
+   crash restarts the chapter from scene 1 with a fresh scene budget. This is safe and
+   matches the model, where `sceneTry` is volatile: scenes are never checkpointed (plan
+   004, V4), and the model's `RetriesBounded` across crashes is enforced by the durable
+   chapter-close and repair counters; the extra cost is bounded by the number of crashes.
+2. *`ChangeFact` is not one transaction in the code.* The model takes it as one atomic
+   step (rule 5 below). `change_fact` commits `update_fact_value` (and, for a name, the
+   renames of cast, derived facts and brief) **before** `create_version_from`, which is
+   itself one transaction. A crash between them leaves the fact changed with no version
+   v+1, and `Resume` then finds the latest version published: the change is lost silently.
+   Not fixed here (code is owned by spec 007); proposed fix: one repository transaction
+   around both.
 
 **Rules the code must follow**, each produced by a counterexample
 ([`COUNTEREXAMPLES.md`](./COUNTEREXAMPLES.md)):
@@ -152,4 +166,5 @@ minute on 4 workers.
    (CE4).
 5. Assumed by the model, not found by TLC: `change_fact` creates the new version and its
    copied rows in one transaction, and publishing is an insert of a new version plus a
-   status change, never an update of an earlier version's rows.
+   status change, never an update of an earlier version's rows. The publishing half holds
+   in the code; the `change_fact` half does not yet (divergence 2 above).
