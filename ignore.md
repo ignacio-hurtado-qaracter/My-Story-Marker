@@ -18,7 +18,7 @@ sesión, las respuestas que se dieron y el enunciado completo del examen.
 
 2. Abre Claude Code en esa carpeta y empieza con este mensaje:
 
-   > Lee `ignore.md` y todos los ficheros de `.claude/memory/`. Después lee las tres rondas
+   > Lee `ignore.md` y todos los ficheros de `.claude/memory/`. Después lee todas las rondas
    > de `exam/process-0/`, ejecuta `python exam/check.py` y dime qué queda abierto antes de
    > redactar la spec 004.
 
@@ -46,7 +46,7 @@ qué falta frente al enunciado y se montó un espacio de trabajo paralelo (workt
 `My-Story-Marker-docs`, rama `exam/rescope`) para refactorizar documentación y todo lo que
 no es código sin pisar a la sesión del backend. Ya existe un comprobador automático de
 cumplimiento, el andamiaje de entregables y tres rondas del Proceso 0. **El siguiente paso
-es contestar la ronda 3 (preguntas 2, 10, 26, 29, 30 y 31) y redactar la spec 004**, que
+es contestar las rondas 3 y 4 (preguntas 2, 10, 26, 29-34) y redactar la spec 004**, que
 confronta lo que dice `docs/` con el enunciado del examen.
 
 ---
@@ -81,10 +81,11 @@ git diff --stat spec/001-backend...exam/rescope
 |---|---|
 | `exam/requirements.toml` | El enunciado convertido en 72 requisitos obligatorios comprobables y 4 opcionales |
 | `exam/check.py` | Comprobador sin dependencias; escribe `exam/compliance.md` |
-| `exam/compliance.md` | Informe generado: 12 de 72 obligatorios comprobables cumplidos |
+| `exam/compliance.md` | Informe generado: 17 de 72 obligatorios comprobables cumplidos (2026-09-24) |
 | `exam/process-0/round-1-rescope.md` | Ronda 1 del Proceso 0, con respuestas |
 | `exam/process-0/round-2-rescope.md` | Ronda 2 del Proceso 0, con respuestas |
 | `exam/process-0/round-3-rescope.md` | Ronda 3: la spec pasa a 004 y se centra en confrontar `docs/` con el enunciado |
+| `exam/process-0/round-4-rescope.md` | Ronda 4: qué ha resuelto ya la rama del backend (revisión en solo lectura) |
 | `.claude/commands/exam-gap.md` | Comando `/exam-gap`: regenera el informe y propone el siguiente bloque |
 | `.claude/memory/` | Copia curada de la memoria de Claude Code |
 | `.mcp.json` | Servidor Playwright MCP fijado a 0.0.82, para inspección visual |
@@ -126,6 +127,11 @@ git diff --stat spec/001-backend...exam/rescope
     `exam/rescope` y la protección local ahora bloquea cualquier cambio de rama allí.
 14. **Reenfoque del usuario:** la spec pasa a ser la **004** y se centra en **confrontar
     `docs/` con el enunciado**. Ronda 3 del Proceso 0.
+15. **Ronda 4:** revisión en solo lectura de `spec/001-backend`. `docs/` no ha cambiado,
+    así que las contradicciones de la ronda 3 siguen en pie. El código sí ha avanzado:
+    retries con límite, orquestador, resúmenes por capítulo, reanudación de turno, CI,
+    contrato y base del frontend. Se corrigieron cuatro falsos positivos del comprobador y
+    se hizo merge de la rama del backend en `exam/rescope`. Cumplimiento: 17 de 72.
 
 ---
 
@@ -171,6 +177,14 @@ entre `docs/` y el enunciado.
 | 30 | Alcance: confrontación, decisiones y lista de ediciones de `docs/`, cumplida con los commits `docs:` tras aprobarla; el código va a las specs de bloque | (a) |
 | 31 | ¿Es ese el tipo de confrontación que esperas? | Sí, con todas las filas del enunciado |
 
+De la ronda 4 (revisión de la rama del backend):
+
+| # | Pregunta | Recomendación |
+|---|---|---|
+| 32 | Los tres hallazgos aplazados del backend que tocan el examen (`literal_tail` por orden de discurso, procedencia sin id de turno, explicación semántica no guardada) entran como filas de la spec 004 | Sí, resueltos por la spec de su bloque |
+| 33 | La spec del bloque de lectura reclama la vista de personajes y la de lectura completa que la spec 003 deja fuera | Sí |
+| 34 | Repetir el merge en un solo sentido de `spec/001-backend` antes de redactar cada spec de esta rama | Sí, solo con la carpeta limpia |
+
 **Salen de la spec 004:** la 3 (ramas) es logística y se sigue aplicando como regla de
 trabajo; la 28 (quién redacta las specs del lector) pasa a la spec del bloque de lectura.
 
@@ -188,7 +202,7 @@ copió a `.claude/memory/`). Sus recomendaciones están en la ronda 1.
 
 ### Próximos pasos
 
-1. Responder la ronda 3: 2, 10, 26, 29, 30 y 31.
+1. Responder las rondas 3 y 4: 2, 10, 26 y 29-34.
 2. Redactar el **resumen de entendimiento compartido** y confirmarlo.
 3. Redactar la **spec 004**, la confrontación de `docs/` con el enunciado, en
    `specs/004-<slug>/004-<slug>.md`.

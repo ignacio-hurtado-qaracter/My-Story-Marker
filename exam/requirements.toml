@@ -227,7 +227,7 @@ id = "H01"
 block = "3. Harness"
 text = "Tres roles como mínimo (planner, writer, editor/critic) invocados por un orquestador"
 checks = [
-  { kind = "grep", regex = '(?i)def plan\w*\(', files = ["backend/app/agents/**/*.py"] },
+  { kind = "grep", regex = '(?i)def plan(_(novel|chapters?|scenes|structure|story))?\(', files = ["backend/app/agents/**/*.py"] },
   { kind = "grep", regex = '(?i)def write\w*\(', files = ["backend/app/agents/**/*.py"] },
   { kind = "grep", regex = '(?i)def (critique|audit|edit|polish|judge)\w*\(', files = ["backend/app/agents/**/*.py"] },
 ]

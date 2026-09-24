@@ -4,7 +4,7 @@ Generado por `python exam/check.py` a partir de `exam/requirements.toml`. No se 
 
 Las comprobaciones son heurísticas: ✅ dice que el artefacto existe, no que sea bueno.
 
-**Obligatorios comprobables cumplidos: 13 de 72.**
+**Obligatorios comprobables cumplidos: 17 de 72.**
 
 Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ existe, revisar a mano
 
@@ -16,9 +16,9 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 | Presentación | 1 | 0 | 4 | 0 |
 | Claude Code | 3 | 1 | 2 | 0 |
 | 1. Configuración | 0 | 0 | 4 | 0 |
-| 2. Lectura | 0 | 0 | 7 | 0 |
-| 3. Harness | 1 | 0 | 4 | 1 |
-| 4. Memoria | 0 | 0 | 4 | 0 |
+| 2. Lectura | 2 | 0 | 5 | 0 |
+| 3. Harness | 2 | 1 | 2 | 1 |
+| 4. Memoria | 1 | 1 | 2 | 0 |
 | 5a. Programáticos | 0 | 1 | 5 | 0 |
 | 5b. Semánticos | 0 | 0 | 2 | 0 |
 | 5c. Lean 4 | 0 | 0 | 4 | 0 |
@@ -76,8 +76,8 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
-| R01 | ❌ | Lector web (frontend) o PDF interactivo | ✗ 0 file(s) for frontend/src/**/*.tsx \| backend/app/**/pdf*.py \| backend/app/**/export*.py (need 1) |
-| R02 | ❌ | Índice de capítulos navegable | ✗ /(?i)(table.?of.?contents\|\btoc\b\|índice)/ found 0x in frontend/src/**/*.tsx \| backend/app/**/*.py (need 1) |
+| R01 | ✅ | Lector web (frontend) o PDF interactivo | ✓ 23 file(s) for frontend/src/**/*.tsx \| backend/app/**/pdf*.py \| backend/app/**/export*.py (need 1) |
+| R02 | ✅ | Índice de capítulos navegable | ✓ /(?i)(table.?of.?contents\|\btoc\b\|índice)/ in frontend/src/app/routes.test.tsx (+3) |
 | R03 | ❌ | Ficha de personajes y lugares desde la story bible, con enlaces al capítulo donde aparecen | ✗ /(?i)(character.?sheet\|ficha\|glossary\|dramatis)/ found 0x in frontend/src/**/*.tsx \| backend/app/**/*.py (need 1) |
 | R04 | ❌ | Portada con dedicatoria personalizada | ✗ /(?i)dedicat/ found 0x in frontend/src/**/*.tsx \| backend/app/**/*.py (need 1) |
 | R05 | ❌ | Cambio pedido por el lector: identifica capítulos que usan el hecho y regenera solo esos | ✗ /(?i)change.?request/ found 0x in backend/app/**/*.py (need 1) |
@@ -88,12 +88,12 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
-| H01 | ❌ | Tres roles como mínimo (planner, writer, editor/critic) invocados por un orquestador | ✗ /(?i)def (plan\|write\|revise\|critique\|edit\|audit)\w*\(/ found 1x in backend/app/agents/**/*.py (need 3) |
+| H01 | 🟡 | Tres roles como mínimo (planner, writer, editor/critic) invocados por un orquestador | ✗ /(?i)def plan(_(novel\|chapters?\|scenes\|structure\|story))?\(/ found 0x in backend/app/agents/**/*.py (need 1)<br>✓ /(?i)def write\w*\(/ in backend/app/agents/roles/writer.py (+4)<br>✓ /(?i)def (critique\|audit\|edit\|polish\|judge)\w*\(/ in backend/app/agents/roles/auditor.py (+4) |
 | H02 | 📝✅ | Una skill reutilizable propia del harness | ✓ 4 file(s) for .claude/skills/*/SKILL.md (need 1) |
 | H03 | ❌ | Hook de validación de capítulo | ✗ /(?i)chapter/ found 0x in .claude/settings.json \| .claude/hooks/* (need 1) |
 | H04 | ❌ | Hook de policy | ✗ /(?i)policy/ found 0x in .claude/settings.json \| .claude/hooks/* (need 1) |
 | H05 | ✅ | Tools con schema validado | ✓ /(?i)(def toolset_for\|tool_schema\|input_schema)/ in backend/app/commons/permissions/toolsets.py |
-| H06 | ❌ | Retries con límite, usados por el orquestador | ✗ /TURN_MAX_REVISIONS\|MAX_RETRIES\|max_attempts/ found 0x in backend/app/agents/**/*.py (need 1) |
+| H06 | ✅ | Retries con límite, usados por el orquestador | ✓ /TURN_MAX_REVISIONS\|MAX_RETRIES\|max_attempts/ in backend/app/agents/turn.py |
 
 ## 4. Memoria
 
@@ -101,14 +101,14 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 |---|---|---|---|
 | M01 | ❌ | Story bible en SQLite: cada hecho registra en qué capítulos se usa | ✗ /(?i)CREATE TABLE\s+(IF NOT EXISTS\s+)?\w*fact/ found 0x in backend/app/**/*.sql (need 1) |
 | M02 | ❌ | Tabla de cronología en SQLite (eventos, momento, personajes, lugar) | ✗ /(?i)CREATE TABLE\s+(IF NOT EXISTS\s+)?\w*(chrono\|event\|timeline)/ found 0x in backend/app/**/*.sql (need 1) |
-| M03 | ❌ | Resúmenes por capítulo que alimentan el contexto de los siguientes | ✗ /(?i)def \w*(digest\|summar\|rollup)\w*\(/ found 0x in backend/app/agents/**/*.py (need 1) |
-| M04 | ❌ | Checkpoint por capítulo y reanudación desde el último completado | ✗ /(?i)(checkpoint\|def resume)/ found 0x in backend/app/**/*.py (need 1) |
+| M03 | ✅ | Resúmenes por capítulo que alimentan el contexto de los siguientes | ✓ /(?i)def \w*(digest\|summar\|rollup)\w*\(/ in backend/app/agents/roles/writer.py (+6) |
+| M04 | 🟡 | Checkpoint por capítulo y reanudación desde el último completado | ✓ /(?i)(checkpoint\|def resume)/ in backend/app/agents/router.py (+2)<br>✗ /(?i)(chapter\w{0,20}(checkpoint\|resume)\|(checkpoint\|resume)\w{0,20}chapter\|last_completed_chapter)/ found 0x in backend/app/**/*.py (need 1) |
 
 ## 5a. Programáticos
 
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
-| V01 | ❌ | Longitud de cada capítulo dentro del rango (1.000–1.500 palabras) | ✗ /(?i)(word_range\|min_words\|max_words)/ found 0x in backend/app/**/*.py (need 1) |
+| V01 | ❌ | Longitud de cada capítulo dentro del rango (1.000–1.500 palabras) | ✗ /(?i)\b(chapter_word_range\|chapter_min_words\|chapter_max_words\|word_range\|min_words\|max_words)\b/ found 0x in backend/app/**/*.py (need 1) |
 | V02 | ❌ | Nombre del destinatario y personajes escritos exactamente como en la story bible | ✗ /(?i)(exact_name\|name_spelling)/ found 0x in backend/app/**/*.py (need 1) |
 | V03 | ❌ | Cada elemento personalizado obligatorio del brief aparece en algún capítulo (contra SQLite) | ✗ /(?i)(brief_coverage\|required_element)/ found 0x in backend/app/**/*.py (need 1) |
 | V04 | 🟡 | Schema del brief y de la salida de cada rol validados | ✓ /class \w+Output\(/ in backend/app/commons/schemas/role_outputs.py<br>✗ 0 file(s) for backend/schemas/brief*.json (need 1) |
@@ -162,7 +162,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
 | G01 | ❌ | Listas de palabras prohibidas en SQLite, globales y por novela | ✗ /(?i)CREATE TABLE\s+(IF NOT EXISTS\s+)?\w*(forbidden\|banned\|blocklist)/ found 0x in backend/app/**/*.sql (need 1) |
-| G02 | ❌ | Normalización antes de comparar: mayúsculas, acentos, plurales y variantes simples | ✗ /unicodedata/ found 0x in backend/app/**/*.py (need 1) |
+| G02 | ❌ | Normalización antes de comparar: mayúsculas, acentos, plurales y variantes simples | ✗ /unicodedata/ found 0x in backend/app/**/*guardrail*.py \| backend/app/**/*policy*.py \| backend/app/**/*forbidden*.py \| backend/app/guardrails/**/*.py \| backend/app/policy/**/*.py (need 1) |
 | G03 | 📝 | Una coincidencia devuelve el capítulo al writer con límite; agotado, se detiene e informa | — |
 | G04 | ❌ | Audit log de las decisiones del policy engine (cada coincidencia también en Langfuse) | ✗ /(?i)CREATE TABLE\s+(IF NOT EXISTS\s+)?\w*audit/ found 0x in backend/app/**/*.sql (need 1) |
 | G05 | ❌ | Tests con un caso por nivel y un caso de variante (acento o plural) | ✗ 0 file(s) for backend/app/**/tests/test_*forbidden*.py \| backend/app/**/tests/test_*guardrail*.py (need 1) |
