@@ -21,3 +21,6 @@ backend/.env
 # Node
 node_modules/
 dist/
+
+# Playwright MCP snapshots
+.playwright-mcp/
