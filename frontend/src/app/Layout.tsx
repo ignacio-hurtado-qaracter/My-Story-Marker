@@ -2,6 +2,7 @@
 // Spec 002, FR-SHELL-01; spec 003, FR-IA-02 (revision 2).
 import { Link, Outlet, useLocation } from 'react-router'
 
+import { AuthRedirect, UserMenu } from '../auth'
 import { HealthBadge } from '../health'
 import './Layout.css'
 import logo from './logo-qaracter.svg'
@@ -52,8 +53,10 @@ export function Layout() {
             </ul>
           </nav>
           <HealthBadge />
+          <UserMenu />
         </div>
       </header>
+      <AuthRedirect />
       <main className="container">
         <Outlet />
       </main>
