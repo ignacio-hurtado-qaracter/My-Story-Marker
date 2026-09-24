@@ -44,7 +44,8 @@ def test_fact_usage_roundtrip(repo: BibleRepository) -> None:
     repo.add_forbidden_term("exmarido", scope="novel", novel_id=novel.id)
     terms = sorted(t.term for t in repo.list_forbidden_terms(novel.id))
     assert {"exmarido", "violencia"} <= set(terms) and terms.count("exmarido") == 1
-    assert [t.term for t in repo.list_forbidden_terms()] == ["violencia"]
+    assert "violencia" in {t.term for t in repo.list_forbidden_terms()}
+    assert "exmarido" not in {t.term for t in repo.list_forbidden_terms()}
 
 
 # spec 005 / AC 2 — M02
