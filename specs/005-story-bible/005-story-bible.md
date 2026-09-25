@@ -1,7 +1,7 @@
 ---
 id: 005
 title: B1 — Authoritative story bible (contracts K1 and K3)
-status: approved         # approved 2026-09-24 on the user's delegation for this session
+status: implemented      # closed 2026-09-25 on the user's delegation (programme 004 close-out)
 supersedes: null
 programme: 004
 block: B1
@@ -95,3 +95,21 @@ The spec went back to draft and was re-approved on the user's delegation the sam
 
 Otherwise none. Deferred: migrating to a server database, concurrent writers beyond WAL — accepted
 under plan 004 V3 (light verification).
+
+## Closing note (2026-09-25)
+
+Closed on the user's delegation (programme 004 close-out, Process 2 step 12). Evidence at
+`proyecto-desde-cero` @ `0e8118c`: backend gate `ruff check .` clean, `mypy --strict .`
+clean (290 files), `pytest` 1758 passed / 8 skipped / 1 failed. The one failure is
+`tests/test_boundaries_mirror.py`, the spec 001 store-boundary guard, which flags file I/O
+in the new modules; it is not an acceptance criterion of this spec and is left to the
+author (`docs/process/README.md`, "Pendiente para el autor").
+
+| AC | Satisfied by |
+|---|---|
+| 1 | T — `app/bible/tests/test_repository.py` (fact round-trip, chapters from `fact_usage`) |
+| 2 | T — `app/bible/tests/test_repository.py` (`chronology_json` in K1 format); consumed by `app/formal/tests/test_lean.py` |
+| 3 | T — `app/bible/tests/test_repository.py` (new version keeps parent text and hash) |
+| 4 | T — `app/validators/tests/test_registry.py` (`run_point`: one row per validator, exception → failed, one score each) |
+| 5 | A — ruff and mypy --strict clean on `app/bible`, `app/validators`; `app/bible` has no boundary finding |
+| 6 | T — `app/bible/tests/test_repository.py` (CE1–CE4 rules); migration `1001_tlc_rules.sql` |
