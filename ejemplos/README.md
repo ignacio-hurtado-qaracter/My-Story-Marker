@@ -43,3 +43,28 @@ el intento paralelo `novela-ejemplo-b`, con el mismo código, se paró con `repa
 (6,05 USD) tras gastar sus dos rondas de reparación en un fallo de exportación a Lean que
 la prosa no puede arreglar
 ([detalle](../docs/process/iteraciones.md#iteración-de-tuning-2)).
+
+## Ver estas novelas en el lector web local (`harness-demo.sqlite`)
+
+`harness-demo.sqlite` es una copia de la story bible en la que se generaron estas novelas
+(copia en solo lectura autorizada por el autor el 2026-09-25). Contiene las 5 novelas de la
+noche del 24 al 25: `novela-ejemplo-a` (10 capítulos, publicada, versiones 1 y 2 con el cambio
+«Canela» → «Nala»), `novela-infantil` (3 capítulos, publicada) y los tres intentos parados
+(`novela-ejemplo`, `novela-ejemplo-final`, `novela-ejemplo-b`), que se ven en la Biblioteca con
+el filtro «Otras». Datos ficticios. Las novelas pertenecen al usuario interno `local`, así que
+arranca el backend sin login. `HARNESS_DB` se resuelve **desde la raíz del repositorio**:
+
+```bash
+cd backend
+AUTH_REQUIRED=0 STORY_ROOT=tests/fixtures/repo HARNESS_DB=ejemplos/harness-demo.sqlite \
+  uv run uvicorn app.main:app --port 8000
+# en otra terminal
+cd frontend && npm run dev        # http://localhost:5173
+```
+
+PowerShell: `$env:AUTH_REQUIRED="0"; $env:STORY_ROOT="tests/fixtures/repo";
+$env:HARNESS_DB="ejemplos/harness-demo.sqlite"; uv run uvicorn app.main:app --port 8000`.
+
+El backend escribe en ese fichero (migraciones, cambios que pidas desde el lector); si quieres
+conservarlo intacto, cópialo antes (`cp ejemplos/harness-demo.sqlite data/mi-copia.sqlite`) y
+apunta `HARNESS_DB` a la copia.
