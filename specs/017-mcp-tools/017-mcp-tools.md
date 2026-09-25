@@ -1,7 +1,7 @@
 ---
 id: 017
 title: B3/X — Read-only tools with validated schema and a read-only MCP server
-status: approved         # approved 2026-09-24 on the user's delegation for this session
+status: implemented      # closed 2026-09-25 on the user's delegation (programme 004 close-out)
 supersedes: null
 programme: 004
 block: B3 (H05) + optional X01
@@ -91,3 +91,22 @@ subprocess per chapter — recorded here, no doc change.
 ## Open questions
 
 - HTTP mount at `/mcp` under FastAPI: deferred (see Scope, Out).
+
+## Closing note (2026-09-25)
+
+Closed on the user's delegation (programme 004 close-out, Process 2 step 12). Evidence at
+`proyecto-desde-cero` @ `0e8118c`: backend gate `ruff check .` clean, `mypy --strict .`
+clean (290 files), `pytest` 1758 passed / 8 skipped / 1 failed. The one failure is
+`tests/test_boundaries_mirror.py`, the spec 001 store-boundary guard, which flags file I/O
+in the new modules; it is not an acceptance criterion of this spec and is left to the
+author (`docs/process/README.md`, "Pendiente para el autor").
+
+| AC | Satisfied by |
+|---|---|
+| 1 | T — `app/tools/tests/test_tools.py` (pydantic in/out models, invalid input rejected before the handler) |
+| 2 | T — `test_tools.py` (`list_novels`, `get_chapter` on a temp DB) |
+| 3 | T · I — `app/novel/tests/test_pipeline.py` green; review of `app/novel/context.py` (`tool:<name>` spans) |
+| 4 | D · I — JSON-RPC `initialize` + `tools/list` → six tools, recorded in the spec 017 commit body; read-only connection reviewed |
+| 5 | I — review of `app/mcp_server/server.py` (`mcp:<tool>` trace, `tool:<tool>` span) |
+| 6 | I — `backend/app/mcp_server/README.md` |
+| 7 | A — ruff and mypy --strict clean on `app/tools`, `app/mcp_server` |
