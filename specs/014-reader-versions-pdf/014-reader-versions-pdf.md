@@ -1,7 +1,7 @@
 ---
 id: 014
 title: B10 — Reader, versions and PDF export (contract K5)
-status: approved         # approved 2026-09-24 on the user's delegation for this session (plan 004, V6)
+status: implemented      # closed 2026-09-25 on the user's delegation (programme 004 close-out)
 supersedes: null
 programme: 004
 block: B10
@@ -122,3 +122,21 @@ Known limitation (clarified, browser-MCP finding 2): `character`/`place` are not
 Names are mapped back per version from the `change` notes, but a character's
 `description` or `role` is shown as it is now in every version. Versioning the cast is a
 K1 design change (spec 005), not done.
+
+## Closing note (2026-09-25)
+
+Closed on the user's delegation (programme 004 close-out, Process 2 step 12). Evidence at
+`proyecto-desde-cero` @ `0e8118c`: backend gate `ruff check .` clean, `mypy --strict .`
+clean (290 files), `pytest` 1758 passed / 8 skipped / 1 failed. The one failure is
+`tests/test_boundaries_mirror.py`, the spec 001 store-boundary guard, which flags file I/O
+in the new modules; it is not an acceptance criterion of this spec and is left to the
+author (`docs/process/README.md`, "Pendiente para el autor").
+
+| AC | Satisfied by |
+|---|---|
+| 1 | T — `app/reader/tests/test_reader.py` (chapter list with `changed_vs_parent`, concurrent requests, versioned bible names) |
+| 2 | T — `test_reader.py` (PDF cover, Novedades, linked index, sheets) · D — `ejemplos/novela-ejemplo.pdf`, `ejemplos/novela-ejemplo-v2-cambio-nala.pdf` |
+| 3 | I · D — review of `app/reader/router.py` (202 + job); the change pipeline demonstrated by the CLI change on `novela-ejemplo-a` |
+| 4 | D — `frontend/e2e/visual-check.spec.ts` run on the dev seed, screenshots in `frontend/screenshots/visual-check/`; browser-MCP log `docs/process/browser-mcp-log.md` |
+| 5 | I · D — `visual_check` registered at pre_publish; skipped cleanly on the live runs (`VISUAL_CHECK` off), passing run in `5d9ef24` |
+| 6 | A — ruff and mypy --strict clean on `app/reader`, `app/export`; frontend lint and typecheck in the spec 014 commit bodies |
