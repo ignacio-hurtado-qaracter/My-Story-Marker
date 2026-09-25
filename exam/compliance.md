@@ -4,7 +4,7 @@ Generado por `python exam/check.py` a partir de `exam/requirements.toml`. No se 
 
 Las comprobaciones son heurísticas: ✅ dice que el artefacto existe, no que sea bueno.
 
-**Obligatorios comprobables cumplidos: 70 de 72.**
+**Obligatorios comprobables cumplidos: 71 de 72.**
 
 Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ existe, revisar a mano
 
@@ -17,7 +17,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 | Claude Code | 6 | 0 | 0 | 0 |
 | 1. Configuración | 4 | 0 | 0 | 0 |
 | 2. Lectura | 7 | 0 | 0 | 0 |
-| 3. Harness | 4 | 1 | 0 | 1 |
+| 3. Harness | 5 | 0 | 0 | 1 |
 | 4. Memoria | 4 | 0 | 0 | 0 |
 | 5a. Programáticos | 6 | 0 | 0 | 0 |
 | 5b. Semánticos | 1 | 0 | 0 | 1 |
@@ -88,7 +88,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
-| H01 | 🟡 | Tres roles como mínimo (planner, writer, editor/critic) invocados por un orquestador | ✗ /(?i)def plan(_(novel\|chapters?\|scenes\|structure\|story))?\(/ found 0x in backend/app/agents/**/*.py (need 1)<br>✓ /(?i)def write\w*\(/ in backend/app/agents/roles/writer.py (+4)<br>✓ /(?i)def (critique\|audit\|edit\|polish\|judge)\w*\(/ in backend/app/agents/roles/auditor.py (+4) |
+| H01 | ✅ | Tres roles como mínimo (planner, writer, editor/critic) invocados por un orquestador | ✓ /(?i)def plan(_(novel\|chapters?\|scenes\|structure\|story))?\(/ in backend/app/novel/pipeline.py (+1)<br>✓ /(?i)def write\w*\(/ in backend/app/agents/roles/writer.py (+6)<br>✓ /(?i)def (critique\|audit\|edit\|polish\|judge)\w*\(/ in backend/app/agents/roles/auditor.py (+5) |
 | H02 | 📝✅ | Una skill reutilizable propia del harness | ✓ 6 file(s) for .claude/skills/*/SKILL.md (need 1) |
 | H03 | ✅ | Hook de validación de capítulo | ✓ /(?i)chapter/ in .claude/hooks/README.md (+5) |
 | H04 | ✅ | Hook de policy | ✓ /(?i)policy/ in .claude/hooks/README.md (+4) |
