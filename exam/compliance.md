@@ -4,7 +4,7 @@ Generado por `python exam/check.py` a partir de `exam/requirements.toml`. No se 
 
 Las comprobaciones son heurísticas: ✅ dice que el artefacto existe, no que sea bueno.
 
-**Obligatorios comprobables cumplidos: 69 de 72.**
+**Obligatorios comprobables cumplidos: 70 de 72.**
 
 Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ existe, revisar a mano
 
@@ -12,7 +12,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 
 | Bloque | ✅ | 🟡 | ❌ | 📝 |
 |---|---|---|---|---|
-| Entregables | 4 | 0 | 1 | 3 |
+| Entregables | 5 | 0 | 0 | 3 |
 | Presentación | 4 | 0 | 1 | 0 |
 | Claude Code | 6 | 0 | 0 | 0 |
 | 1. Configuración | 4 | 0 | 0 | 0 |
@@ -37,7 +37,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 | E02 | ✅ | Brief de ejemplo reproducible, citado desde el README (provisional: ejemplos/brief-ejemplo.json) | ✓ 1 file(s) for ejemplos/brief-ejemplo.* (need 1)<br>✓ /brief-ejemplo/ in README.md |
 | E03 | ✅ | .env.example versionado | ✓ exists: .env.example |
 | E04 | ✅ | Sin API keys ni tokens en ningún fichero versionado | ✓ no match in tracked files |
-| E05 | ❌ | Novela de ejemplo completa de 10 capítulos en PDF | ✗ missing: ejemplos/novela-ejemplo.pdf |
+| E05 | ✅ | Novela de ejemplo completa de 10 capítulos en PDF | ✓ exists: ejemplos/novela-ejemplo.pdf |
 | E06 | 📝✅ | CLAUDE.md en la raíz, cuidado y legible (se puntúa) | ✓ exists: CLAUDE.md |
 | E07 | 📝 | Repositorio MyFactory: commit final enlazado | — |
 | E08 | 📝 | Email de entrega con los dos enlaces a commit y la frase de decisión de diseño (máx. 3 líneas) | — |
@@ -147,7 +147,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 |---|---|---|---|
 | EV1 | ✅ | Cinco briefs de prueba: uno adversarial (injection) y uno con incoherencia temporal | ✓ 5 file(s) for evals/briefs/*.json (need 5) |
 | EV2 | ✅ | Tabla por brief de qué validadores pasaron y cuáles fallaron | ✓ 1 file(s) for evals/results*.md \| docs/process/evals*.md (need 1) |
-| EV3 | ✅ | Una iteración de tuning documentada, antes y después, con la versión de prompt | ✓ /(?i)(tuning)/ in docs/process/README.md (+10) |
+| EV3 | ✅ | Una iteración de tuning documentada, antes y después, con la versión de prompt | ✓ /(?i)(tuning)/ in docs/process/README.md (+11) |
 
 ## 6. Observabilidad
 
