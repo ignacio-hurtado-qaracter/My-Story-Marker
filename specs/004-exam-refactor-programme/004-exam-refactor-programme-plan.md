@@ -1,6 +1,6 @@
 ---
 spec: 004
-status: approved          # approved 2026-09-24 on the user's delegation for this session
+status: done              # closed 2026-09-25: waves A–D run; only the author's demo video and human review remain (spec 004 AC 9)
 ---
 
 # Plan 004 — Exam refactor programme, run as parallel agent waves

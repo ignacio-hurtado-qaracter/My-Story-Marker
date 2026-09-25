@@ -1,7 +1,7 @@
 ---
 id: 004
 title: Exam refactor programme — confront docs/ with the exam brief, and split the work into parallel block specs
-status: approved         # draft · approved · implemented · superseded
+status: implemented      # closed 2026-09-25 on the user's delegation (AC 1–8; AC 9 tracks the programme)
 supersedes: null
 docs:
   - docs/architecture.md#governing-principle
@@ -492,3 +492,26 @@ Two facts recorded for the reviewer:
   `tla2tools.jar`; Docker as fallback).
 - **The Langfuse key in plain text outside the repository** should be rotated before B6
   wires the SDK.
+
+## Closing note (2026-09-25)
+
+Closed on the user's delegation: AC 1–8 hold, which is this spec's closing rule. AC 9 closes
+the programme, not the spec, and is still open.
+
+| AC | Satisfied by |
+|---|---|
+| 1 | A · I — script over `exam/requirements.toml`: every required id appears in § 1 (ids or ranges such as `L01–L04`, `P01–P05`); `--coverage` was never added to `exam/check.py`, so this is the review note the verification plan allows |
+| 2 | I · A — B0 `docs:` commits; later divergences fixed the same way (Figure 5, `2c6edf8`) |
+| 3 | A — link and Mermaid check run by B0; process pages checked again on close-out (no broken relative link) |
+| 4 | I — `docs/verification.md` coverage matrix rows per validator and requirement |
+| 5 | A · I — § 3 block map, one owner per path, acyclic; review note (no `--programme` flag in `exam/check.py`) |
+| 6 | I — K1–K5 in `004-contracts.md`; each block spec lists them under `consumes` |
+| 7 | I · A — block specs 005–018 exist (B1–B12 plus X01, X03); 005–015, 017, 018 now `implemented` |
+| 8 | A — `exam/compliance.md`: 71/72, no regression since approval |
+| 9 | **Open** — `exam/check.py --strict` fails only on P05 (demo video). Manual items: E06, H02, L04, T05 have reviewed notes (`CLAUDE.md`, `docs/process/`); G03 is covered by the pipeline stop (spec 009) and the red-team log; E07 (MyFactory repo), E08 (submission email) and S02 (human review) wait for the author (`evals/human-review/`, `docs/process/README.md` "Pendiente para el autor"). Spec 016 stays `approved` for the same video |
+
+Known defect found on close-out, outside this spec: in the parallel run `novela-ejemplo-b`
+an event without `place_id` passed the plan check and then failed the Lean export at every
+pre_publish, spending the repair rounds on prose that cannot fix it
+(`docs/process/iteraciones.md`, tuning 2). A new spec should reject such events at plan time.
+
