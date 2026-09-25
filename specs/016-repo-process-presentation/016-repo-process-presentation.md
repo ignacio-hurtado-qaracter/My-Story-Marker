@@ -108,3 +108,20 @@ open by design.
 None. Decided on delegation: `.mcp.json` at the root rather than `.claude/mcp.json`
 (the file Claude Code reads for project scope); machine path by environment variable, not
 in the file; the skill is named `gift-novel-run`.
+
+## Status note (2026-09-25)
+
+Not closed: AC 8 is not met. Status stays `approved` and the plan stays `approved` until the
+author links the demo video; then this spec closes with the table below plus the video row.
+
+| AC | State |
+|---|---|
+| 1 | Met — A: `exam/check.py` E01, E03 ✅; I: root `README.md` rewritten with every built section and a "Resultados" section (close-out) |
+| 2 | Met — A: `exam/check.py` E04 ✅ (`.env.example` values empty) |
+| 3 | Met — A: `.claude/commands/*.md` (4), `.claude/memory/*.md` (2); K01, K02 ✅ |
+| 4 | Met — D: Playwright MCP `initialize` + `browser_navigate` recorded in the commit that added `.mcp.json` and in `docs/process/browser-mcp-log.md` |
+| 5 | Met — A · I: `.claude/skills/gift-novel-run/SKILL.md`, listed in `.claude/skills/README.md`, cited from `docs/process/subagentes-comandos-skills.md` |
+| 6 | Met — A: `presentacion/README.md` (P01 ✅) |
+| 7 | Met — A · I: every `docs/process/` page exists; the browser-MCP log records two real inspections, the two findings and their fixes (`b612d34`, `ed58daa`) |
+| 8 | **Pending** — deck (`presentacion/presentacion.pdf`, `.pptx`) and five `anexo-*.pdf` exist (P02–P04 ✅); the demo video (P05 ❌) is recorded by the author |
+
