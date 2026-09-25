@@ -1,6 +1,6 @@
 # Guion — presentación 2 (10 minutos + 5 de preguntas)
 
-Deck: `presentacion-2.pptx` / `presentacion-2.pdf` (15 diapositivas).
+Deck: `presentacion-2.pptx` / `presentacion-2.pdf` (14 diapositivas).
 Tiempos entre corchetes. Frases en cursiva = lo que dices casi literal; el resto, ideas.
 
 ---
@@ -112,19 +112,13 @@ My Story Marker, un servicio que escribe novelas personalizadas para regalar.»*
   revisiones: si se cobran a 2 € el margen sube; si fueran gratis, con 6 y tokens +50 % perdemos
   1,35 € por novela. *Por eso los cambios adicionales se cobran y recomendamos 3 incluidas.*
 
-## 13 · Demo [8:00–9:00]
+## 13 · Demo [8:00–9:30]
 - *«La perra se llama Nala.»* La petición entra por el lector; `fact_usage` dice qué capítulos
   usan el hecho (1 y 3–10); se regeneran solo esos en una versión 2; el 2 se copia.
 - Mismos validadores, versión 2 publicada, versión 1 intacta: «Canela» 44 → 0, «Nala» 0 → 45.
   Unos 27 minutos y 0,94 USD. El PDF nuevo trae la página de «Novedades».
 
-## 14 · Riesgos y siguientes pasos [9:00–9:40]
-- Lo que aún no está demostrado: días sin fecha al lado y duraciones en la prosa; Lean solo
-  prueba lo que el planner registra; revisión humana a escala.
-- Siguientes pasos: extender el calendario a la prosa, más invariantes, el piloto con 50 novelas
-  y QA editorial.
-
-## 15 · Cierre [9:40–10:00]
+## 14 · Cierre [9:30–10:00]
 *«Separamos la verdad de la prosa: lo que es cierto sobre la historia vive en una base de datos y
 lo comprueban validadores, Lean y TLA+. Solo se publica lo que pasa todo. Gracias.»*
 

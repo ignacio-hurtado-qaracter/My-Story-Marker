@@ -648,30 +648,6 @@ async function build() {
     s.addNotes(`[8:00–8:30] DEMO. Abrir el lector en la novela de ejemplo, capítulo 1, y pedir «la perra se llama Nala» (o mostrar el PDF regenerado si no hay tiempo).\nEl sistema busca el hecho, ve en fact_usage que lo usan los capítulos 1 y 3 a 10, y regenera solo esos en la versión 2; el capítulo 2 se copia tal cual. Pasan los mismos validadores y el PDF sale con una página de novedades.\nResultado: Canela aparecía 44 veces en la versión 1 y 0 en la 2; Nala 45 veces. La versión 1 sigue intacta. Unos 27 minutos y menos de un dólar.`);
   }
 
-  // ------------------------------------------------------------ 13 · Riesgos y siguientes pasos
-  {
-    const s = base("Riesgos y siguientes pasos", "Lo que aún no está demostrado y cómo lo cerramos");
-    table(s, [
-      ["Riesgo", "Mitigación"],
-      ["Días sin fecha al lado («aquel lunes») y duraciones no se validan", "extender calendar_consistency a la prosa"],
-      ["Lean solo prueba lo que el planner registra en la cronología", "evento «departure» obligatorio si el brief dice que alguien se fue"],
-      ["Un brief contradictorio bloquea bien pero caro (b4: timeout de 45 min)", "prechequeo del plan más estricto; parar antes de escribir"],
-      ["Fichas de personajes sin versionar (solo el nombre)", "versionar reparto por versión"],
-      ["Datos personales reales en prompts y trazas", "enmascarado en Langfuse, borrado a petición y DPA (piloto)"],
-      ["Juez aún no calibrado con revisión humana", "QA editorial de 50 novelas con la misma rúbrica"],
-    ], { x: MX, y: 1.3, w: 5.7, colW: [3.0, 2.7], fontSize: 8, rowH: 0.42 });
-    text(s, "Siguientes pasos", { x: 6.55, y: 1.3, w: 3, h: 0.28, fontSize: 12, bold: true });
-    const nx = [["Semanas 1–2", "integración y RGPD"], ["Semanas 3–5", "marca blanca y 50 novelas de QA"], ["Semanas 6–7", "calibración del juez y validadores nuevos"], ["Semana 8", "lanzamiento en el catálogo de Navidad"]];
-    nx.forEach(([h, d], i) => {
-      const y = 1.7 + i * 0.8;
-      badge(s, 6.55, y, String(i + 1), { size: 0.36, fs: 11, fill: i === 3 ? C.brand : C.ink });
-      if (i < 3) s.addShape(pres.shapes.LINE, { x: 6.73, y: y + 0.38, w: 0, h: 0.4, line: { color: C.line, width: 1.5 } });
-      text(s, h, { x: 7.05, y: y - 0.02, w: 2.4, h: 0.22, fontSize: 9.5, bold: true });
-      text(s, d, { x: 7.05, y: y + 0.2, w: 2.4, h: 0.4, fontSize: 8.5, color: C.ink2 });
-    });
-    s.addNotes(`[8:30–9:30] Prefiero decir yo lo que no está demostrado: el calendario solo se valida junto a una fecha; Lean solo prueba lo que el planner registra; un brief contradictorio se bloquea bien pero caro; las fichas no están versionadas; y antes de producción hay que enmascarar los datos personales en las trazas y calibrar el juez con revisión humana.\nTodo eso está en el plan del piloto: ocho semanas hasta el catálogo de Navidad.`);
-  }
-
   // ------------------------------------------------------------ 14 · Contraportada
   {
     const s = pres.addSlide(); pageNo += 1;
