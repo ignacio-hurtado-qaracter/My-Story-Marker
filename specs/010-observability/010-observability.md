@@ -1,7 +1,7 @@
 ---
 id: 010
 title: B6 — Observability with Langfuse (contract K2)
-status: approved         # approved 2026-09-24 on the user's delegation for this session
+status: implemented      # closed 2026-09-25 on the user's delegation (programme 004 close-out)
 supersedes: null
 programme: 004
 block: B6
@@ -71,3 +71,20 @@ plan 004).
 ## Open questions
 
 None. The Langfuse key rotation noted in spec 004 is the user's.
+
+## Closing note (2026-09-25)
+
+Closed on the user's delegation (programme 004 close-out, Process 2 step 12). Evidence at
+`proyecto-desde-cero` @ `0e8118c`: backend gate `ruff check .` clean, `mypy --strict .`
+clean (290 files), `pytest` 1758 passed / 8 skipped / 1 failed. The one failure is
+`tests/test_boundaries_mirror.py`, the spec 001 store-boundary guard, which flags file I/O
+in the new modules; it is not an acceptance criterion of this spec and is left to the
+author (`docs/process/README.md`, "Pendiente para el autor").
+
+| AC | Satisfied by |
+|---|---|
+| 1 | T — `app/commons/observability/tests/test_cost.py` (pinned Haiku 4.5 prices) |
+| 2 | D — manual smoke against Langfuse Cloud recorded in the `3878b60` commit body (session, span, generation, score) |
+| 3 | D · I — `load_prompt` versions in the same smoke; prompt versions per role in `evals/results/tuning.md` |
+| 4 | T — `test_cost.py` (`traced_complete` writes one `llm_call` row per settled call) |
+| 5 | A — ruff and mypy --strict clean on `app/commons/observability` |
