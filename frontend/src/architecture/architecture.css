@@ -1,0 +1,378 @@
+/* architecture/: the "Cómo funciona" page (spec 019). Spec 003's identity — hero band, cards,
+   pills, tokens from shared/ui/tokens.css — with every class prefixed `arch-`. */
+
+.arch-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.arch-hero {
+  padding: 2.25rem 2rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, var(--brand-50) 0%, var(--white) 100%);
+}
+
+.arch-lead {
+  max-width: 52rem;
+  margin: 0;
+  color: var(--ink-600);
+  font-size: 1.1rem;
+}
+
+.arch-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-600);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.arch-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.arch-swatch {
+  width: 1.1rem;
+  height: 0.8rem;
+  border-width: 2px;
+  border-style: solid;
+  border-radius: 4px;
+}
+
+/* ---------- Layout: diagram + panel ---------- */
+
+.arch-layout {
+  display: grid;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 1100px) {
+  .arch-layout {
+    grid-template-columns: minmax(0, 1fr) 21rem;
+  }
+
+  .arch-panel {
+    position: sticky;
+    top: calc(var(--header-height) + 1rem);
+  }
+}
+
+/* The canvas and the SVG share one 1000 × 500 coordinate space. */
+.arch-canvas {
+  position: relative;
+  aspect-ratio: 1000 / 500;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0) 0 0 / 22px 22px,
+    var(--surface);
+}
+
+.arch-edges {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.arch-edge {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 2;
+}
+
+.arch-edge-dashed {
+  stroke-dasharray: 6 5;
+}
+
+.arch-arrowhead {
+  fill: var(--muted);
+}
+
+.arch-edge-label {
+  fill: var(--muted);
+  font-size: 13px;
+  font-style: italic;
+}
+
+/* Optional motion: a slow dash travelling along the main flow. */
+@media (prefers-reduced-motion: no-preference) {
+  .arch-edge-flow {
+    stroke: var(--brand-600);
+    stroke-dasharray: 10 6;
+    animation: arch-flow 1.6s linear infinite;
+  }
+}
+
+@keyframes arch-flow {
+  to {
+    stroke-dashoffset: -32;
+  }
+}
+
+/* ---------- Nodes ---------- */
+
+.arch-node {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.4rem 0.6rem;
+  border-width: 2px;
+  border-style: solid;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(30, 43, 55, 0.07);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.arch-node:hover,
+.arch-node.is-active {
+  box-shadow: 0 8px 22px rgba(174, 78, 20, 0.2);
+}
+
+.arch-node.is-active {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.arch-node:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .arch-node:hover {
+    transform: translateY(-2px);
+  }
+}
+
+.arch-node-llm {
+  border-color: var(--accent);
+  background: var(--brand-50);
+}
+
+.arch-node-code {
+  border-color: var(--ink-600);
+  background: var(--white);
+}
+
+.arch-node-store {
+  border-color: var(--muted);
+  border-style: dashed;
+  background: var(--surface);
+}
+
+.arch-node-formal {
+  border-color: var(--pass);
+  background: var(--pass-tint);
+}
+
+.arch-step {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 1.6rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-600), var(--accent));
+  color: var(--white);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.arch-node-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.arch-node-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.arch-node-tagline {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ink-600);
+  font-size: 0.76rem;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.arch-side-label {
+  display: none;
+}
+
+/* ---------- The panel ---------- */
+
+.arch-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.arch-kind {
+  align-self: flex-start;
+  margin: 0;
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.arch-kind-llm {
+  background: var(--brand-100);
+  color: var(--accent);
+}
+
+.arch-kind-code {
+  background: var(--surface);
+  color: var(--ink-600);
+}
+
+.arch-kind-store {
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.arch-kind-formal {
+  background: var(--pass-tint);
+  color: var(--pass);
+}
+
+.arch-panel-title {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.arch-panel-text {
+  margin: 0;
+  color: var(--ink-600);
+  line-height: 1.6;
+}
+
+.arch-panel-facts {
+  display: grid;
+  gap: 0.2rem;
+  margin: 0;
+}
+
+.arch-panel-facts dt {
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.arch-panel-facts dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.92rem;
+}
+
+.arch-chips,
+.arch-paths {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.15rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.arch-paths {
+  flex-direction: column;
+}
+
+.arch-chips code,
+.arch-paths code {
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.arch-chips code {
+  display: inline-block;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink-600);
+}
+
+/* ---------- Phone: the boxes stack in flow order ---------- */
+
+@media (max-width: 759px) {
+  .arch-hero {
+    padding: 1.5rem 1.25rem;
+  }
+
+  .arch-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 1.6rem;
+  }
+
+  /* The nodes, the side label and the panel become siblings, so `order` places the panel
+     right below the selected node. */
+  .arch-canvas {
+    display: contents;
+  }
+
+  .arch-edges {
+    display: none;
+  }
+
+  .arch-node {
+    position: relative;
+    inset: auto !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 3.5rem;
+    padding: 0.6rem 0.9rem;
+  }
+
+  /* A down arrow between consecutive steps of the main flow. */
+  .arch-node:not(.arch-node-side, [data-last])::after {
+    content: '';
+    position: absolute;
+    bottom: -1.35rem;
+    left: 50%;
+    width: 2px;
+    height: 1.1rem;
+    background: var(--brand-600);
+  }
+
+  .arch-side-label {
+    display: block;
+    margin: 0.5rem 0 -0.8rem;
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .arch-panel {
+    margin-top: -0.8rem;
+    padding: 1.1rem;
+    border-color: var(--accent);
+  }
+}
