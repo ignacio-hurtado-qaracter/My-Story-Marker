@@ -516,15 +516,25 @@ async function build() {
     stat(s, MX, 1.25, 1.45, eur(fin.cost_usd), "USD de modelo, novela de 10 capítulos publicada", { color: C.acc });
     stat(s, MX + 1.5, 1.25, 1.45, eur(nala), "USD por un cambio del lector (9 capítulos)");
     stat(s, MX + 3.0, 1.25, 1.45, `${fin.minutes} min`, "de generación, sin intervención");
-    s.addChart(pres.charts.BAR, [{ name: "USD", labels: ["writer", "editor", "judge", "planner", "interviewer"], values: ["writer", "editor", "judge", "planner", "interviewer"].map((r) => Math.round(byRole[r] * 100) / 100) }], {
-      x: MX, y: 2.25, w: 4.4, h: 2.3, barDir: "bar", chartColors: [C.brand],
-      showTitle: true, title: "Coste por rol (USD, 3 evals)", titleFontSize: 9, titleColor: C.ink, titleFontFace: F,
+    // Real measured cost (llm_call of ejemplos/harness-demo.sqlite + evals/results/*/*.json).
+    const real = runs.real_costs;
+    const rr = real.final_by_role;
+    s.addChart(pres.charts.BAR, [{ name: "USD", labels: rr.map((r) => r[0]), values: rr.map((r) => r[1]) }], {
+      x: MX, y: 2.2, w: 2.15, h: 2.35, barDir: "bar", chartColors: [C.brand],
+      showTitle: true, title: "Coste por rol, novela publicada (USD)", titleFontSize: 8, titleColor: C.ink, titleFontFace: F,
       showValue: true, dataLabelFontSize: 8, dataLabelColor: C.ink, dataLabelFormatCode: "0.00",
       catAxisLabelColor: C.ink2, catAxisLabelFontSize: 8, catAxisLabelFontFace: F, valAxisHidden: true,
       valGridLine: { style: "none" }, catGridLine: { style: "none" }, showLegend: false, catAxisOrientation: "maxMin",
     });
-    text(s, `Techo por bucles acotados: el peor intento medido costó ${usd(worst)} y no se cobra (solo se factura lo publicado). Haiku 4.5: 1 USD/M tokens de entrada, 5 USD/M de salida.`, {
-      x: MX, y: 4.6, w: 4.4, h: 0.45, fontSize: 7.5, color: C.muted, italic: true,
+    text(s, "GASTO REAL MEDIDO", { x: MX + 2.3, y: 2.22, w: 2.1, h: 0.2, fontSize: 7.5, bold: true, color: C.acc, charSpacing: 1 });
+    real.items.forEach(([k, v], i) => {
+      const y = 2.44 + i * 0.25;
+      const last = i === real.items.length - 1;
+      text(s, k, { x: MX + 2.3, y, w: 1.5, h: 0.24, fontSize: 7.5, bold: last, color: last ? C.ink : C.ink2, valign: "middle" });
+      text(s, eur(v), { x: MX + 3.75, y, w: 0.65, h: 0.24, fontSize: 7.5, bold: last, color: last ? C.acc : C.ink, align: "right", valign: "middle" });
+    });
+    text(s, `Novela publicada: ${eur(real.per_chapter_min)}–${eur(real.per_chapter_max)} USD por capítulo, ${fin.calls} llamadas, ${real.output_tokens.toLocaleString("es-ES")} tokens de salida. Techo por bucles acotados: el peor intento costó ${usd(worst)} y no se cobra (solo se factura lo publicado). Haiku 4.5: 1 USD/M tokens de entrada, 5 USD/M de salida.`, {
+      x: MX, y: 4.58, w: 4.4, h: 0.5, fontSize: 7, color: C.muted, italic: true,
     });
     // proposal
     card(s, 5.15, 1.25, 4.35, 3.8, C.ink);
@@ -551,7 +561,7 @@ async function build() {
       { text: "Ejemplo con PVP de 39 €: ", options: { bold: true, color: C.brand } },
       { text: "12 € a Qaracter, 27 € de margen bruto para " + CLIENT_SHORT + "; la cuota se cubre con 23 novelas al mes. Precios sin IVA; 1 USD ≈ 0,90 € (supuesto).", options: { color: C.white } },
     ], { x: 5.45, y: 4.12, w: 3.8, h: 0.8, fontSize: 8, valign: "middle" });
-    s.addNotes(`[7:00–8:00] Coste medido: la novela de diez capítulos publicada costó ${usd(fin.cost_usd)} de modelo y ${fin.minutes} minutos; un cambio del lector, unos 0,94 USD. El writer es el rol más caro, luego editor y juez: son los que producen y leen más texto.\nComo los bucles están acotados, el coste también: el peor intento medido costó ${usd(worst)}, y ese riesgo lo asumimos nosotros: solo se factura lo publicado.\nPropuesta: un piloto de ocho semanas por 28.800 euros (integración, marca blanca, QA editorial con 50 novelas y el trabajo de RGPD), 600 euros al mes de plataforma y 12 euros por novela publicada. Con un precio de venta de 39 euros, a ${CLIENT_SHORT} le quedan 27 de margen bruto.`);
+    s.addNotes(`[7:00–8:00] Coste medido: la novela de diez capítulos publicada costó ${usd(fin.cost_usd)} de modelo y ${fin.minutes} minutos; un cambio del lector, unos 0,94 USD. El writer es el rol más caro, luego editor y juez: son los que producen y leen más texto.\nGasto real de todo el desarrollo con modelo: ${usd(real.items[real.items.length - 1][1])}, contando los tres intentos bloqueados, las evals antes y después del tuning y el experimento de Lean.\nComo los bucles están acotados, el coste también: el peor intento medido costó ${usd(worst)}, y ese riesgo lo asumimos nosotros: solo se factura lo publicado.\nPropuesta: un piloto de ocho semanas por 28.800 euros (integración, marca blanca, QA editorial con 50 novelas y el trabajo de RGPD), 600 euros al mes de plataforma y 12 euros por novela publicada. Con un precio de venta de 39 euros, a ${CLIENT_SHORT} le quedan 27 de margen bruto.`);
   }
 
   // ------------------------------------------------------------ 12 · Demo

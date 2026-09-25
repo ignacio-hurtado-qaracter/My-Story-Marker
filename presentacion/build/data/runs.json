@@ -79,5 +79,59 @@
     "minutes": 69,
     "judge_novel": "Aprobada: continuidad 5/5, tono 4/5, calidad narrativa 4/5, personalización natural 4/5 (0,88)",
     "pdf": "ejemplos/novela-ejemplo.pdf"
+  },
+  "real_costs": {
+    "_doc": "Measured from llm_call in ejemplos/harness-demo.sqlite and evals/results/*/*.json (2026-09-25). USD.",
+    "final_by_role": [
+      [
+        "writer",
+        1.49
+      ],
+      [
+        "editor",
+        0.97
+      ],
+      [
+        "judge",
+        0.52
+      ],
+      [
+        "planner",
+        0.11
+      ]
+    ],
+    "per_chapter_min": 0.2,
+    "per_chapter_max": 0.49,
+    "output_tokens": 472436,
+    "items": [
+      [
+        "Novela 10 cap. publicada",
+        3.09
+      ],
+      [
+        "Cambio del lector (v2)",
+        0.94
+      ],
+      [
+        "Novela 3 capítulos",
+        0.85
+      ],
+      [
+        "3 intentos bloqueados",
+        14.33
+      ],
+      [
+        "Evals antes + después",
+        6.53
+      ],
+      [
+        "Experimento Lean (L04)",
+        1.29
+      ],
+      [
+        "Total medido",
+        27.03
+      ]
+    ]
   }
 }
