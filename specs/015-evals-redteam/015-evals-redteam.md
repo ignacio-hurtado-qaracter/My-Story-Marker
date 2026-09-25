@@ -1,7 +1,7 @@
 ---
 id: 015
 title: B11 — Evals and red-team
-status: approved         # approved 2026-09-24 on the user's delegation for this session
+status: implemented      # closed 2026-09-25 on the user's delegation (programme 004 close-out)
 supersedes: null
 programme: 004
 block: B11
@@ -89,3 +89,22 @@ under `evals/results/`. AC 7: `uv run ruff check ../evals` and `--help`.
 None open. Decided on delegation: one shared database; per-brief timeout default 45 min;
 `b3`/`b4`/`b2` use 3 chapters, `ejemplo` 10; the tuning iteration is before/after one
 prompt change chosen from the "before" table.
+
+## Closing note (2026-09-25)
+
+Closed on the user's delegation (programme 004 close-out, Process 2 step 12). Evidence at
+`proyecto-desde-cero` @ `0e8118c`: backend gate `ruff check .` clean, `mypy --strict .`
+clean (290 files), `pytest` 1758 passed / 8 skipped / 1 failed. The one failure is
+`tests/test_boundaries_mirror.py`, the spec 001 store-boundary guard, which flags file I/O
+in the new modules; it is not an acceptance criterion of this spec and is left to the
+author (`docs/process/README.md`, "Pendiente para el autor").
+
+| AC | Satisfied by |
+|---|---|
+| 1 | I — `evals/briefs/` holds `ejemplo`, `b2-infantil`, `b3-injection`, `b4-temporal`, `b5-contradiction` |
+| 2 | D — validate run in the `evals:` commit; `b5-contradiction` rejected (`evals/results.md`, "Rejected by brief validation") |
+| 3 | D — `evals/results/before/table.md`, `evals/results/after/table.md`, `evals/results.md` |
+| 4 | D — `evals/results/tuning.md` (before/after per brief and validator, prompt versions) |
+| 5 | A — `exam/check.py` E02; `cmp ejemplos/brief-ejemplo.json evals/briefs/ejemplo.json` identical |
+| 6 | D — `ejemplos/novela-ejemplo.pdf` from `ejemplo.json` (`novela-ejemplo-a` v1, `c0a9e90`) |
+| 7 | A — `ruff check` clean; `run_evals.py --help` and `compare_iterations.py --help` answer |
