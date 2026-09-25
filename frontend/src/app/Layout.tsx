@@ -19,6 +19,7 @@ interface NavItem {
 // lives inside each novel; the shell lists the novels and keeps the harness's scene pages.
 const NAV: readonly NavItem[] = [
   { label: 'Novelas', to: '/', exact: '/', prefixes: ['/novelas'] },
+  { label: 'Nueva novela', to: '/nueva', prefixes: ['/nueva'] },
   { label: 'Escenas', to: '/scenes', prefixes: ['/scenes', '/chapters'] },
 ]
 

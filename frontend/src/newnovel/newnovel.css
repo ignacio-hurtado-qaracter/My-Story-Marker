@@ -1,0 +1,544 @@
+/* newnovel/: the "Nueva novela" wizard and its progress view (spec 020). Spec 003's identity —
+   hero band, cards, pills and the tokens of shared/ui/tokens.css — with every class prefixed
+   `nn-` so no rule leaks into another feature. */
+
+.nn-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 60rem;
+  margin: 0 auto;
+}
+
+.nn-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 2.25rem 2rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, var(--brand-50) 0%, var(--white) 100%);
+}
+
+.nn-hero .heading {
+  margin: 0;
+}
+
+.nn-lead {
+  margin: 0;
+  color: var(--ink-600);
+  font-size: 1.1rem;
+}
+
+.nn-state {
+  color: var(--muted);
+}
+
+/* ---------- Steps ---------- */
+
+.nn-steps {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nn-step {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  color: var(--ink-600);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.nn-step[aria-current='step'] {
+  border-color: var(--accent);
+  background: var(--brand-50);
+  color: var(--accent);
+}
+
+.nn-step-number {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: var(--surface);
+  font-size: 0.8rem;
+}
+
+.nn-step[aria-current='step'] .nn-step-number {
+  background: var(--accent);
+  color: var(--white);
+}
+
+.nn-step-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- The form ---------- */
+
+.nn-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.nn-form-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.nn-form-step {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.nn-subtitle {
+  margin: 0.5rem 0 0;
+  font-size: 1.05rem;
+}
+
+.nn-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 0.9rem 1rem;
+}
+
+.nn-wide {
+  grid-column: 1 / -1;
+}
+
+.nn-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.nn-field label {
+  color: var(--ink-600);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.nn-field input:not([type='range']),
+.nn-field select,
+.nn-field textarea {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--ink);
+  font: inherit;
+}
+
+.nn-field input:focus-visible,
+.nn-field select:focus-visible,
+.nn-field textarea:focus-visible,
+.nn-chips:focus-within {
+  outline: 2px solid var(--brand);
+  outline-offset: 1px;
+}
+
+.nn-field input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+.nn-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* ---------- Chips ---------- */
+
+.nn-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--white);
+}
+
+.nn-chip-list {
+  display: contents;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.15rem 0.2rem 0.15rem 0.65rem;
+  border-radius: var(--radius-pill);
+  background: var(--brand-100);
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.nn-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.nn-chip-remove:hover {
+  background: var(--white);
+}
+
+.nn-chips input {
+  flex: 1 1 8rem;
+  min-width: 6rem;
+  min-height: 2rem !important;
+  padding: 0.3rem 0.4rem !important;
+  border: 0 !important;
+  outline: none;
+}
+
+/* ---------- Repeatable rows ---------- */
+
+.nn-rows {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.nn-rows legend {
+  margin-bottom: 0.5rem;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.nn-row {
+  position: relative;
+  width: 100%;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.nn-row .nn-grid {
+  padding-right: 4.5rem;
+}
+
+.nn-row-remove {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  color: var(--fail);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ---------- Review ---------- */
+
+.nn-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: 0.5rem 1.25rem;
+  margin: 0;
+}
+
+.nn-summary div,
+.nn-progress-facts div {
+  min-width: 0;
+}
+
+.nn-summary dt,
+.nn-progress-facts dt {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.nn-summary dd,
+.nn-progress-facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.nn-validation {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.nn-valid {
+  margin: 0;
+  padding: 0.7rem 1rem;
+  border-radius: 8px;
+  background: var(--pass-tint);
+  color: var(--pass);
+  font-weight: 600;
+}
+
+.nn-invalid {
+  margin: 0 0 0.5rem;
+  color: var(--fail);
+  font-weight: 600;
+}
+
+.nn-issue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nn-issue {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  padding: 0.55rem 0.8rem;
+  border-left: 4px solid var(--fail);
+  border-radius: 6px;
+  background: var(--fail-tint);
+  color: var(--ink);
+}
+
+.nn-issue-missing {
+  border-left-color: var(--brand);
+  background: var(--brand-50);
+}
+
+.nn-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.nn-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.nn-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.55rem 1.4rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--white);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.nn-btn-primary:hover {
+  color: var(--white);
+  text-decoration: none;
+}
+
+.nn-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------- Progress ---------- */
+
+.nn-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.nn-progress .eyebrow {
+  margin: 0;
+}
+
+.nn-progress-title {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.nn-progress-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.nn-progress-bar label {
+  color: var(--ink-600);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.nn-progress-bar progress {
+  width: 100%;
+  height: 0.9rem;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  overflow: hidden;
+  appearance: none;
+}
+
+.nn-progress-bar progress::-webkit-progress-bar {
+  background: var(--surface);
+}
+
+.nn-progress-bar progress::-webkit-progress-value {
+  border-radius: var(--radius-pill);
+  background: var(--brand);
+}
+
+.nn-progress-bar progress::-moz-progress-bar {
+  border-radius: var(--radius-pill);
+  background: var(--brand);
+}
+
+.nn-progress-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem 1rem;
+  margin: 0;
+  padding: 0.9rem 1rem;
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.nn-progress-facts dd {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.nn-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.nn-stopped {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.9rem 1rem;
+  border-left: 4px solid var(--fail);
+  border-radius: 6px;
+  background: var(--fail-tint);
+}
+
+.nn-stopped p {
+  margin: 0;
+}
+
+.nn-detail {
+  color: var(--ink-600);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  overflow-wrap: anywhere;
+}
+
+.nn-issues summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.nn-issues ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.6rem 0;
+  padding-left: 1.1rem;
+  font-size: 0.9rem;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Narrow screens ---------- */
+
+@media (max-width: 720px) {
+  .nn-hero {
+    padding: 1.5rem 1.25rem;
+  }
+
+  .nn-steps {
+    grid-template-columns: repeat(5, auto);
+    justify-content: space-between;
+  }
+
+  .nn-step {
+    padding: 0.3rem;
+  }
+
+  .nn-step-name {
+    display: none;
+  }
+
+  .nn-form.card {
+    padding: 1.1rem;
+  }
+
+  .nn-row .nn-grid {
+    padding-right: 0;
+    padding-top: 1.6rem;
+  }
+}
