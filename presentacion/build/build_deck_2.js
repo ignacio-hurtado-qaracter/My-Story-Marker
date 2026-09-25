@@ -430,25 +430,17 @@ async function build() {
 
   // ------------------------------------------------------------ 9 · Langfuse
   {
-    const s = base("Validación · 4/4 · Observabilidad", "Una traza real del brief de inyección");
+    const s = base("Validación · 4/4 · Observabilidad", "Una traza real en Langfuse");
     const b3 = after["b3-injection"];
-    const ch = b3.cost.by_chapter;
-    const tree = [
-      [0, "session", "eval-after-b3-injection", "una por novela"],
-      [1, "trace", "generate", `${b3.cost.calls} llamadas · ${usd(b3.cost.cost_usd)} · ${Math.round(b3.cost.latency_s)} s`],
-      [2, "span", "phase:plan · role:interviewer, role:planner", `${ch[0].calls} llamadas · ${usd(ch[0].cost_usd)}`],
-      ...ch.slice(1).map((c) => [2, "span", `chapter:${c.chapter} · role:writer ×3, editor, judge`, `${c.calls} llamadas · ${usd(c.cost_usd)} · ${Math.round(c.latency_s)} s`]),
-      [3, "span", "tool:get_chapter_summary · tool:query_story_bible", "contexto del writer"],
-      [2, "span", "phase:pre_publish · judge_novel · lean · visual", "versión 1 publicada"],
-    ];
-    card(s, MX, 1.3, 5.6, 3.72, C.ink);
-    tree.forEach(([lvl, kind, name, meta], i) => {
-      const y = 1.42 + i * 0.44, x = MX + 0.15 + lvl * 0.3;
-      pill(s, x, y + 0.04, 0.62, 0.24, kind, { fill: kind === "span" ? C.ink3 : C.brand, color: C.white, fs: 7 });
-      text(s, name, { x: x + 0.7, y, w: 4.7 - lvl * 0.3, h: 0.2, fontSize: 8.5, bold: true, color: C.white, fontFace: "Courier New" });
-      text(s, meta, { x: x + 0.7, y: y + 0.2, w: 4.7 - lvl * 0.3, h: 0.18, fontSize: 7.5, color: "AEB8C2" });
+    // Real Langfuse screenshot (trace of a 1-chapter generation launched from «Nueva novela»),
+    // cropped to the trace panel: no account sidebar or organisation header.
+    const lfW = 5.25, lfH = lfW * 950 / 1483;
+    card(s, MX, 1.3, lfW, lfH + 0.08, C.white);
+    s.addImage({ path: img("langfuse-trace.png"), x: MX + 0.04, y: 1.34, w: lfW - 0.08, h: lfH });
+    text(s, "Captura real de Langfuse: spans por fase, capítulo, rol, tool y validador. 9 min 42 s · 0,43 USD · 155.212 tokens.", {
+      x: MX, y: 1.34 + lfH + 0.1, w: lfW, h: 0.2, fontSize: 7, color: C.muted, italic: true,
     });
-    text(s, "Scores de la traza", { x: 6.35, y: 1.3, w: 3.1, h: 0.25, fontSize: 11, bold: true });
+    text(s, "Scores (brief de inyección)", { x: 6.35, y: 1.3, w: 3.1, h: 0.25, fontSize: 11, bold: true });
     const v = b3.validators;
     const sc = [
       ["free_text_injection", "flagged ×2 (prescan + modelo)", false],
@@ -469,7 +461,7 @@ async function build() {
     text(s, `Tokens: ${b3.cost.input_tokens.toLocaleString("es-ES")} de entrada · ${b3.cost.output_tokens.toLocaleString("es-ES")} de salida · ${b3.cost.cache_creation.toLocaleString("es-ES")} de caché. Datos de llm_call (evals/results/after/b3-injection.json), la misma instrumentación que envía spans y scores a Langfuse.`, {
       x: 6.35, y: 4.28, w: 3.15, h: 0.75, fontSize: 7, color: C.muted, italic: true,
     });
-    s.addNotes(`[6:00–6:30] Así se ve una novela en Langfuse: una sesión por novela, una traza por generación, spans por fase, por capítulo, por rol y por tool, con tokens, coste y latencia. Esta es la del brief con inyección: ${b3.cost.calls} llamadas, ${usd(b3.cost.cost_usd)}, unos ${Math.round(b3.cost.latency_s / 60)} minutos.\nCada validador llega como score: aquí se ve la inyección marcada dos veces, por el prescan y por el modelo, y aun así todos los validadores en verde: no se siguió.\nY los prompts están versionados: sabemos qué versión produjo cada resultado, que es lo que hace creíble el antes y el después del tuning.`);
+    s.addNotes(`[6:00–6:30] Así se ve una novela en Langfuse, captura real: una sesión por novela, una traza por generación, spans por fase, por capítulo, por rol y por tool, con tokens, coste y latencia. La captura es una novela de un capítulo lanzada desde la página Nueva novela: 9 minutos 42 segundos, 0,43 USD. A la derecha, los scores del brief con inyección: ${b3.cost.calls} llamadas, ${usd(b3.cost.cost_usd)}, unos ${Math.round(b3.cost.latency_s / 60)} minutos.\nCada validador llega como score: aquí se ve la inyección marcada dos veces, por el prescan y por el modelo, y aun así todos los validadores en verde: no se siguió.\nY los prompts están versionados: sabemos qué versión produjo cada resultado, que es lo que hace creíble el antes y el después del tuning.`);
   }
 
   // ------------------------------------------------------------ 10 · Guardrails
