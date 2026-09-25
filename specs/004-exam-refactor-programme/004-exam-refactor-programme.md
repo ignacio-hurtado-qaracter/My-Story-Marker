@@ -515,4 +515,8 @@ an event without `place_id` passed the plan check and then failed the Lean expor
 pre_publish, spending both repair rounds on prose that cannot fix it; the run ended in
 `stopped_error` (`repair_limit`, 6.05 USD) although `judge_novel` passed
 (`docs/process/iteraciones.md`, tuning 2). A new spec should reject such events at plan time.
+*Clarified 2026-09-25: fixed by a revision of spec 007 (AC 9, "plan events must have a
+place") instead of a new spec: the plan check rejects such events, an event inherits its
+scene's place, and a Lean export error stops the run with `chronology_export_error`
+(`docs/process/iteraciones.md`, row 28).*
 
