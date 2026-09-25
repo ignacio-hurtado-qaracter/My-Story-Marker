@@ -553,7 +553,67 @@ async function build() {
       { text: "Ejemplo con PVP de 39 €: ", options: { bold: true, color: C.brand } },
       { text: "12 € a Qaracter, 27 € de margen bruto para " + CLIENT_SHORT + "; la cuota se cubre con 23 novelas al mes. Precios sin IVA; 1 USD ≈ 0,90 € (supuesto).", options: { color: C.white } },
     ], { x: 5.45, y: 4.12, w: 3.8, h: 0.8, fontSize: 8, valign: "middle" });
-    s.addNotes(`[7:00–8:00] Coste medido: la novela de diez capítulos publicada costó ${usd(fin.cost_usd)} de modelo y ${fin.minutes} minutos; un cambio del lector, unos 0,94 USD. El writer es el rol más caro, luego editor y juez: son los que producen y leen más texto.\nGasto real de todo el desarrollo con modelo: ${usd(real.items[real.items.length - 1][1])}, contando los tres intentos bloqueados, las evals antes y después del tuning y el experimento de Lean.\nComo los bucles están acotados, el coste también: el peor intento medido costó ${usd(worst)}, y ese riesgo lo asumimos nosotros: solo se factura lo publicado.\nPropuesta: un piloto de ocho semanas por 28.800 euros (integración, marca blanca, QA editorial con 50 novelas y el trabajo de RGPD), 600 euros al mes de plataforma y 12 euros por novela publicada. Con un precio de venta de 39 euros, a ${CLIENT_SHORT} le quedan 27 de margen bruto.`);
+    s.addNotes(`[7:00–7:30] Coste medido: la novela de diez capítulos publicada costó ${usd(fin.cost_usd)} de modelo y ${fin.minutes} minutos; un cambio del lector, unos 0,94 USD. El writer es el rol más caro, luego editor y juez: son los que producen y leen más texto.\nGasto real de todo el desarrollo con modelo: ${usd(real.items[real.items.length - 1][1])}, contando los tres intentos bloqueados, las evals antes y después del tuning y el experimento de Lean.\nComo los bucles están acotados, el coste también: el peor intento medido costó ${usd(worst)}, y ese riesgo lo asumimos nosotros: solo se factura lo publicado.\nPropuesta: un piloto de ocho semanas por 28.800 euros (integración, marca blanca, QA editorial con 50 novelas y el trabajo de RGPD), 600 euros al mes de plataforma y 12 euros por novela publicada. Con un precio de venta de 39 euros, a ${CLIENT_SHORT} le quedan 27 de margen bruto.`);
+  }
+
+
+  // ------------------------------------------------------------ 11b · Presupuesto 2/2
+  {
+    const s = base("Presupuesto y coste · 2/2", "Coste unitario, proyecto, volumen y sensibilidad");
+    const FX = 0.9;                                   // 1 USD ≈ 0,90 € (supuesto, como en 1/2)
+    const PRICE = 12, EXTRA = 2, FEE = 600, INFRA = 150, CONT = 0.3;
+    const tok = fin.cost_usd * FX * (1 + CONT);       // tokens medidos + 30 % de contingencia por reintentos
+    const chg = 0.94 * FX;                            // un cambio del lector medido (0,94 USD)
+    const infraU = INFRA / 500;                       // a 500 novelas/mes
+    const unit = tok + chg + infraU;
+    const e2 = (n) => eur(n) + " €";
+    const th = (n) => Math.round(n).toLocaleString("es-ES", { useGrouping: "always" });
+    // coste unitario
+    text(s, "COSTE UNITARIO POR NOVELA", { x: MX, y: 1.22, w: 4.4, h: 0.2, fontSize: 7.5, bold: true, color: C.acc, charSpacing: 1 });
+    table(s, [
+      ["Concepto", "€"],
+      [`Tokens medidos en Langfuse (${usd(fin.cost_usd)})`, eur(fin.cost_usd * FX)],
+      ["Contingencia de reintentos (+30 %)", eur(fin.cost_usd * FX * CONT)],
+      ["1 cambio del lector incluido (0,94 USD)", eur(chg)],
+      [`Infraestructura (${INFRA} €/mes ÷ 500 novelas)`, eur(infraU)],
+      [{ text: "Coste total", options: { bold: true } }, { text: eur(unit), options: { bold: true } }],
+      [{ text: "Precio a Cuentalia · margen operativo Qaracter", options: { bold: true, color: C.acc } }, { text: `${PRICE} · ${eur(PRICE - unit)} (${Math.round((PRICE - unit) / PRICE * 100)} %)`, options: { bold: true, color: C.acc } }],
+    ], { x: MX, y: 1.45, w: 4.4, colW: [3.1, 1.3], fontSize: 7.5, rowH: 0.24 });
+    // proyecto
+    text(s, "PROYECTO DE DESARROLLO", { x: 5.15, y: 1.22, w: 4.35, h: 0.2, fontSize: 7.5, bold: true, color: C.acc, charSpacing: 1 });
+    const ph = [["Diseño (specs, arquitectura, TLA+)", 60], ["Desarrollo (pipeline, lector, integración)", 180], ["Validación (evals, Lean, QA editorial)", 90], ["Despliegue (RGPD, puesta en marcha)", 30]];
+    const RATE = 80, hours = ph.reduce((a, [, h]) => a + h, 0);
+    table(s, [["Fase", "Horas", "€"], ...ph.map(([k, h]) => [k, String(h), th(h * RATE)]),
+      [{ text: `Total a ${RATE} €/h`, options: { bold: true } }, { text: String(hours), options: { bold: true } }, { text: th(hours * RATE) + " €", options: { bold: true, color: C.acc } }]],
+      { x: 5.15, y: 1.45, w: 4.35, colW: [2.75, 0.6, 1.0], fontSize: 7.5, rowH: 0.24 });
+    // volumen
+    text(s, "ESCENARIOS DE VOLUMEN (€/MES)", { x: MX, y: 3.25, w: 4.4, h: 0.2, fontSize: 7.5, bold: true, color: C.acc, charSpacing: 1 });
+    const vols = [100, 500, 2000];
+    const varU = tok + chg;
+    table(s, [["Novelas/mes", ...vols.map((v) => th(v))],
+      ["Ventas Cuentalia (PVP 39 €)", ...vols.map((v) => th(39 * v))],
+      ["Margen Cuentalia", ...vols.map((v) => ({ text: th(27 * v - FEE), options: { bold: true } }))],
+      ["Margen Qaracter", ...vols.map((v) => ({ text: th(PRICE * v + FEE - varU * v - INFRA), options: { bold: true, color: C.acc } }))],
+    ], { x: MX, y: 3.48, w: 4.4, colW: [1.9, 0.83, 0.83, 0.84], fontSize: 7.5, rowH: 0.26 });
+    // sensibilidad
+    text(s, "SENSIBILIDAD (POR NOVELA)", { x: 5.15, y: 3.25, w: 4.35, h: 0.2, fontSize: 7.5, bold: true, color: C.acc, charSpacing: 1 });
+    const sc = (tokMul, revs, paid) => {
+      const cost = tok * tokMul + revs * chg * tokMul + infraU;
+      const rev = PRICE + (paid ? (revs - 1) * EXTRA : 0);
+      return [e2(cost), e2(rev - cost)];
+    };
+    const mk = (label, r) => [label, r[0], { text: r[1], options: { bold: true, color: r[1].startsWith("-") ? C.fail : C.ink } }];
+    table(s, [["Escenario", "Coste", "Margen Qaracter"],
+      mk("Base (1 cambio)", sc(1, 1, true)),
+      mk("Tokens +50 %", sc(1.5, 1, true)),
+      mk("4 revisiones (3 extra a 2 €)", sc(1, 4, true)),
+      mk("6 revisiones sin cobrar", sc(1, 6, false)),
+      mk("Tokens +50 % y 6 sin cobrar", sc(1.5, 6, false)),
+    ], { x: 5.15, y: 3.48, w: 4.35, colW: [2.15, 0.95, 1.25], fontSize: 7.5, rowH: 0.24 });
+    text(s, "Con un precio fijo por novela, la subida de tokens la absorbe Qaracter; cobrar los cambios adicionales protege el margen. Tope recomendado: 3 revisiones incluidas.", {
+      x: 5.15, y: 4.98, w: 4.35, h: 0.2, fontSize: 6.5, color: C.muted, italic: true,
+    });
+    s.addNotes(`[7:30–8:00] Desglose por novela: ${usd(fin.cost_usd)} de tokens medidos en Langfuse, un 30 % de contingencia por reintentos, el cambio incluido y la infraestructura: unos ${eur(unit)} euros. Cobramos 12, así que nos queda un margen operativo de unos ${eur(PRICE - unit)} euros.\nEl proyecto: ${hours} horas a ${RATE} euros, ${th(hours * RATE)} euros, que es exactamente el piloto.\nVolumen: con 500 novelas al mes, Cuentalia gana unos ${th(27 * 500 - FEE)} euros al mes.\nSensibilidad: si los tokens suben un 50 %, nuestro margen baja pero sigue positivo; si el cliente pide más de tres revisiones y no se cobran, el margen se come; por eso los cambios adicionales se cobran a 2 euros.`);
   }
 
   // ------------------------------------------------------------ 12 · Demo
@@ -628,7 +688,7 @@ async function build() {
       text(s, k.toUpperCase(), { x: MX, y, w: 1.1, h: 0.26, fontSize: 8.5, bold: true, color: C.brand, charSpacing: 1, valign: "middle" });
       text(s, v, { x: MX + 1.15, y, w: 4.5, h: 0.26, fontSize: 11, color: C.white, valign: "middle" });
     });
-    text(s, "Anexo: tabla completa de evals", { x: 6.3, y: 4.85, w: 3.2, h: 0.25, fontSize: 9, color: "AEB8C2", align: "right" });
+    text(s, "Anexos: tabla completa de evals · coste de desarrollo", { x: 6.3, y: 4.85, w: 3.2, h: 0.25, fontSize: 9, color: "AEB8C2", align: "right" });
     s.addNotes(`[9:30–10:00] Si me tengo que quedar con una decisión: separar la verdad de la prosa. Lo que es cierto sobre la historia vive en una base de datos y lo comprueban validadores deterministas, Lean y TLA+; los modelos solo redactan, y solo se publica lo que pasa todo.\nMuchas gracias. En el anexo está la tabla completa de evals, y el resto del detalle en los anexos PDF; encantado de responder preguntas.`);
   }
 
@@ -646,6 +706,36 @@ async function build() {
       x: MX, y: 4.72, w: 9, h: 0.3, fontSize: 7.5, color: C.muted, italic: true,
     });
     s.addNotes("Anexo: la tabla completa de evals.");
+  }
+
+  // A5 coste de desarrollo
+  {
+    const s = base("Anexo · Coste de desarrollo", "Cómo reduciríamos el coste de desarrollo del harness", { annex: true });
+    const real = runs.real_costs;
+    const blocked = real.items.find((i) => i[0].startsWith("3 intentos"))[1];
+    const total = real.items[real.items.length - 1][1];
+    stat(s, MX, 1.2, 2.1, `${eur(total)} USD`, "gasto real de modelo en todo el desarrollo", { color: C.acc, fs: 22 });
+    stat(s, MX, 2.15, 2.1, `${Math.round(blocked / total * 100)} %`, `en intentos bloqueados de 10 capítulos (${usd(blocked)})`, { fs: 22 });
+    text(s, "«El coste de desarrollo no está en los tokens; está en el retrabajo.»", { x: MX, y: 3.25, w: 2.1, h: 1.2, fontSize: 11, italic: true, bold: true, color: C.ink2 });
+    const pts = [
+      ["Spec del producto antes que harness genérico", "el harness de partida (~20.000 líneas, novela larga genérica) hubo que adaptarlo casi entero; empezar por spec + esqueleto de punta a punta"],
+      ["Iterar con novelas cortas", "los fallos ya salían en 1–3 capítulos (0,4–0,9 USD); la de 10 solo al final"],
+      ["Lo determinista, antes de escribir", "fechas, cronología y lugares validados en el plan: segundos y céntimos, frente a una novela entera"],
+      ["Tests sin modelo", "FakeModelClient y respuestas grabadas; en vivo solo un smoke pequeño"],
+      ["Modelo según la tarea", "potente para diseño y specs; barato para tests, docs y regenerar tipos; presupuesto por agente"],
+      ["Contratos primero, pocos ficheros compartidos", "K1–K5 evitaron retrabajo; rutas y dependencias compartidas costaron fusiones"],
+      ["Verificación proporcional al riesgo", "TLC y Lean con modelos pequeños; gate estricto solo en el núcleo"],
+      ["Reutilizar", "Langfuse, FastMCP, Playwright MCP, reportlab; llevar hooks, skills y el runner de evals a MyFactory"],
+      ["Observabilidad desde el día 1", "coste por llamada y por rol: se optimiza donde está el gasto (writer y editor)"],
+    ];
+    pts.forEach(([h, d], i) => {
+      const col = i < 5 ? 0 : 1, row = i < 5 ? i : i - 5;
+      const x = 2.85 + col * 3.35, y = 1.2 + row * 0.75;
+      badge(s, x, y, String(i + 1), { size: 0.3, fs: 9, fill: C.ink });
+      text(s, h, { x: x + 0.4, y: y - 0.02, w: 2.85, h: 0.22, fontSize: 8.5, bold: true });
+      text(s, d, { x: x + 0.4, y: y + 0.2, w: 2.85, h: 0.5, fontSize: 7.5, color: C.ink2 });
+    });
+    s.addNotes("Anexo: cómo reducir el coste de desarrollo. Datos reales: 27 USD de modelo, más de la mitad en intentos bloqueados de 10 capítulos que se podían haber descubierto con 1–3 capítulos. La idea: fijar la spec antes del código, iterar en pequeño y mover a código determinista todo lo que el modelo no tiene por qué decidir.");
   }
   const out = path.join(ROOT, "presentacion", "presentacion-2.pptx");
   await pres.writeFile({ fileName: out });

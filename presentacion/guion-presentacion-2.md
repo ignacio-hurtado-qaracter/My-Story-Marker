@@ -1,6 +1,6 @@
 # Guion — presentación 2 (10 minutos + 5 de preguntas)
 
-Deck: `presentacion-2.pptx` / `presentacion-2.pdf` (15 diapositivas; la 15 es anexo).
+Deck: `presentacion-2.pptx` / `presentacion-2.pdf` (17 diapositivas; la 16 y la 17 son anexos).
 Tiempos entre corchetes. Frases en cursiva = lo que dices casi literal; el resto, ideas.
 
 ---
@@ -91,7 +91,7 @@ My Story Marker, un servicio que escribe novelas personalizadas para regalar.»*
 - Datos personales solo en la base de datos; inyección: prescan determinista y el texto libre
   nunca llega crudo a un rol. Todo en el audit log (`policy_decision`).
 
-## 11 · Presupuesto y coste [7:00–8:00]
+## 11 · Presupuesto y coste 1/2 [7:00–7:30]
 - *«Coste medido en Langfuse: la novela de 10 capítulos publicada costó 3,10 USD de modelo y 69
   minutos; un cambio del lector, 0,94 USD.»* Entre 0,20 y 0,49 USD por capítulo.
 - El writer es el rol más caro; luego editor y juez: son los que producen y leen más texto.
@@ -100,20 +100,32 @@ My Story Marker, un servicio que escribe novelas personalizadas para regalar.»*
 - Propuesta: piloto de 8 semanas por 28.800 €, 600 €/mes de plataforma y 12 € por novela
   publicada. Con un PVP de 39 €, a Cuentalia le quedan 27 € de margen bruto.
 
-## 12 · Demo [8:00–9:00]
+## 12 · Presupuesto y coste 2/2 [7:30–8:00]
+- **Coste unitario:** 3,10 USD de tokens medidos en Langfuse (2,79 €) + 30 % de contingencia por
+  reintentos + el cambio incluido (0,85 €) + infraestructura (0,30 € a 500 novelas/mes) ≈ **4,77 €**.
+  Cobramos 12 € → **margen operativo ≈ 7,23 € (60 %)**.
+- **Proyecto:** 360 h a 80 €/h = **28.800 €** (diseño 60, desarrollo 180, validación 90,
+  despliegue 30) — exactamente el piloto.
+- **Volumen:** a 100 / 500 / 2.000 novelas al mes, Cuentalia gana 2.100 / 12.900 / 53.400 € y
+  Qaracter 1.203 / 4.214 / 15.504 €.
+- **Sensibilidad:** tokens +50 % → nuestro margen baja a ~5 €, sigue positivo. Más de 3
+  revisiones: si se cobran a 2 € el margen sube; si fueran gratis, con 6 y tokens +50 % perdemos
+  1,35 € por novela. *Por eso los cambios adicionales se cobran y recomendamos 3 incluidas.*
+
+## 13 · Demo [8:00–9:00]
 - *«La perra se llama Nala.»* La petición entra por el lector; `fact_usage` dice qué capítulos
   usan el hecho (1 y 3–10); se regeneran solo esos en una versión 2; el 2 se copia.
 - Mismos validadores, versión 2 publicada, versión 1 intacta: «Canela» 44 → 0, «Nala» 0 → 45.
   Unos 27 minutos y 0,94 USD. El PDF nuevo trae la página de «Novedades».
 
-## 13 · Riesgos y siguientes pasos [9:00–9:40]
+## 14 · Riesgos y siguientes pasos [9:00–9:40]
 - Lo que aún no está demostrado: días sin fecha al lado y duraciones en la prosa; Lean solo
   prueba lo que el planner registra; revisión humana a escala.
 - Siguientes pasos: extender el calendario a la prosa, más invariantes, el piloto con 50 novelas
   y QA editorial.
 
-## 14 · Cierre [9:40–10:00]
+## 15 · Cierre [9:40–10:00]
 *«Separamos la verdad de la prosa: lo que es cierto sobre la historia vive en una base de datos y
 lo comprueban validadores, Lean y TLA+. Solo se publica lo que pasa todo. Gracias.»*
 
-(15 · Anexo: tabla completa de evals — solo si preguntan.)
+(16 · Anexo: tabla completa de evals · 17 · Anexo: cómo reducir el coste de desarrollo — solo si preguntan.)
