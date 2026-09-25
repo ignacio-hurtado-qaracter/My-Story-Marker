@@ -2,7 +2,7 @@
 
 > Generado por `presentacion/build/build_deck.py` a partir de los mismos datos que el deck (`build/data/runs.json`, evals, TLC, informe de seguridad…). Las cifras coinciden con las diapositivas; si cambian los datos, se regenera. Para cambiar el texto, edita el script, no este fichero.
 
-**Duración estimada:** 14 min 25 s en 20 diapositivas (objetivo 12–15 min). Las notas del orador de cada diapositiva llevan este mismo guion.
+**Duración estimada:** 14 min 50 s en 20 diapositivas (objetivo 12–15 min). Las notas del orador de cada diapositiva llevan este mismo guion.
 
 **Consejos:** habla a partir de los puntos, no leas. Si vas justo de tiempo, acorta Langfuse (11), contraejemplos (10) y Claude Code (17); no recortes la 14 (novelas bloqueadas): es el argumento central.
 
@@ -204,7 +204,7 @@
 
 **Transición:** Ahora, los resultados con novelas de verdad de 10 capítulos.
 
-## 14. Novelas de 10 capítulos y tuning 2 · ≈ 70 s
+## 14. Novelas de 10 capítulos y tuning 2 · ≈ 95 s
 
 **Mensaje clave.** Las dos primeras novelas completas se bloquearon, y eso es el sistema funcionando: nada sin validar llega al cliente.
 
@@ -216,8 +216,9 @@
 - La causa: nadie calculaba el calendario. El modelo inventaba el día de la semana, y cada reparación inventaba otro, así que no convergía. El error ya estaba en el plan.
 - Tuning 2: el calendario lo calcula Python, no el LLM. El plan se corrige, el writer recibe las fechas reales, y un validador determinista para el error en el capítulo, sin gastar una ronda del juez.
 - El intento final, ya con el tuning 2, se publicó: 10 capítulos, 10.645 palabras, 0 rondas de reparación, 3,10 USD.
+- Y una ejecución paralela con el mismo código, novela-ejemplo-b, se paró: el juez de novela la aprobaba, pero un evento del plan no tenía lugar y la exportación a Lean falló; las 2 rondas reescribieron prosa que no podía arreglarlo. Coste 6,05 USD. Ahora el chequeo del plan rechaza ese evento y un error de exportación para la ejecución sin gastar rondas.
 
-**Cifras que mencionar:** intentos bloqueados: 3,68 USD y 4,61 USD · total gastado sin publicar: 8,29 USD
+**Cifras que mencionar:** intentos parados: 3,68 USD, 4,61 USD, 6,05 USD · total gastado sin publicar: 14,34 USD
 
 **Transición:** Veamos la novela que sí se entrega.
 

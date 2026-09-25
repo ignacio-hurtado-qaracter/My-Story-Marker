@@ -1,6 +1,6 @@
 {
   "_doc": "Datos de las ejecuciones que citan el deck y el guion (presentacion/build/build_deck.py). Cifras tomadas de los logs de la CLI (data/logs/<novel_id>.log: coste, llamadas, tiempo de modelo y palabras por capítulo) y de los commits citados. El orquestador rellena final_novel al terminar la novela de 10 capítulos y vuelve a ejecutar el build; un null se muestra como «pendiente». Ver presentacion/README.md.",
-  "updated": "2026-09-24",
+  "updated": "2026-09-25",
   "model": "claude-haiku-4-5",
   "three_chapter_novel": {
     "novel_id": "novela-infantil",
@@ -49,6 +49,22 @@
       "model_time_s": 6434,
       "motivated": "tuning 2",
       "evidence": "docs/process/iteraciones.md fila 24 · data/logs/novela-ejemplo-final.log"
+    },
+    {
+      "novel_id": "novela-ejemplo-b",
+      "when": "después del tuning 2 (paralela)",
+      "status": "stopped_error",
+      "stop_reason": "repair_limit",
+      "validator": "lean_chronology",
+      "why": "error de exportación: un evento del plan sin lugar (events[21].place_id nulo); judge_novel aprobado (0,88)",
+      "chapters_written": 10,
+      "repair_rounds": 2,
+      "calls": 91,
+      "cost_usd": 6.05,
+      "minutes": 148,
+      "model_time_s": 8728,
+      "motivated": "arreglo del plan",
+      "evidence": "docs/process/iteraciones.md filas 27–28 · data/logs/novela-ejemplo-b.log"
     }
   ],
   "final_novel": {

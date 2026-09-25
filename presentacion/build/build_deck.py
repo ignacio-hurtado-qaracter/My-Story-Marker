@@ -1150,25 +1150,38 @@ def s_security(d: Deck, x: Data) -> None:
 
 def s_ten(d: Deck, x: Data) -> None:
     s = d.slide()
+    stopped = len(x.attempts)
+    word = {1: "Una", 2: "Dos", 3: "Tres", 4: "Cuatro"}.get(stopped, str(stopped))
     d.header(s, "Resultados · novelas de 10 capítulos",
-             "Dos bloqueadas, una publicada: nada sin validar sale" if x.final_pub else
-             "Dos novelas bloqueadas: nada sin validar se publica")
+             f"{word} paradas, una publicada: nada sin validar sale" if x.final_pub else
+             f"{word} novelas paradas: nada sin validar se publica")
+    # Chronological: the attempts that motivated a tuning, the published one, then the
+    # attempts run in parallel with it (same code), each with what it motivated.
     cols = list(x.attempts[:2])
+    final_at = len(cols)
     cols.append({"final": True, **x.final})
-    cw = (W - 2 * M - 0.6) / 3
+    cols += list(x.attempts[2:])
+    n = len(cols)
+    gap = 0.3
+    cw = (W - 2 * M - gap * (n - 1)) / n
+    small = n > 3
+    body_size = 11 if small else 12
     for i, a in enumerate(cols):
-        xx = M + i * (cw + 0.3)
+        xx = M + i * (cw + gap)
         final = a.get("final")
         st = a.get("status")
         pub = st == "published"
+        stop = st in {"blocked", "stopped_error"}
         fill = GREEN_L if pub else (MIST if final and not st else RED_L)
         d.box(s, xx, 1.75, cw, 3.25, fill)
-        kick = "INTENTO FINAL" if final else f"INTENTO {i + 1} · {a.get('when', '')}".upper()
-        d.text(s, xx + 0.25, 1.9, cw - 0.5, 0.3, kick, 11, bold=True, color=TERRA)
+        when = "después del tuning 2" if final else a.get("when", "")
+        kick = f"INTENTO {i + 1} · {when}".upper()
+        d.text(s, xx + 0.2, 1.87, cw - 0.4, 0.4, kick, 10 if small else 11, bold=True,
+               color=TERRA)
         label = ("publicada" if pub else "bloqueada" if st == "blocked"
-                 else (st or PENDING))
-        d.text(s, xx + 0.25, 2.2, cw - 0.5, 0.55, label.capitalize(), 26, bold=True,
-               font=HEAD, color=GREEN if pub else RED if st == "blocked" else MUTED)
+                 else "parada" if st == "stopped_error" else (st or PENDING))
+        d.text(s, xx + 0.2, 2.3, cw - 0.4, 0.5, label.capitalize(), 24 if small else 26,
+               bold=True, font=HEAD, color=GREEN if pub else RED if stop else MUTED)
         if final and not st:
             body = [[("Generándose con el tuning 2. ", {"bold": True}),
                      ("Estado, coste, palabras y rondas se rellenan desde runs.json al "
@@ -1183,25 +1196,30 @@ def s_ten(d: Deck, x: Data) -> None:
         else:
             body = [[(f"{a.get('validator', '?')}: ", {"bold": True}),
                      (a.get("why", ""), {})],
-                    [(f"{a.get('chapters_written', '?')} capítulos escritos · "
+                    [(f"{a.get('chapters_written', '?')} capítulos · "
                       f"{a.get('repair_rounds', '?')} "
                       f"{'ronda' if a.get('repair_rounds') == 1 else 'rondas'} de reparación · "
                       f"{mins(a.get('minutes'))}", {"color": SLATE})]]
-        d.text(s, xx + 0.25, 2.85, cw - 0.5, 1.5, body, 12, spacing=4)
-        d.text(s, xx + 0.25, 4.35, cw - 0.5, 0.5, usd(a.get("cost_usd")), 22, bold=True,
+        d.text(s, xx + 0.2, 2.9, cw - 0.4, 1.45, body, body_size, spacing=3)
+        d.text(s, xx + 0.2, 4.4, cw - 0.4, 0.5, usd(a.get("cost_usd")), 22, bold=True,
                font=HEAD, color=INK)
-        if i < len(cols) - 1:
-            d.arrow(s, xx + cw + 0.02, 3.35, xx + cw + 0.28, 3.35, TERRA, 2)
-            d.text(s, xx + 0.25, 5.1, cw - 0.5, 0.35, f"→ motivó el {a.get('motivated', '')}",
-                   12, bold=True, color=TERRA)
+        if i < final_at:
+            d.arrow(s, xx + cw + 0.02, 3.35, xx + cw + gap - 0.02, 3.35, TERRA, 2)
+        if not final and a.get("motivated"):
+            d.text(s, xx + 0.2, 5.1, cw - 0.4, 0.4, f"→ motivó el {a.get('motivated', '')}",
+                   11 if small else 12, bold=True, color=TERRA)
     d.box(s, M, 5.6, W - 2 * M, 1.15, INK)
     d.text(s, M + 0.3, 5.68, W - 2 * M - 0.6, 1.0, [
         [("Tuning 2 · calendario determinista. ", {"bold": True, "color": TERRA}),
          ("El writer inventaba el día de la semana y cada reparación inventaba otro. Ahora el "
           "plan corrige los días en Python (calendar_facts.py), writer y editor reciben "
           "plan/calendar.txt con fechas y cifras canónicas, y calendar_consistency para en "
-          "chapter_close «…pero el 23 de junio de 2026 es martes».", {"color": WHITE})]],
-        12, anchor=MSO_ANCHOR.MIDDLE)
+          "chapter_close «…pero el 23 de junio de 2026 es martes».", {"color": WHITE})],
+        [("Después · eventos con lugar. ", {"bold": True, "color": TERRA}),
+         ("La paralela se paró por un evento del plan sin lugar que Lean no podía exportar: "
+          "ahora el chequeo del plan lo rechaza y un error de exportación no gasta rondas.",
+          {"color": WHITE})]],
+        11 if len(x.attempts) > 2 else 12, anchor=MSO_ANCHOR.MIDDLE, spacing=3)
     spent = sum(a.get("cost_usd") or 0 for a in x.attempts)
     if x.final_pub:
         fin_say = (f"El intento final, ya con el tuning 2, se publicó: {x.final.get('chapters')} "
@@ -1216,6 +1234,14 @@ def s_ten(d: Deck, x: Data) -> None:
                    "presentación; si os preguntan, está en runs.json y en el log.")
     a1 = x.attempts[0] if x.attempts else {}
     a2 = x.attempts[1] if len(x.attempts) > 1 else {}
+    later = x.attempts[2:]
+    later_say = [
+        f"Y una ejecución paralela con el mismo código, {a.get('novel_id')}, se paró: el juez "
+        "de novela la aprobaba, pero un evento del plan no tenía lugar y la exportación a "
+        f"Lean falló; las {a.get('repair_rounds', '?')} rondas reescribieron prosa que no "
+        f"podía arreglarlo. Coste {usd(a.get('cost_usd'))}. Ahora el chequeo del plan rechaza "
+        "ese evento y un error de exportación para la ejecución sin gastar rondas."
+        for a in later]
     d.script(s, Script(
         "Novelas de 10 capítulos y tuning 2", 90,
         "Las dos primeras novelas completas se bloquearon, y eso es el sistema funcionando: "
@@ -1232,8 +1258,8 @@ def s_ten(d: Deck, x: Data) -> None:
          "Tuning 2: el calendario lo calcula Python, no el LLM. El plan se corrige, el writer "
          "recibe las fechas reales, y un validador determinista para el error en el capítulo, "
          "sin gastar una ronda del juez.",
-         fin_say],
-        [f"intentos bloqueados: {usd(a1.get('cost_usd'))} y {usd(a2.get('cost_usd'))}",
+         fin_say, *later_say],
+        [f"intentos parados: {', '.join(usd(a.get('cost_usd')) for a in x.attempts)}",
          f"total gastado sin publicar: {usd(spent)}"],
         "Veamos la novela que sí se entrega."))
 
@@ -1334,7 +1360,10 @@ def s_cost(d: Deck, x: Data) -> None:
         bars.append(("novela-infantil (3 cap.)", x.three["cost_usd"]))
     for i, a in enumerate(x.attempts):
         if a.get("cost_usd"):
-            bars.append((f"10 cap. intento {i + 1} (bloq.)", a["cost_usd"]))
+            # Numbered as on the results slide: the published attempt is the third.
+            number = i + 1 if i < 2 else i + 2
+            tag = "parada" if a.get("status") == "stopped_error" else "bloq."
+            bars.append((f"10 cap. intento {number} ({tag})", a["cost_usd"]))
     if ten_cost:
         bars.append(("10 cap. final (publicada)", ten_cost))
     if bars:
