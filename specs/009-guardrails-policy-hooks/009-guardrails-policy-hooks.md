@@ -1,7 +1,7 @@
 ---
 id: 009
 title: B5 — Guardrails, policy engine and Claude Code hooks
-status: approved         # approved 2026-09-24 on the user's delegation for this session
+status: implemented      # closed 2026-09-25 on the user's delegation (programme 004 close-out)
 supersedes: null
 programme: 004
 block: B5
@@ -110,3 +110,22 @@ our reason), the chapter-length validator of the pipeline (B4; the hook reuses
 
 - None blocking. The compliance checker's G04 rule looks for a table named `*audit*`; the
   audit log here is the existing K1 table `policy_decision`. Adjusting the check is B12's.
+
+## Closing note (2026-09-25)
+
+Closed on the user's delegation (programme 004 close-out, Process 2 step 12). Evidence at
+`proyecto-desde-cero` @ `0e8118c`: backend gate `ruff check .` clean, `mypy --strict .`
+clean (290 files), `pytest` 1758 passed / 8 skipped / 1 failed. The one failure is
+`tests/test_boundaries_mirror.py`, the spec 001 store-boundary guard, which flags file I/O
+in the new modules; it is not an acceptance criterion of this spec and is left to the
+author (`docs/process/README.md`, "Pendiente para el autor").
+
+| AC | Satisfied by |
+|---|---|
+| G01 | T — `app/policy/tests/test_forbidden_words.py` (global + novel term) |
+| G02 | T — `test_forbidden_words.py` (accents, plurals, leetspeak, stretched and dotted variants; no `tontería` / `ridículo` false positive) |
+| G03 | T — `test_forbidden_words.py` (explanation lists terms) · I — pipeline stop reviewed in `app/novel/pipeline.py` |
+| G04 | T — `test_forbidden_words.py` (`policy_decision` rows, `guardrail:forbidden_words` score) |
+| G05 | T — `test_forbidden_words.py` (each level and one variant) |
+| H03 | D — `validate_chapter.py` sample runs in the `54854d3` commit body (exit 2 on dirty/short chapter, 0 otherwise) |
+| H04 | D — `policy_guard.py` runs in `54854d3` (blocks `.env`, key-shaped content, DB writes; ordinary edits in ~0.05 s); it also blocked this close-out's own shell command naming the DB |
