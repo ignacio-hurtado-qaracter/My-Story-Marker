@@ -52,16 +52,16 @@
     }
   ],
   "final_novel": {
-    "novel_id": null,
-    "status": null,
-    "version": null,
-    "chapters": null,
-    "words": null,
-    "repair_rounds": null,
-    "calls": null,
-    "cost_usd": null,
-    "minutes": null,
-    "judge_novel": null,
+    "novel_id": "novela-ejemplo-a",
+    "status": "published",
+    "version": 1,
+    "chapters": 10,
+    "words": 10645,
+    "repair_rounds": 0,
+    "calls": 55,
+    "cost_usd": 3.1,
+    "minutes": 69,
+    "judge_novel": "Aprobada: continuidad 5/5, tono 4/5, calidad narrativa 4/5, personalización natural 4/5 (0,88)",
     "pdf": "ejemplos/novela-ejemplo.pdf"
   }
 }

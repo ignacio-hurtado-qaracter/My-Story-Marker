@@ -2,7 +2,7 @@
 
 > Generado por `presentacion/build/build_deck.py` a partir de los mismos datos que el deck (`build/data/runs.json`, evals, TLC, informe de seguridad…). Las cifras coinciden con las diapositivas; si cambian los datos, se regenera. Para cambiar el texto, edita el script, no este fichero.
 
-**Duración estimada:** 14 min 35 s en 20 diapositivas (objetivo 12–15 min). Las notas del orador de cada diapositiva llevan este mismo guion.
+**Duración estimada:** 14 min 25 s en 20 diapositivas (objetivo 12–15 min). Las notas del orador de cada diapositiva llevan este mismo guion.
 
 **Consejos:** habla a partir de los puntos, no leas. Si vas justo de tiempo, acorta Langfuse (11), contraejemplos (10) y Claude Code (17); no recortes la 14 (novelas bloqueadas): es el argumento central.
 
@@ -215,39 +215,39 @@
 - Segundo intento, tras el tuning 1: tras 2 rondas de reparación, bloqueada otra vez: el 24 de junio aparecía como lunes cuando es miércoles, y en cada ronda los días de la semana cambiaban. Coste 4,61 USD. Tampoco se publicó.
 - La causa: nadie calculaba el calendario. El modelo inventaba el día de la semana, y cada reparación inventaba otro, así que no convergía. El error ya estaba en el plan.
 - Tuning 2: el calendario lo calcula Python, no el LLM. El plan se corrige, el writer recibe las fechas reales, y un validador determinista para el error en el capítulo, sin gastar una ronda del juez.
-- El intento final, con el tuning 2, se estaba generando al preparar esta presentación; si os preguntan, está en runs.json y en el log.
+- El intento final, ya con el tuning 2, se publicó: 10 capítulos, 10.645 palabras, 0 rondas de reparación, 3,10 USD.
 
 **Cifras que mencionar:** intentos bloqueados: 3,68 USD y 4,61 USD · total gastado sin publicar: 8,29 USD
 
 **Transición:** Veamos la novela que sí se entrega.
 
-## 15. Novela de ejemplo · ≈ 30 s
+## 15. Novela de ejemplo · ≈ 25 s
 
 **Mensaje clave.** El sistema funciona de principio a fin: brief → novela publicada → PDF.
 
 **Qué decir:**
 
-- Esta es la novela que tenemos publicada de principio a fin con el pipeline real: 3 capítulos, 3.409 palabras, para una niña de siete años.
-- Costó 0,85 USD y 21 min; necesitó 1 ronda de reparación y después pasó todo.
-- Portada con dedicatoria, índice y fichas, exportada a PDF.
-- La novela de 10 capítulos con el brief de ejemplo es la que se estaba generando con el tuning 2; si está, este hueco la muestra al reconstruir.
+- Esta es la novela de ejemplo: 10 capítulos, 10.645 palabras, generada con el brief del README.
+- Portada con dedicatoria, índice navegable y fichas, igual que en la web.
+- Costó 3,10 USD y tardó 69 min, con 0 rondas de reparación.
+- Pasó todos los validadores: nombres, cobertura, calendario, Lean y el juez de novela.
 
-**Cifras que mencionar:** 3 capítulos · 3.409 palabras · 0,85 USD · 21 min
+**Cifras que mencionar:** 10 capítulos · 10.645 palabras · 3,10 USD · 69 min
 
 **Transición:** ¿Y cuánto cuesta esto como negocio?
 
-## 16. Coste y latencia · ≈ 40 s
+## 16. Coste y latencia · ≈ 35 s
 
 **Mensaje clave.** Una novela de 10 capítulos cuesta unos pocos dólares de modelo y se genera en menos de dos horas.
 
 **Qué decir:**
 
 - Un capítulo cuesta de media 0,35 USD y unos 8 min de modelo, contando escenas, editor, juez y reparaciones.
-- Las novelas de 10 capítulos completas costaron entre 3,68 USD y 4,61 USD, y eso incluye las rondas de reparación.
+- La novela de 10 capítulos publicada costó 3,10 USD.
 - El writer es el rol más caro, seguido del editor y el juez: tiene sentido, son los que producen y leen más texto.
 - Comercialmente, el coste de modelo es pequeño frente al precio de un regalo personalizado; lo que cuesta de verdad es el tiempo, y por eso los bucles están acotados: una novela nunca se queda gastando indefinidamente.
 
-**Cifras que mencionar:** 0,35 USD/capítulo · 8 min/capítulo · 3,68 USD · 4,61 USD
+**Cifras que mencionar:** 0,35 USD/capítulo · 8 min/capítulo · 3,10 USD
 
 **Transición:** Cómo se construyó todo esto: Claude Code.
 
@@ -340,7 +340,7 @@ En un capítulo, el editor lo reescribe con la evidencia, como mucho 2 veces. En
 
 **8. ¿Cuánto cuesta y cuánto tarda una novela?**
 
-La novela final de 10 capítulos está pendiente en runs.json; las dos completas que se bloquearon costaron 3,68 USD y 4,61 USD, en 91 min y 109 min. Un capítulo cuesta de media 0,35 USD y unos 8 min de modelo; la novela de 3 capítulos publicada costó 0,85 USD en 21 min.
+La novela de 10 capítulos publicada costó 3,10 USD y tardó 69 min, con 0 rondas de reparación. Un capítulo cuesta de media 0,35 USD y unos 8 min de modelo; la novela de 3 capítulos publicada costó 0,85 USD en 21 min.
 
 **9. ¿Por qué Haiku?**
 
