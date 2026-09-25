@@ -161,7 +161,7 @@ async function build() {
     text(s, "Novelas personalizadas para regalar, escritas por un harness de agentes que se puede verificar", {
       x: MX, y: 2.4, w: 5.6, h: 0.6, fontSize: 14, color: "C9D1D9",
     });
-    const rows = [["Cliente", CLIENT], ["Ocasión", "Catálogo de Navidad 2026: la novela-regalo personalizada"], ["Fecha", DATE], ["Presenta", STUDENT]];
+    const rows = [["Fecha", DATE]];
     rows.forEach(([k, v], i) => {
       const y = 3.3 + i * 0.38;
       text(s, k.toUpperCase(), { x: MX, y, w: 1.1, h: 0.3, fontSize: 8.5, bold: true, color: C.brand, charSpacing: 1, valign: "middle" });
