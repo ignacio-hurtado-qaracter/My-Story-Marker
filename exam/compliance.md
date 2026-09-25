@@ -90,8 +90,8 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 |---|---|---|---|
 | H01 | ✅ | Tres roles como mínimo (planner, writer, editor/critic) invocados por un orquestador | ✓ /(?i)def plan(_(novel\|chapters?\|scenes\|structure\|story))?\(/ in backend/app/novel/pipeline.py (+1)<br>✓ /(?i)def write\w*\(/ in backend/app/agents/roles/writer.py (+6)<br>✓ /(?i)def (critique\|audit\|edit\|polish\|judge)\w*\(/ in backend/app/agents/roles/auditor.py (+5) |
 | H02 | 📝✅ | Una skill reutilizable propia del harness | ✓ 6 file(s) for .claude/skills/*/SKILL.md (need 1) |
-| H03 | ✅ | Hook de validación de capítulo | ✓ /(?i)chapter/ in .claude/hooks/README.md (+5) |
-| H04 | ✅ | Hook de policy | ✓ /(?i)policy/ in .claude/hooks/README.md (+4) |
+| H03 | ✅ | Hook de validación de capítulo | ✓ /(?i)chapter/ in .claude/hooks/README.md (+4) |
+| H04 | ✅ | Hook de policy | ✓ /(?i)policy/ in .claude/hooks/README.md (+3) |
 | H05 | ✅ | Tools con schema validado | ✓ /(?i)(def toolset_for\|tool_schema\|input_schema)/ in backend/app/commons/permissions/toolsets.py (+5) |
 | H06 | ✅ | Retries con límite, usados por el orquestador | ✓ /TURN_MAX_REVISIONS\|MAX_RETRIES\|max_attempts/ in backend/app/agents/turn.py |
 
@@ -120,7 +120,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 | Id | Estado | Requisito | Evidencia |
 |---|---|---|---|
 | S01 | ✅ | LLM-as-judge con rúbrica (continuidad, tono, calidad narrativa, personalización natural), nota y justificación por criterio | ✓ /(?i)rubric/ in backend/app/judge/__init__.py (+5) |
-| S02 | 📝✅ | Revisión humana de una novela completa con la misma rúbrica, comparada con el juez | ✓ /(?i)(human review\|revisión humana)/ in docs/process/explainers/11-llm-as-judge.md (+3) |
+| S02 | 📝✅ | Revisión humana de una novela completa con la misma rúbrica, comparada con el juez | ✓ /(?i)(human review\|revisión humana)/ in docs/process/README.md (+4) |
 
 ## 5c. Lean 4
 
@@ -175,7 +175,7 @@ Leyenda: ✅ cumple · 🟡 parcial · ❌ falta · 📝 manual · 📝✅ exist
 | D01 | ✅ | Spec inicial: qué se decidió construir y por qué, antes del código | ✓ 3 file(s) for docs/process/spec-inicial*.md \| specs/001-*/001-*.md (need 1) |
 | D02 | ✅ | Trade-offs: cada decisión relevante con opciones, criterios y elección | ✓ 1 file(s) for docs/process/trade-offs*.md \| docs/process/adr/*.md (need 1) |
 | D03 | ✅ | Explainers: uno por concepto del curso aplicado en el proyecto | ✓ 21 file(s) for docs/process/explainers/*.md (need 3) |
-| D04 | ✅ | Diagramas: arquitectura del harness, máquina de estados TLA+, esquema SQLite, tabla de validadores | ✓ /flowchart/ in docs/architecture.md (+4)<br>✓ /stateDiagram/ in docs/process/README.md (+2)<br>✓ /erDiagram/ in docs/process/README.md (+1)<br>✓ /(?i)validator/ in docs/process/diagramas.md (+8) |
+| D04 | ✅ | Diagramas: arquitectura del harness, máquina de estados TLA+, esquema SQLite, tabla de validadores | ✓ /flowchart/ in docs/architecture.md (+4)<br>✓ /stateDiagram/ in docs/process/README.md (+2)<br>✓ /erDiagram/ in docs/process/README.md (+1)<br>✓ /(?i)validator/ in docs/process/README.md (+9) |
 | D05 | ✅ | Registro de iteraciones: qué cambió tras cada eval, contraejemplo TLC o fallo Lean, y por qué | ✓ 1 file(s) for docs/process/iteraciones*.md \| docs/process/iterations*.md (need 1) |
 | D06 | ✅ | Red-team log: casos adversariales, qué validador los detectó y cómo se resolvió | ✓ 1 file(s) for docs/process/red-team*.md (need 1) |
 
