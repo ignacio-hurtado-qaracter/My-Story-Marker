@@ -1,6 +1,6 @@
 ---
 spec: 006
-status: approved          # approved 2026-09-24 on the user's delegation for this session
+status: done              # closed 2026-09-25 with spec 006 (programme 004 close-out)
 ---
 
 # Plan 006 — Interview and brief

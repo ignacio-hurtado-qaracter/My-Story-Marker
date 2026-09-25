@@ -1,7 +1,7 @@
 ---
 id: 006
 title: B2 — Interview and brief
-status: approved         # approved 2026-09-24 on the user's delegation for this session
+status: implemented      # closed 2026-09-25 on the user's delegation (programme 004 close-out)
 supersedes: null
 programme: 004
 block: B2
@@ -123,3 +123,22 @@ mandatory.
 ## Open questions
 
 None open. Deferred: a live interviewer conversation eval (B11).
+
+## Closing note (2026-09-25)
+
+Closed on the user's delegation (programme 004 close-out, Process 2 step 12). Evidence at
+`proyecto-desde-cero` @ `0e8118c`: backend gate `ruff check .` clean, `mypy --strict .`
+clean (290 files), `pytest` 1758 passed / 8 skipped / 1 failed. The one failure is
+`tests/test_boundaries_mirror.py`, the spec 001 store-boundary guard, which flags file I/O
+in the new modules; it is not an acceptance criterion of this spec and is left to the
+author (`docs/process/README.md`, "Pendiente para el autor").
+
+| AC | Satisfied by |
+|---|---|
+| 1 | T — `app/interview/tests/test_brief.py` (missing traits and dedication) |
+| 2 | T — `app/interview/tests/test_brief.py` (age × genre/tone contradiction) |
+| 3 | A — `uv run python scripts/export_schemas.py --check` → "25 JSON Schemas up to date"; `tests/test_schema_export.py` |
+| 4 | T — `app/interview/tests/test_brief.py` (`ingest_brief`) |
+| 5 | T — `app/interview/tests/test_brief.py` (pre-scan + `free_text_injection` decision); red-team R2 |
+| 6 | D — live extractor call recorded in the spec 006 commit body; `tests/live/test_extract_live.py`; `b3-injection` published in `evals/results/after/` |
+| 7 | I — review of `app/interview/` (interviewer, CLI, routes, `role:interviewer` spans) |
