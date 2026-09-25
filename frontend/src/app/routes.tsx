@@ -10,7 +10,6 @@ import { BibleRoute } from '../bible'
 import { CoverRoute } from '../cover'
 import { Graph3dRoute } from '../graph3d'
 import { ChapterIndexRoute, ChapterRoute, NovelsRoute, ReaderRoute } from '../reader'
-import { ChaptersRoutes, ScenesRoutes } from '../scenes'
 import { NewNovelRoute } from '../newnovel'
 import { Layout } from './Layout'
 import { NotFoundPage } from './NotFoundPage'
@@ -30,8 +29,6 @@ export function AppRoutes() {
           <Route path="capitulos/:n" element={<ChapterRoute />} />
           <Route path="personajes" element={<BibleRoute />} />
         </Route>
-        <Route path="scenes/*" element={<ScenesRoutes />} />
-        <Route path="chapters/*" element={<ChaptersRoutes />} />
         <Route path="graph3d" element={<Graph3dRoute />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

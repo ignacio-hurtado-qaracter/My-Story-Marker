@@ -6,9 +6,6 @@ const WCAG_22_AA = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']
 
 const ROUTES = [
   { path: '/', ready: null },
-  { path: '/scenes', ready: 'Índice' },
-  { path: '/chapters/ch01', ready: 'The Sealed Half' },
-  { path: '/scenes/002', ready: 'Escena 002' },
   { path: '/characters', ready: 'Personajes' },
   { path: '/characters/vance', ready: 'Teodora Vance' },
   { path: '/locations', ready: 'Lugares' },

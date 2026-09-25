@@ -20,7 +20,6 @@ interface NavItem {
 const NAV: readonly NavItem[] = [
   { label: 'Novelas', to: '/', exact: '/', prefixes: ['/novelas'] },
   { label: 'Nueva novela', to: '/nueva', prefixes: ['/nueva'] },
-  { label: 'Escenas', to: '/scenes', prefixes: ['/scenes', '/chapters'] },
   { label: 'Cómo funciona', to: '/arquitectura', exact: '/arquitectura' },
 ]
 

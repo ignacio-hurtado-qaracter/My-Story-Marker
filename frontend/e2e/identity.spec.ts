@@ -8,9 +8,6 @@ import { expect, test, type Page } from '@playwright/test'
 /** Each route, and the h1 that shows it has rendered. */
 const PAGES = new Map([
   ['/', ''],
-  ['/scenes', 'Índice'],
-  ['/chapters/ch01', 'The Sealed Half'],
-  ['/scenes/002', 'Escena 002'],
   ['/characters', 'Personajes'],
   ['/characters/vance', 'Teodora Vance'],
   ['/locations', 'Lugares'],
@@ -96,7 +93,7 @@ test('the health dot pulses, and stops under reduced motion', async ({ browser }
   for (const reducedMotion of ['no-preference', 'reduce'] as const) {
     const context = await browser.newContext({ reducedMotion })
     const page = await context.newPage()
-    await open(page, '/scenes')
+    await open(page, '/')
     const badge = page.getByRole('status', { name: 'Estado del backend' })
     await expect(badge).toContainText('ok')
     const animation = await badge.evaluate((el) => getComputedStyle(el, '::before').animationName)

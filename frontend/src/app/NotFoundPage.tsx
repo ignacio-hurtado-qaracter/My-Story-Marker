@@ -11,8 +11,8 @@ export function NotFoundPage() {
       <p className="eyebrow">Error 404</p>
       <Heading>Página no encontrada</Heading>
       <p className="not-found-text">La dirección que has abierto no corresponde a ninguna página.</p>
-      <Link to="/scenes" className="btn-ghost">
-        Volver a las escenas
+      <Link to="/" className="btn-ghost">
+        Volver a la biblioteca
       </Link>
     </section>
   )

@@ -13,11 +13,11 @@ function recordScripts(page: Page): string[] {
 }
 
 // spec 002 / AC 13
-test('the three.js chunk is requested on /graph3d and not on /scenes', async ({ page }) => {
+test('the three.js chunk is requested on /graph3d and not on /arquitectura', async ({ page }) => {
   const scripts = recordScripts(page)
 
-  await page.goto('/scenes')
-  await expect(page.getByRole('heading', { level: 1, name: 'Índice' })).toBeVisible()
+  await page.goto('/arquitectura')
+  await expect(page.getByRole('heading', { level: 1, name: 'De la entrevista al libro' })).toBeVisible()
   expect(scripts.filter((url) => SCENE_CHUNK.test(url))).toEqual([])
 
   // Revised by spec 003 (revision 2): /graph3d is reached from the footer.

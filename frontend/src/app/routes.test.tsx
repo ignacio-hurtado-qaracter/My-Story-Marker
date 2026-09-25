@@ -1,5 +1,5 @@
 // app/'s route table and providers. Spec 002, FR-SHELL-01 and FR-SHELL-03 (AC 16); spec 003,
-// FR-IA (revision 2); spec 014: `/` lists the novels, navigation Novelas · Escenas.
+// FR-IA (revision 2); spec 014: `/` lists the novels, navigation Novelas · Nueva novela · Cómo funciona (Escenas removed).
 import { render, screen, waitFor, within } from '@testing-library/react'
 import { HttpResponse } from 'msw'
 import userEvent from '@testing-library/user-event'
@@ -23,8 +23,6 @@ beforeEach(() => {
       response(200).json({ status: 'ok', vector: 'available', embedding_model: 'm', store_root: '/s' }),
     ),
     // The pages behind the routes these tests visit load these; the tests only look at the shell.
-    http.get('/structure/chapters', ({ response }) => response(200).json({ schema_version: 1, chapters: [] })),
-    http.get('/scenes', ({ response }) => response(200).json([])),
     http.get('/cast', ({ response }) => response(200).json([])),
     http.get('/canon/locations', ({ response }) => response(200).json({ kind: 'locations', ids: [] })),
     http.get('/cast/{id}', ({ response }) =>
@@ -54,7 +52,7 @@ describe('AppRoutes', () => {
     renderWithProviders(<AppRoutes />, { route: '/nope' })
 
     expect(screen.getByRole('heading', { level: 1, name: 'Página no encontrada' })).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: 'Volver a las escenas' })).toHaveAttribute('href', '/scenes')
+    expect(screen.getByRole('link', { name: 'Volver a la biblioteca' })).toHaveAttribute('href', '/')
 
     const header = screen.getByRole('banner')
     // Revised by spec 003 (revision 2): the brand leads to the cover; the navigation is new.
@@ -62,7 +60,7 @@ describe('AppRoutes', () => {
     const nav = within(header).getByRole('navigation', { name: 'Principal' })
     // Revised by spec 014: the reader's own navigation lives inside each novel.
     expect(within(nav).getByRole('link', { name: 'Novelas' })).toHaveAttribute('href', '/')
-    expect(within(nav).getByRole('link', { name: 'Escenas' })).toHaveAttribute('href', '/scenes')
+    expect(within(nav).queryByRole('link', { name: 'Escenas' })).toBeNull()
     expect(await within(header).findByText('ok · vector: available')).toBeInTheDocument()
     expect(within(screen.getByRole('main')).getByRole('heading', { level: 1 })).toBeInTheDocument()
   })
@@ -122,8 +120,7 @@ describe('Layout (spec 003)', () => {
   it.each([
     ['/', 'Novelas'],
     ['/novelas/demo', 'Novelas'],
-    ['/scenes', 'Escenas'],
-    ['/chapters/ch01', 'Escenas'],
+    ['/arquitectura', 'Cómo funciona'],
   ])('on %s marks only "%s" with aria-current="page"', async (route, current) => {
     renderWithProviders(<AppRoutes />, { route })
     const nav = within(screen.getByRole('banner')).getByRole('navigation', { name: 'Principal' })
