@@ -187,12 +187,37 @@ def _enclosing_functions(tree: ast.Module) -> dict[int, str]:
     return owner
 
 
+GIFT_NOVEL_FILE_ACCESS = (
+    "app/export/cli.py",
+    "app/export/pdf.py",
+    "app/formal/lean_runner.py",
+    "app/judge/compare.py",
+    "app/novel/cli.py",
+    "app/novel/setup.py",
+    "app/reader/changes.py",
+    "app/reader/dev_seed.py",
+    "app/reader/router.py",
+    "app/tools/download.py",
+    "app/validators/programmatic/schema.py",
+)
+"""Programme 004, approved by the user on 2026-09-25 (option 1 of the boundaries decision).
+
+The gift-novel pipeline keeps its records in the authoritative database (plan 004, V4), not in
+the Figure 3 stores. These files touch files that are not store paths: the generated Lean story
+and per-novel Lean copies (specs 012, 007), exported PDFs (spec 014), the human-review report
+(spec 011), the brief JSON Schema (spec 008), CLI brief input, the dev seed and the
+authoritative database opened by the reader and the tools (`BibleRepository.open`). Exempted
+by file, not by package, and mirrored in `semgrep/forbidden-store-write.yaml`; any other file
+in these packages stays under the rule."""
+
+
 def check_forbidden_store_write(relative: str, tree: ast.Module) -> list[Finding]:
     """Rule 1, AC 3."""
     if (
         relative.startswith(STORE_LAYER)
         or relative.startswith(INDEX_WRITERS)
         or relative in TEMPORARY_FILE_WRITERS
+        or relative in GIFT_NOVEL_FILE_ACCESS
         or _is_test(relative)
     ):
         return []

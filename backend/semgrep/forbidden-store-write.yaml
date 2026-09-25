@@ -38,6 +38,20 @@ rules:
         # plan step 15). A temporary file is not a store path, like `.index/`. Exempted by
         # file, not by package: the rest of `commons/llm/` stays under the rule.
         - app/commons/llm/claude_code_client.py
+        # Programme 004 (user-approved 2026-09-25): gift-novel files that touch non-store
+        # files -- Lean story, PDFs, review report, brief schema, CLI input, the authoritative
+        # DB. Exempted by file; mirrored in tools/check_boundaries.py GIFT_NOVEL_FILE_ACCESS.
+        - app/export/cli.py
+        - app/export/pdf.py
+        - app/formal/lean_runner.py
+        - app/judge/compare.py
+        - app/novel/cli.py
+        - app/novel/setup.py
+        - app/reader/changes.py
+        - app/reader/dev_seed.py
+        - app/reader/router.py
+        - app/tools/download.py
+        - app/validators/programmatic/schema.py
         - "**/tests/**"
     patterns:
       - pattern-either:
