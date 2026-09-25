@@ -698,7 +698,7 @@ export function NewNovelPage() {
         <title>Generando tu novela · My Story Marker</title>
         <div className="nn-hero">
           <p className="eyebrow">Nueva novela</p>
-          <Heading>Tu novela se está escribiendo</Heading>
+          <Heading>Tu nueva novela</Heading>
         </div>
         <GenerationProgress novelId={novelId} />
       </section>

@@ -66,7 +66,7 @@ export function GenerationProgress({ novelId }: { novelId: string }) {
 
   return (
     <section className="card nn-progress" aria-labelledby="nn-progress-title" aria-live="polite">
-      <p className="eyebrow">Generación en curso</p>
+      <p className="eyebrow">{finished ? 'Generación terminada' : 'Generación en curso'}</p>
       <h2 id="nn-progress-title" className="nn-progress-title">
         {phaseText(state)}
       </h2>
