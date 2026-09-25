@@ -1,7 +1,7 @@
 ---
 id: 011
 title: B7 — LLM-as-judge and human review
-status: approved         # approved 2026-09-24 on the user's delegation for this session
+status: implemented      # closed 2026-09-25 on the user's delegation (programme 004 close-out)
 supersedes: null
 programme: 004
 block: B7
@@ -87,3 +87,20 @@ and `traced_complete` already make.
 ## Open questions
 
 None. Judge reliability stays in the accepted-risk register ("Judge-model reliability").
+
+## Closing note (2026-09-25)
+
+Closed on the user's delegation (programme 004 close-out, Process 2 step 12). Evidence at
+`proyecto-desde-cero` @ `0e8118c`: backend gate `ruff check .` clean, `mypy --strict .`
+clean (290 files), `pytest` 1758 passed / 8 skipped / 1 failed. The one failure is
+`tests/test_boundaries_mirror.py`, the spec 001 store-boundary guard, which flags file I/O
+in the new modules; it is not an acceptance criterion of this spec and is left to the
+author (`docs/process/README.md`, "Pendiente para el autor").
+
+| AC | Satisfied by |
+|---|---|
+| 1 | T — `app/judge/tests/test_judge.py` (D11 pass rule; `test_only_concrete_high_issues_block`, `test_brief_summary_drops_free_text`) |
+| 2 | D — live judge calls on every chapter of `novela-ejemplo-a` (`judge_chapter` 10 pass, 1 fail then rewrite; `judge_novel` 0.88), rows in `validator_result` |
+| 3 | T — `test_judge.py` (comparison table and mean absolute error from `app/judge/compare.py`) |
+| 4 | I — `evals/human-review/` holds `README.md` (protocol), `rubrica.md`, `review-template.yaml`, `compare.py`, rendered from `rubric.py` |
+| 5 | A — ruff and mypy --strict clean on `app/judge` |
