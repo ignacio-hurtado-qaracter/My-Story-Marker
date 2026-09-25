@@ -688,55 +688,9 @@ async function build() {
       text(s, k.toUpperCase(), { x: MX, y, w: 1.1, h: 0.26, fontSize: 8.5, bold: true, color: C.brand, charSpacing: 1, valign: "middle" });
       text(s, v, { x: MX + 1.15, y, w: 4.5, h: 0.26, fontSize: 11, color: C.white, valign: "middle" });
     });
-    text(s, "Anexos: tabla completa de evals · coste de desarrollo", { x: 6.3, y: 4.85, w: 3.2, h: 0.25, fontSize: 9, color: "AEB8C2", align: "right" });
-    s.addNotes(`[9:30–10:00] Si me tengo que quedar con una decisión: separar la verdad de la prosa. Lo que es cierto sobre la historia vive en una base de datos y lo comprueban validadores deterministas, Lean y TLA+; los modelos solo redactan, y solo se publica lo que pasa todo.\nMuchas gracias. En el anexo está la tabla completa de evals, y el resto del detalle en los anexos PDF; encantado de responder preguntas.`);
+    s.addNotes(`[9:30–10:00] Si me tengo que quedar con una decisión: separar la verdad de la prosa. Lo que es cierto sobre la historia vive en una base de datos y lo comprueban validadores deterministas, Lean y TLA+; los modelos solo redactan, y solo se publica lo que pasa todo.\nMuchas gracias. El detalle está en los anexos PDF; encantado de responder preguntas.`);
   }
 
-  // ================================================================ ANEXOS
-  // A4 tabla completa evals
-  {
-    const s = base("Anexo · Evals", "Tabla completa: validador × brief, antes y después del tuning 1", { annex: true });
-    const vs = ["brief_schema", "forbidden_words_scene", "forbidden_words_chapter", "chapter_length", "exact_names", "brief_coverage", "prose_repetition", "judge_chapter", "judge_novel", "lean_chronology", "visual_check"];
-    const cell = (e, n) => { const r = e.validators && e.validators[n]; if (!r) return n === "brief_schema" && e.outcome === "rejected_by_validation" ? ko() : na(); return r.passed ? ok() : ko(); };
-    const rows = [["Validador", ...BRIEFS.slice(0, 3).map((b) => "antes " + b.split("-")[0]), ...BRIEFS.map((b) => "después " + b.split("-")[0])]];
-    for (const n of vs) rows.push([{ text: n, options: { fontFace: "Courier New", fontSize: 7 } }, ...BRIEFS.slice(0, 3).map((b) => cell(before[b], n)), ...BRIEFS.map((b) => cell(after[b], n))]);
-    rows.push([{ text: "coste USD", options: { bold: true } }, ...BRIEFS.slice(0, 3).map((b) => (before[b].cost ? eur(before[b].cost.cost_usd) : "—")), ...BRIEFS.map((b) => (after[b].cost ? eur(after[b].cost.cost_usd) : "—"))]);
-    table(s, rows, { x: MX, y: 1.25, w: 9, colW: [2.1, ...Array(7).fill(6.9 / 7)], fontSize: 7.5, rowH: 0.26 });
-    text(s, "b2 infantil · b3 inyección · b4 trampas temporales · b5 contradictorio (rechazado en el brief). Fuente: evals/results.md y evals/results/{before,after}/*.json. Detalle: presentacion/anexo-evals-tabla.pdf.", {
-      x: MX, y: 4.72, w: 9, h: 0.3, fontSize: 7.5, color: C.muted, italic: true,
-    });
-    s.addNotes("Anexo: la tabla completa de evals.");
-  }
-
-  // A5 coste de desarrollo
-  {
-    const s = base("Anexo · Coste de desarrollo", "Cómo reduciríamos el coste de desarrollo del harness", { annex: true });
-    const real = runs.real_costs;
-    const blocked = real.items.find((i) => i[0].startsWith("3 intentos"))[1];
-    const total = real.items[real.items.length - 1][1];
-    stat(s, MX, 1.2, 2.1, `${eur(total)} USD`, "gasto real de modelo en todo el desarrollo", { color: C.acc, fs: 22 });
-    stat(s, MX, 2.15, 2.1, `${Math.round(blocked / total * 100)} %`, `en intentos bloqueados de 10 capítulos (${usd(blocked)})`, { fs: 22 });
-    text(s, "«El coste de desarrollo no está en los tokens; está en el retrabajo.»", { x: MX, y: 3.25, w: 2.1, h: 1.2, fontSize: 11, italic: true, bold: true, color: C.ink2 });
-    const pts = [
-      ["Spec del producto antes que harness genérico", "el harness de partida (~20.000 líneas, novela larga genérica) hubo que adaptarlo casi entero; empezar por spec + esqueleto de punta a punta"],
-      ["Iterar con novelas cortas", "los fallos ya salían en 1–3 capítulos (0,4–0,9 USD); la de 10 solo al final"],
-      ["Lo determinista, antes de escribir", "fechas, cronología y lugares validados en el plan: segundos y céntimos, frente a una novela entera"],
-      ["Tests sin modelo", "FakeModelClient y respuestas grabadas; en vivo solo un smoke pequeño"],
-      ["Modelo según la tarea", "potente para diseño y specs; barato para tests, docs y regenerar tipos; presupuesto por agente"],
-      ["Contratos primero, pocos ficheros compartidos", "K1–K5 evitaron retrabajo; rutas y dependencias compartidas costaron fusiones"],
-      ["Verificación proporcional al riesgo", "TLC y Lean con modelos pequeños; gate estricto solo en el núcleo"],
-      ["Reutilizar", "Langfuse, FastMCP, Playwright MCP, reportlab; llevar hooks, skills y el runner de evals a MyFactory"],
-      ["Observabilidad desde el día 1", "coste por llamada y por rol: se optimiza donde está el gasto (writer y editor)"],
-    ];
-    pts.forEach(([h, d], i) => {
-      const col = i < 5 ? 0 : 1, row = i < 5 ? i : i - 5;
-      const x = 2.85 + col * 3.35, y = 1.2 + row * 0.75;
-      badge(s, x, y, String(i + 1), { size: 0.3, fs: 9, fill: C.ink });
-      text(s, h, { x: x + 0.4, y: y - 0.02, w: 2.85, h: 0.22, fontSize: 8.5, bold: true });
-      text(s, d, { x: x + 0.4, y: y + 0.2, w: 2.85, h: 0.5, fontSize: 7.5, color: C.ink2 });
-    });
-    s.addNotes("Anexo: cómo reducir el coste de desarrollo. Datos reales: 27 USD de modelo, más de la mitad en intentos bloqueados de 10 capítulos que se podían haber descubierto con 1–3 capítulos. La idea: fijar la spec antes del código, iterar en pequeño y mover a código determinista todo lo que el modelo no tiene por qué decidir.");
-  }
   const out = path.join(ROOT, "presentacion", "presentacion-2.pptx");
   await pres.writeFile({ fileName: out });
   console.log("written", out);

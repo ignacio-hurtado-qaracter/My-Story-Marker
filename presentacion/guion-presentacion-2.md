@@ -1,6 +1,6 @@
 # Guion — presentación 2 (10 minutos + 5 de preguntas)
 
-Deck: `presentacion-2.pptx` / `presentacion-2.pdf` (17 diapositivas; la 16 y la 17 son anexos).
+Deck: `presentacion-2.pptx` / `presentacion-2.pdf` (15 diapositivas).
 Tiempos entre corchetes. Frases en cursiva = lo que dices casi literal; el resto, ideas.
 
 ---
@@ -128,4 +128,3 @@ My Story Marker, un servicio que escribe novelas personalizadas para regalar.»*
 *«Separamos la verdad de la prosa: lo que es cierto sobre la historia vive en una base de datos y
 lo comprueban validadores, Lean y TLA+. Solo se publica lo que pasa todo. Gracias.»*
 
-(16 · Anexo: tabla completa de evals · 17 · Anexo: cómo reducir el coste de desarrollo — solo si preguntan.)
