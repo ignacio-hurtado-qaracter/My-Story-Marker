@@ -40,7 +40,7 @@ sequenceDiagram
 | B | B5 guardrails y hooks (009) | Normalizador, motor de políticas, hooks de Claude Code | `7c04c87`, `4aac425`, `54854d3`; fusión `832b23e` |
 | B | B7 juez (011) | Rúbrica, `judge_chapter`/`judge_novel`, revisión humana | `35d3a83`, `67fb710`; fusión `ca4e572` |
 | B | B10 lector (014) | API `/novels`, lector, versiones, PDF, visual check | `7911141`, `66cdaa7`, `19984c7`, `5d9ef24`, `312b142`; fusión `340ede7` |
-| C | B11 evals (015) | Cinco briefs, runner, comparación de iteraciones | `8f78dea`, `a0c1b58` (resultados pendientes) |
+| C | B11 evals (015) | Cinco briefs, runner, comparación de iteraciones | `8f78dea`, `a0c1b58`; resultados en [`evals/results.md`](../../evals/results.md) |
 | D | B12 cierre, parte 1 (016) | Esta documentación de proceso y el uso real del browser MCP | rama `docs/process-part1` |
 
 Lo que costó el paralelismo, en cifras de la historia: dos fusiones entre ramas de bloque

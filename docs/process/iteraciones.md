@@ -2,7 +2,7 @@
 
 > Registro (spec 004, D10). No es un diario: cada entrada es **causa → efecto**, con el
 > artefacto que la prueba. Las entradas van por origen: model checking, ejecuciones en
-> vivo, Lean, tests de contrato, y (pendiente) evals y tuning.
+> vivo, Lean, tests de contrato, evals y tuning.
 
 | # | Origen | Causa observada | Efecto (cambio) | Evidencia |
 |---|---|---|---|---|
@@ -30,6 +30,9 @@
 | 22 | PDF | "Novedades" imprimía la nota JSON cruda | "Cambio: clave: «antes» → «después»" y capítulos cambiados con enlace | `bacc93a`, spec 014 |
 | 23 | L04 | ¿Atrapa Lean algo que no vea nadie más? | Experimento con el prechequeo desactivado: Lean y `judge_novel` sí, `judge_chapter` y los programáticos no | `91f8cdd`, [lean-caso-real](./lean-caso-real.md) |
 | 24 | Novela de 10 cap. en vivo | `judge_novel` bloqueó `novela-ejemplo-final` tras 2 rondas: días de la semana que contradicen su fecha (21, 23 y 24 de junio de 2026) y «treinta años» de una carrera 1992–2026; el propio plan decía «El domingo de mañana, veintitrés de junio» (martes) | Días de la semana y cifras calculados en Python (`calendar_facts.py`, `plan/calendar.txt`); validador `calendar_consistency` en `chapter_close`; el editor puede quitar el día | spec 007 AC 8, spec 008 AC 8, [tuning 2](#iteración-de-tuning-2) |
+| 25 | Novela de 10 cap. en vivo (tras tuning 2) | Mismo brief `ejemplo`, código de `81e1518` | `novela-ejemplo-a` **publicada v1 en el primer `pre_publish`**, 0 rondas de reparación; `calendar_consistency` 11/11; `judge_novel` 0,88 | `data/logs/novela-ejemplo-a.log`, [`ejemplos/novela-ejemplo.pdf`](../../ejemplos/novela-ejemplo.pdf), [tuning 2](#iteración-de-tuning-2) |
+| 26 | Cambio del lector en vivo | `change-fact pet.canela.name Nala` sobre `novela-ejemplo-a` v1 | v2 publicada: capítulos 1 y 3–10 regenerados, el 2 copiado; v1 intacta (Canela 44 / Nala 0 en v1; Canela 0 / Nala 45 en v2) | `data/logs/change-nala.log`, `0e8118c`, [`ejemplos/novela-ejemplo-v2-cambio-nala.pdf`](../../ejemplos/novela-ejemplo-v2-cambio-nala.pdf) |
+| 27 | Novela de 10 cap. en vivo (paralela) | `novela-ejemplo-b`, mismo código: un evento del plan sin lugar (`place_id` nulo) pasa el chequeo del plan, pero la exportación a Lean lo rechaza en `pre_publish` | Sin cambio todavía: la reparación reescribe prosa, no el plan, así que no puede converger. Queda como defecto conocido (ver [tuning 2, Después](#iteración-de-tuning-2)) | `data/logs/novela-ejemplo-b.log`, `validator_result` de `lean_chronology` |
 
 ---
 
@@ -254,5 +257,53 @@ ni duraciones en la prosa («treinta años»): las cifras van por el prompt. El 
 fecha distinta a la del cap. 5; eso es del chequeo de marcas temporales, fuera de esta
 iteración.
 
-**Después.** *Pendiente: lo rellena el orquestador tras volver a generar `ejemplo`
-(estado, rondas de reparación, coste y el veredicto de `judge_novel`).*
+**Después** (causa → cambio → efecto, medido).
+
+- **Causa**: días de la semana y cifras inventados por el writer en cada reescritura; las
+  rondas de reparación no convergían (`novela-ejemplo-final`, bloqueada tras 2 rondas,
+  4,61 USD).
+- **Cambio**: calendario y cifras canónicas calculados en Python y validador
+  `calendar_consistency` (tabla de arriba), en el código de `81e1518`.
+- **Efecto**: `novela-ejemplo-a` (mismo brief `evals/briefs/ejemplo.json`) **publicada v1
+  en el primer `pre_publish`, con 0 rondas de reparación**. 10 capítulos de 1.006 a
+  1.170 palabras (10.645 en total), 55 llamadas, 3,10 USD, ~69 min (23:47 → 00:56 UTC).
+  Validadores: `scene_accept` 30/30 en sus 3 validadores; `chapter_close` todo en verde,
+  incluido `calendar_consistency` 11/11; `judge_chapter` 10 aprobados y 1 suspenso que se
+  resolvió con la reescritura del editor; `pre_publish`: `brief_coverage`,
+  `lean_chronology` y `schema_brief` ✅, `judge_novel` ✅ 0,88 (5/4/4/4), `visual_check`
+  omitido (`VISUAL_CHECK` sin activar). PDF:
+  [`ejemplos/novela-ejemplo.pdf`](../../ejemplos/novela-ejemplo.pdf).
+
+| Intento (brief `ejemplo`, 10 cap.) | Código | Resultado | Rondas | Coste |
+|---|---|---|---|---|
+| `novela-ejemplo` | antes del tuning 1 | bloqueada por `judge_novel` (saltos de tiempo, solape) | 1 | 3,68 USD |
+| `novela-ejemplo-final` | tuning 1 | bloqueada por `judge_novel` (día de la semana ≠ fecha) | 2 | 4,61 USD |
+| `novela-ejemplo-a` | tuning 2 (`81e1518`) | **publicada v1** | 0 | 3,10 USD |
+| `novela-ejemplo-b` | tuning 2 (`81e1518`) | en curso / previsiblemente bloqueada (abajo) | 2 | 5,53 USD a las 02:00 UTC |
+
+Métrica de la iteración: la contradicción de calendario desapareció de `judge_novel` en las
+dos ejecuciones con el código nuevo (ninguna la citó).
+
+**Demostración del cambio del lector sobre la novela publicada.** `change-fact
+pet.canela.name Nala` sobre `novela-ejemplo-a`: v2 publicada con los capítulos
+[1, 3, 4, 5, 6, 7, 8, 9, 10] regenerados y el 2 copiado (no nombra a la mascota); v1 se
+conserva intacta: «Canela» aparece 44 veces en v1 y 0 en v2, «Nala» 0 en v1 y 45 en v2.
+~27 min, ~0,94 USD. PDF con la página «Novedades»:
+[`ejemplos/novela-ejemplo-v2-cambio-nala.pdf`](../../ejemplos/novela-ejemplo-v2-cambio-nala.pdf)
+(`0e8118c`).
+
+**Qué sigue fallando: `novela-ejemplo-b`** (ejecución paralela con el mismo código, log
+`data/logs/novela-ejemplo-b.log`, leído a las 02:00 UTC del 25-09). Necesitó 3 planes: el
+chequeo de cronología rechazó el primero (`agesCoherent`: un personaje en un evento
+anterior a su nacimiento) y el segundo (11 × `noAfterExit`: un personaje que reaparece
+tras su salida). Escribió los 10 capítulos y falló el primer `pre_publish` por
+`judge_novel` (dos capítulos contaban «la última clase» en fechas distintas) y por
+`lean_chronology`: «chronology export failed: events[21].place_id: unknown id None». La
+1.ª ronda (caps. 3, 4 y 6) arregló al juez (aprobado, media 4,20), pero `lean_chronology`
+volvió a fallar igual y abrió la 2.ª ronda sobre los 10 capítulos; a esa hora iba por el
+capítulo 7, con 82 llamadas y 5,53 USD. El fallo de Lean no es de la prosa: un evento del
+plan no tiene lugar (1 de 30 con `place_id` nulo) y la exportación lo exige, así que
+ninguna reescritura lo puede arreglar; lo previsible es que acabe bloqueada por
+`repair_limit`. Arreglo pendiente, fuera de esta iteración: que el chequeo del plan
+rechace eventos sin lugar (o que la exportación los admita) y que un fallo de exportación
+no gaste rondas de reparación.

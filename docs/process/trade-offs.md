@@ -178,8 +178,9 @@ reescritura del editor y el presupuesto es `MAX_CHAPTER_RETRIES = 2` por capítu
 bloqueante** (`backend/app/judge/rubric.py`); en la novela, una contradicción entre
 capítulos es bloqueante. Evidencia por criterio (`continuidad: n/5 — …`) que vuelve al
 editor como feedback. Comprobación en vivo: un capítulo bueno 5/5/5/5, uno deliberadamente
-malo 1/1/1/1 con 3 defectos bloqueantes (`35d3a83`). El umbral se ajusta en la iteración de
-tuning (pendiente, B11).
+malo 1/1/1/1 con 3 defectos bloqueantes (`35d3a83`). En la iteración de tuning 1 los umbrales
+no cambiaron (D11); cambió qué bloquea: solo un defecto `alta` concreto con capítulo citado
+([iteraciones](./iteraciones.md#iteración-de-tuning-1)).
 
 ## Normalización de términos prohibidos
 
