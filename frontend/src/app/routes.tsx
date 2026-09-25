@@ -4,6 +4,7 @@
 // Spec 018: `/login` logs in or registers.
 import { Route, Routes } from 'react-router'
 
+import { ArchitectureRoute } from '../architecture'
 import { LoginRoute } from '../auth'
 import { BibleRoute } from '../bible'
 import { CoverRoute } from '../cover'
@@ -20,6 +21,7 @@ export function AppRoutes() {
         {/* Feature routes, each imported only from its feature's index.ts (FR-SHELL-02, P17). */}
         <Route index element={<NovelsRoute />} />
         <Route path="login" element={<LoginRoute />} />
+        <Route path="arquitectura" element={<ArchitectureRoute />} />
         <Route path="novelas/:novelId" element={<ReaderRoute />}>
           <Route index element={<CoverRoute />} />
           <Route path="indice" element={<ChapterIndexRoute />} />

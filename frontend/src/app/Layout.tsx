@@ -20,6 +20,7 @@ interface NavItem {
 const NAV: readonly NavItem[] = [
   { label: 'Novelas', to: '/', exact: '/', prefixes: ['/novelas'] },
   { label: 'Escenas', to: '/scenes', prefixes: ['/scenes', '/chapters'] },
+  { label: 'Cómo funciona', to: '/arquitectura', exact: '/arquitectura' },
 ]
 
 function isCurrent(item: NavItem, pathname: string): boolean {
