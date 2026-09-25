@@ -334,3 +334,64 @@ def test_plan_calendar_enrichment() -> None:
     assert "Edad de Tomás en el presente: 65 años" in text
     assert "«El primer día» (14 de septiembre de 1992): hace 33 años cumplidos" in text
     assert "Tomás tenía 31 años" in text
+
+
+# spec 007 / AC 9 — plan events must have a place (novela-ejemplo-b)
+def test_event_without_place_is_rejected_or_inherits_the_scene_place() -> None:
+    from app.novel.chronology import normalise_events
+    from app.novel.pipeline import _chronology_export_error
+
+    scene = PlanScene(
+        chapter=1,
+        scene=1,
+        summary="s",
+        place="casa",  # case-insensitive match to the plan's «Casa»
+        characters=["Marta"],
+        story_date="2024-01-11",
+        facts_used=[],
+        word_budget=1200,
+    )
+    event = PlanEvent(
+        seq=1,
+        chapter=1,
+        scene=1,
+        story_date="2024-01-11",
+        place="",
+        description="d",
+        participants=["Marta"],
+    )
+    plan = NovelPlan(
+        title="t",
+        synopsis="s",
+        characters=[PlanCharacter(name="Marta", role="protagonista")],
+        places=[PlanPlace(name="Casa")],
+        chapters=[],
+        scenes=[scene],
+        events=[event],
+    )
+    problems = check_plan(plan, chapters=1, mandatory_keys=[], known_keys=[])
+    assert any("El evento e1 del capítulo 1 no tiene lugar" in p for p in problems)
+
+    fixed = normalise_events(plan, {})
+    assert fixed.events[0].place == "Casa"
+    problems = check_plan(fixed, chapters=1, mandatory_keys=[], known_keys=[])
+    assert not any("no tiene lugar" in p for p in problems)
+
+    # Neither the event nor its scene resolves; a bible place is accepted, though.
+    lost = plan.model_copy(update={"scenes": [scene.model_copy(update={"place": "Luna"})]})
+    assert normalise_events(lost, {}).events[0].place == ""
+    assert normalise_events(lost, {}, known_places=["Luna"]).events[0].place == "Luna"
+
+    # A Lean export error is recognised as plan data, not prose.
+    failed = ValidationResult(
+        "lean_chronology",
+        False,
+        0.0,
+        [],
+        "No se pudo verificar la cronología con Lean 4: chronology export failed: "
+        "events[21].place_id: unknown id None",
+    )
+    found = _chronology_export_error([failed])
+    assert found is not None
+    assert found.startswith("chronology export failed: events[21].place_id")
+    assert _chronology_export_error([ValidationResult("judge_novel", False, 0.5, [], "x")]) is None

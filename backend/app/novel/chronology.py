@@ -12,11 +12,11 @@ then B4's own `diagnose` for what is left, which goes back to the planner as fee
 from __future__ import annotations
 
 import importlib
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from datetime import date, timedelta
 
 from app.novel.models import NovelPlan, ParticipantAge, PlanEvent
-from app.novel.plan_check import parse_iso
+from app.novel.plan_check import parse_iso, place_names, resolve_place
 
 Births = Mapping[str, str | None]
 _Diagnose = Callable[[Mapping[str, object]], dict[str, list[str]]]
@@ -55,10 +55,14 @@ def as_chronology(plan: NovelPlan, births: Births) -> dict[str, object]:
     }
 
 
-def normalise_events(plan: NovelPlan, births: Births) -> NovelPlan:
-    """Deterministic fixes: bilocations moved to the next day, `seq` re-numbered in date
-    order, declared ages recomputed (dropped when the character is not yet born)."""
-    events = _separate_bilocations(list(plan.events))
+def normalise_events(
+    plan: NovelPlan, births: Births, known_places: Iterable[str] = ()
+) -> NovelPlan:
+    """Deterministic fixes: every event's place resolved to a known place name (its
+    scene's place when its own is missing or unknown), bilocations moved to the next day,
+    `seq` re-numbered in date order, declared ages recomputed (dropped when the character
+    is not yet born)."""
+    events = _separate_bilocations(_inherit_places(plan, known_places))
     events.sort(key=lambda e: (parse_iso(e.story_date) or date.max, e.chapter, e.scene, e.seq))
     fixed: list[PlanEvent] = []
     for seq, event in enumerate(events, start=1):
@@ -72,6 +76,21 @@ def normalise_events(plan: NovelPlan, births: Births) -> NovelPlan:
                 ages.append(ParticipantAge(name=declared.name, age=_age(birth, on)))
         fixed.append(event.model_copy(update={"seq": seq, "declared_ages": ages}))
     return plan.model_copy(update={"events": fixed})
+
+
+def _inherit_places(plan: NovelPlan, known_places: Iterable[str]) -> list[PlanEvent]:
+    """Defence in depth for the Lean export (spec 007): an event whose place does not
+    resolve takes its scene's place when that one does; otherwise it is left for
+    `check_plan` to reject."""
+    known = place_names(plan, known_places)
+    scene_place = {(s.chapter, s.scene): s.place for s in plan.scenes}
+    out: list[PlanEvent] = []
+    for event in plan.events:
+        place = resolve_place(event.place, known) or resolve_place(
+            scene_place.get((event.chapter, event.scene)), known
+        )
+        out.append(event if place is None else event.model_copy(update={"place": place}))
+    return out
 
 
 def _separate_bilocations(events: list[PlanEvent]) -> list[PlanEvent]:

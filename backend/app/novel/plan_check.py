@@ -101,6 +101,7 @@ def check_plan(
     mandatory_keys: Collection[str],
     known_keys: Collection[str],
     exact_names: Iterable[str] = (),
+    known_places: Iterable[str] = (),
 ) -> list[str]:
     problems: list[str] = []
     numbers = sorted(c.number for c in plan.chapters)
@@ -142,6 +143,7 @@ def check_plan(
     for event in plan.events:
         if parse_iso(event.story_date) is None:
             problems.append(f"event {event.seq}: story_date {event.story_date!r} is not ISO")
+    problems += event_place_problems(plan, known_places)
     covered = {(e.chapter, e.scene) for e in plan.events}
     lacking = [f"{s.chapter}.{s.scene}" for s in plan.scenes if (s.chapter, s.scene) not in covered]
     if lacking:
@@ -159,6 +161,45 @@ def check_plan(
     for name in exact_names:
         if name and name not in names:
             problems.append(f"character {name!r} from the brief must appear with that exact name")
+    return problems
+
+
+def place_names(plan: NovelPlan, known_places: Iterable[str] = ()) -> list[str]:
+    """Every place an event may name: the plan's own, then the bible's (brief)."""
+    return [*(p.name for p in plan.places), *known_places]
+
+
+def resolve_place(name: str | None, known: Iterable[str]) -> str | None:
+    """The known place `name` refers to (exact, then case- and accent-insensitive), or
+    None. The Lean export needs a `place_id` for every event (spec 007, plan events must
+    have a place)."""
+    if not name or not name.strip():
+        return None
+    candidates = [k for k in known if k]
+    if name in candidates:
+        return name
+    folded = _fold(name.strip())
+    return next((k for k in candidates if _fold(k.strip()) == folded), None)
+
+
+def event_place_problems(plan: NovelPlan, known_places: Iterable[str] = ()) -> list[str]:
+    """A chronology event without a resolvable place cannot be exported to Lean, and no
+    prose rewrite can fix a plan row: it is a plan problem, sent back to the planner."""
+    known = place_names(plan, known_places)
+    problems: list[str] = []
+    for event in plan.events:
+        if resolve_place(event.place, known) is not None:
+            continue
+        if not event.place or not event.place.strip():
+            problems.append(
+                f"El evento e{event.seq} del capítulo {event.chapter} no tiene lugar: "
+                "cada evento debe nombrar uno de los lugares de `places`"
+            )
+        else:
+            problems.append(
+                f"El evento e{event.seq} del capítulo {event.chapter} no tiene lugar "
+                f"conocido: «{event.place}» no está en `places`; usa uno de ellos"
+            )
     return problems
 
 
@@ -230,7 +271,10 @@ __all__ = [
     "SCENES_PER_CHAPTER",
     "chapter_anchor",
     "check_plan",
+    "event_place_problems",
     "overlap_problems",
     "parse_iso",
+    "place_names",
+    "resolve_place",
     "timeline_problems",
 ]

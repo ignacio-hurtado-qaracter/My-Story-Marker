@@ -52,7 +52,7 @@ from app.novel.models import (
     RunStatus,
     SceneDraft,
 )
-from app.novel.plan_check import check_plan
+from app.novel.plan_check import check_plan, resolve_place
 from app.novel.roles import Roles
 from app.novel.setup import register_all, register_lean_for
 from app.validators import (
@@ -247,18 +247,20 @@ def plan_novel(run: Run, chapters: int) -> NovelPlan:
     mandatory = [f.key for f in facts if f.mandatory]
     known = [f.key for f in facts]
     known_births = {c.name: c.birth_date for c in run.repo.list_characters(run.novel_id)}
+    known_places = [p.name for p in run.repo.list_places(run.novel_id)]
     feedback: list[str] = []
     for attempt in range(MAX_REPLANS + 1):
         plan = run.roles.plan(documents, chapters=chapters, feedback=feedback)
         plan = _repair_plan(plan, chapters, known)
         births = plan_births(plan, known_births)
-        plan = normalise_events(plan, births)
+        plan = normalise_events(plan, births, known_places)
         feedback = check_plan(
             plan,
             chapters=chapters,
             mandatory_keys=mandatory,
             known_keys=known,
             exact_names=run.names(),
+            known_places=known_places,
         ) + chronology_problems(plan, births)
         run.progress(
             f"plan attempt {attempt + 1}: '{plan.title}', {len(plan.chapters)} chapters, "
@@ -320,6 +322,7 @@ def persist_plan(run: Run, plan: NovelPlan, version: int) -> None:
         if pp.name not in places:
             places[pp.name] = repo.add_place(novel_id, name=pp.name, description=pp.description)
     existing_events = {e.id for e in repo.list_events(novel_id)}
+    scene_place = {(s.chapter, s.scene): s.place for s in plan.scenes}
     for event in sorted(plan.events, key=lambda e: e.seq):
         if f"e{event.seq}" in existing_events:
             continue
@@ -329,7 +332,12 @@ def persist_plan(run: Run, plan: NovelPlan, version: int) -> None:
             character = characters.get(name)
             if character is not None:
                 participants[character.id] = ages.get(name)
-        place = places.get(event.place)
+        # Defence in depth (spec 007): the event's place, else its scene's; `check_plan`
+        # already rejects an event with neither, since the Lean export needs a place.
+        place_name = resolve_place(event.place, places) or resolve_place(
+            scene_place.get((event.chapter, event.scene)), places
+        )
+        place = places.get(place_name) if place_name is not None else None
         repo.add_event(
             novel_id,
             seq=event.seq,
@@ -739,6 +747,18 @@ def publish_version(run: Run, version: int, total: int) -> RunResult | None:
         return RunResult(run.novel_id, version, "published")
     current = run.repo.get_version(run.novel_id, version)
     feedback = _feedback(results)
+    export_error = _chronology_export_error(results)
+    if export_error is not None:
+        # A chronology row the Lean export cannot read is plan data, not prose: no repair
+        # round can fix it, so the run stops at once (spec 007, plan events need a place).
+        detail = (
+            "error de datos del plan, no de la prosa (ninguna reescritura lo arregla): "
+            f"{export_error}"
+        )
+        _stop(run, current, "chronology_export_error", detail, status="blocked")
+        return RunResult(
+            run.novel_id, version, "stopped_error", f"chronology_export_error: {detail}"[:2000]
+        )
     if current.repair_rounds >= MAX_REPAIR_ROUNDS:
         # Version stays blocked; earlier published versions are untouched.
         _stop(run, current, "repair_limit", feedback, status="blocked")
@@ -756,6 +776,22 @@ def publish_version(run: Run, version: int, total: int) -> RunResult | None:
                 run.novel_id, version, chapter, "pending", detail="reopened by repair round"
             )
     run.progress(f"pre_publish failed; repair round on chapters {reopened}")
+    return None
+
+
+_EXPORT_FAILED = "chronology export failed"
+
+
+def _chronology_export_error(results: Sequence[ValidationResult]) -> str | None:
+    """The export message of a failed `lean_chronology` that never reached Lean (a plan
+    row it cannot read, e.g. an event without a place), or None."""
+    for result in results:
+        if result.passed or result.name != "lean_chronology":
+            continue
+        for blob in [result.explanation, *result.evidence]:
+            at = blob.find(_EXPORT_FAILED)
+            if at >= 0:
+                return blob[at:].split(" Además:")[0][:500]
     return None
 
 
