@@ -1,6 +1,6 @@
 ---
 spec: 008                 # the approved spec this plan implements
-status: approved          # draft · approved · done
+status: done              # closed 2026-09-25 with spec 008 (programme 004 close-out)
 ---
 
 > **Approved** (2026-09-24) by the agent on the user's explicit delegation.

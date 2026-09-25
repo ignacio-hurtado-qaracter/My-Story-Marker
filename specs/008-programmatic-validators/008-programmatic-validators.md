@@ -1,7 +1,7 @@
 ---
 id: 008
 title: B4 — Programmatic validators
-status: approved         # draft · approved · implemented · superseded
+status: implemented      # closed 2026-09-25 on the user's delegation (programme 004 close-out)
 supersedes: null
 programme: 004
 block: B4
@@ -158,3 +158,23 @@ None open. Decided on delegation: soft prose linter to avoid rewrite loops; cove
 requires text rendering (D11) rather than trusting rows; the Lean evidence names events by
 a Python-side diagnosis of the same four invariants, since `LeanResult` only names the
 invariant.
+
+## Closing note (2026-09-25)
+
+Closed on the user's delegation (programme 004 close-out, Process 2 step 12). Evidence at
+`proyecto-desde-cero` @ `0e8118c`: backend gate `ruff check .` clean, `mypy --strict .`
+clean (290 files), `pytest` 1758 passed / 8 skipped / 1 failed. The one failure is
+`tests/test_boundaries_mirror.py`, the spec 001 store-boundary guard, which flags file I/O
+in the new modules; it is not an acceptance criterion of this spec and is left to the
+author (`docs/process/README.md`, "Pendiente para el autor").
+
+| AC | Satisfied by |
+|---|---|
+| 1 | T — `app/validators/programmatic/tests/test_programmatic.py` (`chapter_length`) |
+| 2 | T — `test_programmatic.py` (`exact_names`: accent and one-edit variants) |
+| 3 | T — `test_programmatic.py` (`brief_coverage`, `fact_usage_recorder`, `test_memory_coverage_content_words`) |
+| 4 | T — `test_programmatic.py` (`lean_chronology` without `lake`), `app/formal/tests/test_lean.py::test_no_after_exit_is_on_the_story_axis` |
+| 5 | I — review of the guarded imports in `app/validators/programmatic/schema.py` |
+| 6 | I — review of `register_validators()`; every registered validator has rows at its point for `novela-ejemplo-a` |
+| 7 | I — review of `app/validators/programmatic/prose.py` (soft) |
+| 8 | T — `test_programmatic.py::test_calendar_consistency_weekdays` · D — `calendar_consistency` 11/11 on `novela-ejemplo-a` v1 |
