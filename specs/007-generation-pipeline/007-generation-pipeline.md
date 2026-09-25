@@ -1,7 +1,7 @@
 ---
 id: 007
 title: B3 — Generation pipeline (planner, writer, editor, checkpoints, publish, change_fact)
-status: approved         # approved 2026-09-24 on the user's delegation for this session
+status: implemented      # closed 2026-09-25 on the user's delegation (programme 004 close-out)
 supersedes: null
 programme: 004
 block: B3
@@ -188,3 +188,23 @@ resume restarts the first incomplete chapter from its first scene; no longer a d
   skip kind `plan`.
 - K1 has no method to rename a character or place; `change_fact` does it through a small
   helper in `app/novel/_bible_ext.py` over the repository's connection until B1 adds one.
+
+## Closing note (2026-09-25)
+
+Closed on the user's delegation (programme 004 close-out, Process 2 step 12). Evidence at
+`proyecto-desde-cero` @ `0e8118c`: backend gate `ruff check .` clean, `mypy --strict .`
+clean (290 files), `pytest` 1758 passed / 8 skipped / 1 failed. The one failure is
+`tests/test_boundaries_mirror.py`, the spec 001 store-boundary guard, which flags file I/O
+in the new modules; it is not an acceptance criterion of this spec and is left to the
+author (`docs/process/README.md`, "Pendiente para el autor").
+
+| AC | Satisfied by |
+|---|---|
+| 1 | T — `app/novel/tests/test_pipeline.py` (fake client; no raw `free_text` in role documents) · D — `novela-ejemplo-a` published, 10 chapters × 3 scenes |
+| 2 | T — `app/novel/tests/test_pipeline.py` (retry budgets from persisted rows) · I — review; TLC `RetriesBounded` |
+| 3 | T — `app/novel/tests/test_pipeline.py` (resume at k+1, no duplicate) |
+| 4 | T — `app/novel/tests/test_pipeline.py` (single transaction) · D — `change-fact pet.canela.name Nala` on `novela-ejemplo-a`: v2 published, chapters 1, 3–10 rewritten, v1 unchanged (`data/logs/change-nala.log`, `0e8118c`) |
+| 5 | T — `app/novel/tests/test_pipeline.py` (every mandatory fact assigned; one replan) |
+| 6 | D — Langfuse session per novel with role spans, prompt versions and cost score on the live runs; `llm_call` rows (55 calls, 3.10 USD for `novela-ejemplo-a`) |
+| 7 | T — `app/novel/tests/test_pipeline.py`, `app/judge/tests/test_judge.py` · D — `evals/results/after/`, `evals/results/tuning.md` |
+| 8 | T — `test_pipeline.py::test_plan_calendar_enrichment` · D — `novela-ejemplo-a` published at the first pre_publish, 0 repair rounds (`docs/process/iteraciones.md`, tuning 2) |
