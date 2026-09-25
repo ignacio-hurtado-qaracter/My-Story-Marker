@@ -1,7 +1,7 @@
 ---
 id: 012
 title: B8 — Lean 4 formal validator of the story chronology
-status: approved         # draft · approved · implemented · superseded
+status: implemented      # closed 2026-09-25 on the user's delegation (programme 004 close-out)
 supersedes: null
 programme: 004
 block: B8
@@ -121,3 +121,20 @@ first, `native_decide` only if the kernel is too slow (recorded in the generated
 "first participant" of a death/departure event is the one who exits. L04's real case is
 recorded once a real novel is exported (B11); until then the README records why none has
 been found.
+
+## Closing note (2026-09-25)
+
+Closed on the user's delegation (programme 004 close-out, Process 2 step 12). Evidence at
+`proyecto-desde-cero` @ `0e8118c`: backend gate `ruff check .` clean, `mypy --strict .`
+clean (290 files), `pytest` 1758 passed / 8 skipped / 1 failed. The one failure is
+`tests/test_boundaries_mirror.py`, the spec 001 store-boundary guard, which flags file I/O
+in the new modules; it is not an acceptance criterion of this spec and is left to the
+author (`docs/process/README.md`, "Pendiente para el autor").
+
+| AC | Satisfied by |
+|---|---|
+| 1 | T — `app/formal/tests/test_lean.py` (export, escaping) |
+| 2 | A — `cd formal/lean && lake build` → "Build completed successfully" (re-run on this close-out) |
+| 3 | T — `test_lean.py` (`ok.json` passes; `incoherent.json` names `agesCoherent`, `noBilocation`) |
+| 4 | T — `test_lean.py` (toolchain missing → failed result, no raise) |
+| 5 | I — `formal/lean/README.md` (what is modelled, gating, L04 → `docs/process/lean-caso-real.md`) |
