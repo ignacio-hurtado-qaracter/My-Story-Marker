@@ -1858,6 +1858,201 @@
         "title": "FactionStance",
         "type": "object"
       },
+      "GenerateAccepted": {
+        "additionalProperties": false,
+        "properties": {
+          "job_id": {
+            "title": "Job Id",
+            "type": "string"
+          },
+          "novel_id": {
+            "title": "Novel Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "novel_id",
+          "job_id"
+        ],
+        "title": "GenerateAccepted",
+        "type": "object"
+      },
+      "GenerateRequest": {
+        "additionalProperties": false,
+        "description": "Spec 020: a brief (brief.v1.json shape) to ingest and generate. A plain object, so an\nincomplete brief is answered with its `BriefReport` rather than a generic 422.",
+        "properties": {
+          "brief": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/JsonValue"
+            },
+            "description": "A brief with the brief.v1.json shape.",
+            "title": "Brief",
+            "type": "object"
+          },
+          "chapters": {
+            "anyOf": [
+              {
+                "maximum": 10.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Default: `brief.length.chapters`.",
+            "title": "Chapters"
+          }
+        },
+        "required": [
+          "brief"
+        ],
+        "title": "GenerateRequest",
+        "type": "object"
+      },
+      "GenerationIssue": {
+        "additionalProperties": false,
+        "properties": {
+          "chapter": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chapter"
+          },
+          "explanation": {
+            "default": "",
+            "title": "Explanation",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "point": {
+            "title": "Point",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "point"
+        ],
+        "title": "GenerationIssue",
+        "type": "object"
+      },
+      "GenerationStatus": {
+        "additionalProperties": false,
+        "description": "Spec 020: one generation's progress, from the job (if this process runs it) and the\nstory bible (checkpoints, versions, cost rows).",
+        "properties": {
+          "calls": {
+            "default": 0,
+            "title": "Calls",
+            "type": "integer"
+          },
+          "chapters_done": {
+            "default": 0,
+            "title": "Chapters Done",
+            "type": "integer"
+          },
+          "chapters_total": {
+            "default": 0,
+            "title": "Chapters Total",
+            "type": "integer"
+          },
+          "cost_usd": {
+            "default": 0.0,
+            "title": "Cost Usd",
+            "type": "number"
+          },
+          "detail": {
+            "default": "",
+            "title": "Detail",
+            "type": "string"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/GenerationIssue"
+            },
+            "title": "Issues",
+            "type": "array"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "novel_id": {
+            "title": "Novel Id",
+            "type": "string"
+          },
+          "phase": {
+            "default": "",
+            "title": "Phase",
+            "type": "string"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "published",
+              "blocked",
+              "stopped_error"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "novel_id",
+          "status"
+        ],
+        "title": "GenerationStatus",
+        "type": "object"
+      },
       "GenreContract": {
         "additionalProperties": false,
         "description": "The explicit promises of the book, as a value inside `canon/project.md`.\n\nIt fixes the level of scientific rigour, what the mystery owes the reader, how much of\nthe violence or intimacy happens on the page, and what this novel will never do. Those\nare decisions, and writing them down is what makes a departure from them detectable.\n\n**Failure mode** (`definitions.md` GenreContract): leaving it undeclared. The prose\ndrifts from thriller to space opera and nothing catches it, because with no contract\nthere is no rule to break - the drift is not a violation of anything, only a surprise.",
@@ -8792,6 +8987,49 @@
         ]
       }
     },
+    "/novels/generate": {
+      "post": {
+        "description": "Spec 020: validate the brief, then ingest it (owned by the caller) and run `generate`\nin the background. Poll `GET /novels/{id}/generation`.",
+        "operationId": "start_generation_novels_generate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerateAccepted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Invalid brief; `detail` is its BriefReport."
+          },
+          "429": {
+            "description": "Two generations are already running."
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Start Generation",
+        "tags": [
+          "reader"
+        ]
+      }
+    },
     "/novels/{novel_id}": {
       "get": {
         "description": "Title, recipient, personalised dedication (R04) and the versions.",
@@ -9018,6 +9256,54 @@
           }
         ],
         "summary": "Change Status",
+        "tags": [
+          "reader"
+        ]
+      }
+    },
+    "/novels/{novel_id}/generation": {
+      "get": {
+        "description": "Spec 020: phase, chapters done / total, cost so far and the last validator failures.\n404 for a novel of another owner, exactly like a missing one.",
+        "operationId": "generation_status_novels__novel_id__generation_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "novel_id",
+            "required": true,
+            "schema": {
+              "title": "Novel Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerationStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Generation Status",
         "tags": [
           "reader"
         ]

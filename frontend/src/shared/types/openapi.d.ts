@@ -1169,6 +1169,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/novels/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Generation
+         * @description Spec 020: validate the brief, then ingest it (owned by the caller) and run `generate`
+         *     in the background. Poll `GET /novels/{id}/generation`.
+         */
+        post: operations["start_generation_novels_generate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/novels/{novel_id}": {
         parameters: {
             query?: never;
@@ -1241,6 +1262,27 @@ export interface paths {
          * @description Poll a change: queued → resolving → running → done | failed.
          */
         get: operations["change_status_novels__novel_id__changes__job_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/novels/{novel_id}/generation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Generation Status
+         * @description Spec 020: phase, chapters done / total, cost so far and the last validator failures.
+         *     404 for a novel of another owner, exactly like a missing one.
+         */
+        get: operations["generation_status_novels__novel_id__generation_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2762,6 +2804,100 @@ export interface components {
              * @description What this faction is to that one: allied, at war, dependent, infiltrated.
              */
             stance: string;
+        };
+        /** GenerateAccepted */
+        GenerateAccepted: {
+            /** Job Id */
+            job_id: string;
+            /** Novel Id */
+            novel_id: string;
+        };
+        /**
+         * GenerateRequest
+         * @description Spec 020: a brief (brief.v1.json shape) to ingest and generate. A plain object, so an
+         *     incomplete brief is answered with its `BriefReport` rather than a generic 422.
+         */
+        GenerateRequest: {
+            /**
+             * Brief
+             * @description A brief with the brief.v1.json shape.
+             */
+            brief: {
+                [key: string]: components["schemas"]["JsonValue"];
+            };
+            /**
+             * Chapters
+             * @description Default: `brief.length.chapters`.
+             */
+            chapters?: number | null;
+        };
+        /** GenerationIssue */
+        GenerationIssue: {
+            /** Chapter */
+            chapter?: number | null;
+            /**
+             * Explanation
+             * @default
+             */
+            explanation: string;
+            /** Name */
+            name: string;
+            /** Point */
+            point: string;
+        };
+        /**
+         * GenerationStatus
+         * @description Spec 020: one generation's progress, from the job (if this process runs it) and the
+         *     story bible (checkpoints, versions, cost rows).
+         */
+        GenerationStatus: {
+            /**
+             * Calls
+             * @default 0
+             */
+            calls: number;
+            /**
+             * Chapters Done
+             * @default 0
+             */
+            chapters_done: number;
+            /**
+             * Chapters Total
+             * @default 0
+             */
+            chapters_total: number;
+            /**
+             * Cost Usd
+             * @default 0
+             */
+            cost_usd: number;
+            /**
+             * Detail
+             * @default
+             */
+            detail: string;
+            /** Issues */
+            issues?: components["schemas"]["GenerationIssue"][];
+            /** Job Id */
+            job_id?: string | null;
+            /** Novel Id */
+            novel_id: string;
+            /**
+             * Phase
+             * @default
+             */
+            phase: string;
+            /** Started At */
+            started_at?: string | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "published" | "blocked" | "stopped_error";
+            /** Updated At */
+            updated_at?: string | null;
+            /** Version */
+            version?: number | null;
         };
         /**
          * GenreContract
@@ -7292,6 +7428,44 @@ export interface operations {
             };
         };
     };
+    start_generation_novels_generate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenerateAccepted"];
+                };
+            };
+            /** @description Invalid brief; `detail` is its BriefReport. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Two generations are already running. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     get_novel_novels__novel_id__get: {
         parameters: {
             query?: never;
@@ -7411,6 +7585,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChangeJob"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generation_status_novels__novel_id__generation_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                novel_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GenerationStatus"];
                 };
             };
             /** @description Validation Error */
