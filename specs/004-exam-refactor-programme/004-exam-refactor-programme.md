@@ -512,6 +512,7 @@ the programme, not the spec, and is still open.
 
 Known defect found on close-out, outside this spec: in the parallel run `novela-ejemplo-b`
 an event without `place_id` passed the plan check and then failed the Lean export at every
-pre_publish, spending the repair rounds on prose that cannot fix it
+pre_publish, spending both repair rounds on prose that cannot fix it; the run ended in
+`stopped_error` (`repair_limit`, 6.05 USD) although `judge_novel` passed
 (`docs/process/iteraciones.md`, tuning 2). A new spec should reject such events at plan time.
 
