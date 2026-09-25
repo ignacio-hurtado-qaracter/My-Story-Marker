@@ -1,7 +1,7 @@
 ---
 id: 018
 title: X03 — Login with SQLite and per-owner novels (closes SEC-01)
-status: approved         # approved 2026-09-24 on the user's delegation for this session
+status: implemented      # closed 2026-09-25 on the user's delegation (programme 004 close-out)
 supersedes: null
 programme: 004
 block: optional X03
@@ -92,3 +92,22 @@ review of the page (AC 7). The contract test and schemathesis run with `AUTH_REQ
 ## Open questions
 
 None. Deferred: token auth for MCP over HTTP; revocation.
+
+## Closing note (2026-09-25)
+
+Closed on the user's delegation (programme 004 close-out, Process 2 step 12). Evidence at
+`proyecto-desde-cero` @ `0e8118c`: backend gate `ruff check .` clean, `mypy --strict .`
+clean (290 files), `pytest` 1758 passed / 8 skipped / 1 failed. The one failure is
+`tests/test_boundaries_mirror.py`, the spec 001 store-boundary guard, which flags file I/O
+in the new modules; it is not an acceptance criterion of this spec and is left to the
+author (`docs/process/README.md`, "Pendiente para el autor").
+
+| AC | Satisfied by |
+|---|---|
+| 1 | T — `app/auth/tests/test_auth.py` (bcrypt hash, JWT, 401, 409) |
+| 2 | T — `test_auth.py` (`AUTH_REQUIRED=1` → 401) |
+| 3 | T — `test_auth.py` (user isolation: list, chapter, PDF, change request → 404) |
+| 4 | T — `test_auth.py` (tool layer scoped per user, `ToolNotFoundError`) |
+| 5 | T — `test_auth.py` (`local` owner); suites pass with `AUTH_REQUIRED=0` in the root conftest |
+| 6 | T — `frontend/src/app/auth.test.tsx` (Bearer header) |
+| 7 | I — review of `frontend/src/auth/LoginPage.tsx` and `UserMenu.tsx` (spec 003 styles, logout clears the token) |
