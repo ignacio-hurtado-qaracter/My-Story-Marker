@@ -30,6 +30,7 @@ from app.commons.config import get_settings
 from app.commons.deps import get_model_client
 from app.commons.llm import ModelClient
 from app.export.pdf import export_pdf, pdf_filename
+from app.interview.brief import validate_brief
 from app.reader import service
 from app.reader.changes import (
     INJECTION_POLICY,
@@ -37,12 +38,16 @@ from app.reader.changes import (
     change_injection_markers,
     editable_fact,
 )
+from app.reader.generation import GenerationJobs, TooManyGenerationsError
 from app.reader.models import (
     ChangeAccepted,
     ChangeJob,
     ChangeRequest,
     ChapterDetail,
     ChapterIndex,
+    GenerateAccepted,
+    GenerateRequest,
+    GenerationStatus,
     NovelDetail,
     NovelSummary,
     StoryBible,
@@ -94,6 +99,15 @@ def get_change_jobs() -> ChangeJobs:
 
 JobsDep = Annotated[ChangeJobs, Depends(get_change_jobs)]
 
+_GENERATIONS = GenerationJobs(client_factory=_client_or_none)
+
+
+def get_generation_jobs() -> GenerationJobs:
+    return _GENERATIONS
+
+
+GenerationsDep = Annotated[GenerationJobs, Depends(get_generation_jobs)]
+
 router = APIRouter(prefix="/novels", tags=["reader"])
 
 # SQLite integers are 64-bit; a larger number in the URL is a 422, never a 500.
@@ -122,6 +136,50 @@ NovelId = Annotated[str, Depends(owned_novel_id)]
 def list_novels(repo: OwnedRepoDep) -> list[NovelSummary]:
     """Every novel, with its current (latest published) version."""
     return service.list_novels(repo)
+
+
+@router.post(
+    "/generate",
+    status_code=status.HTTP_202_ACCEPTED,
+    responses={
+        422: {"description": "Invalid brief; `detail` is its BriefReport."},
+        429: {"description": "Two generations are already running."},
+    },
+)
+def start_generation(
+    body: GenerateRequest, path: BiblePathDep, user: CurrentUserDep, jobs: GenerationsDep
+) -> GenerateAccepted:
+    """Spec 020: validate the brief, then ingest it (owned by the caller) and run `generate`
+    in the background. Poll `GET /novels/{id}/generation`."""
+    report = validate_brief(body.brief)
+    if not report.valid:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=report.model_dump()
+        )
+    try:
+        job = jobs.submit(path, body.brief, owner_id=user.id, chapters=body.chapters)
+    except TooManyGenerationsError as error:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=str(error)
+        ) from error
+    return GenerateAccepted(novel_id=job.novel_id, job_id=job.job_id)
+
+
+@router.get("/{novel_id}/generation")
+def generation_status(
+    novel_id: str, repo: RepoDep, user: CurrentUserDep, jobs: GenerationsDep
+) -> GenerationStatus:
+    """Spec 020: phase, chapters done / total, cost so far and the last validator failures.
+    404 for a novel of another owner, exactly like a missing one."""
+    job = jobs.for_novel(novel_id)
+    if job is not None and job.owner_id != user.id:
+        job = None
+    try:
+        if job is None:
+            repo.scoped_to(user.id).get_novel(novel_id)
+        return jobs.status(repo.scoped_to(user.id), novel_id)
+    except BibleNotFoundError as error:
+        raise _not_found(error) from error
 
 
 @router.get("/{novel_id}")
@@ -242,6 +300,7 @@ __all__ = [
     "RepoDep",
     "get_bible_path",
     "get_change_jobs",
+    "get_generation_jobs",
     "get_owned_repository",
     "get_repository",
     "router",

@@ -183,6 +183,8 @@ K5_READER = frozenset(
         ("GET", "/novels/{}/bible"),
         ("POST", "/novels/{}/changes"),
         ("GET", "/novels/{}/changes/{}"),
+        ("POST", "/novels/generate"),  # spec 020
+        ("GET", "/novels/{}/generation"),  # spec 020
     }
 )
 """Spec 014 (contract K5): the gift-novel reader over the story bible."""

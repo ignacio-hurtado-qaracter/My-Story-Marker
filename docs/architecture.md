@@ -932,6 +932,10 @@ The recipient reads the novel in the web reader first; a PDF is exported from th
   version's.
 - **PDF export** of the published version, with a "novedades" page listing what changed
   since the parent version.
+- **New novel** (spec 020): a signed-in reader fills in the brief in a form, the backend
+  validates it, ingests it under the caller as owner and runs `generate` in a background
+  job (at most two per process), and the page polls the run's progress until it is
+  published or stopped.
 
 The reader always shows the latest published version, never a draft or a blocked one.
 

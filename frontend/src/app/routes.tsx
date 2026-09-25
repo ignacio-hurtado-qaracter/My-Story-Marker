@@ -11,6 +11,7 @@ import { CoverRoute } from '../cover'
 import { Graph3dRoute } from '../graph3d'
 import { ChapterIndexRoute, ChapterRoute, NovelsRoute, ReaderRoute } from '../reader'
 import { ChaptersRoutes, ScenesRoutes } from '../scenes'
+import { NewNovelRoute } from '../newnovel'
 import { Layout } from './Layout'
 import { NotFoundPage } from './NotFoundPage'
 
@@ -22,6 +23,7 @@ export function AppRoutes() {
         <Route index element={<NovelsRoute />} />
         <Route path="login" element={<LoginRoute />} />
         <Route path="arquitectura" element={<ArchitectureRoute />} />
+        <Route path="nueva" element={<NewNovelRoute />} />
         <Route path="novelas/:novelId" element={<ReaderRoute />}>
           <Route index element={<CoverRoute />} />
           <Route path="indice" element={<ChapterIndexRoute />} />
