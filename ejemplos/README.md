@@ -39,6 +39,7 @@ uv run python -m app.export.cli pdf --novel-id novela-ejemplo-a --version 2 --ou
 Sin `--novel-id`, `generate` asigna uno y lo imprime. La novela de 3 capítulos sale de
 `--brief ../evals/briefs/b2-infantil.json --novel-id novela-infantil --chapters 3`. La generación es con modelo (Claude Haiku 4.5 vía la CLI
 de Claude Code), así que otra ejecución da otro texto y puede no publicarse a la primera:
-el intento paralelo `novela-ejemplo-b`, con el mismo código, gastó sus dos rondas de
-reparación por un fallo de exportación a Lean que la prosa no puede arreglar
+el intento paralelo `novela-ejemplo-b`, con el mismo código, se paró con `repair_limit`
+(6,05 USD) tras gastar sus dos rondas de reparación en un fallo de exportación a Lean que
+la prosa no puede arreglar
 ([detalle](../docs/process/iteraciones.md#iteración-de-tuning-2)).
