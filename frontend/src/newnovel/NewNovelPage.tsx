@@ -24,7 +24,13 @@ import {
 } from './draft'
 import { GenerationProgress } from './GenerationProgress'
 
-const STEPS = ['Destinatario', 'Personas y lugares', 'Recuerdos', 'Historia', 'Dedicatoria y revisión'] as const
+const STEPS = [
+  { short: 'Destinatario', title: 'Destinatario' },
+  { short: 'Personas', title: 'Personas, mascotas y lugares' },
+  { short: 'Recuerdos', title: 'Recuerdos' },
+  { short: 'Historia', title: 'Historia' },
+  { short: 'Revisión', title: 'Dedicatoria y revisión' },
+] as const
 
 type Update = <K extends keyof Draft>(key: K, value: Draft[K]) => void
 
@@ -523,21 +529,23 @@ function StoryStep({ draft, set }: { draft: Draft; set: Update }) {
 
 // ---------- Step 5 ----------
 
-function IssueList({ issues, goTo }: { issues: Issue[]; goTo: (step: number) => void }) {
+function IssueList({ issues, current, goTo }: { issues: Issue[]; current: number; goTo: (step: number) => void }) {
   return (
     <ul className="nn-issue-list">
       {issues.map((issue, index) => (
         <li key={`${issue.text}-${String(index)}`} className={`nn-issue nn-issue-${issue.kind}`}>
           <span>{issue.text}</span>
-          <button
+          {issue.step === current ? null : (
+            <button
             type="button"
             className="nn-link"
             onClick={() => {
               goTo(issue.step)
             }}
           >
-            Ir al paso {issue.step}
-          </button>
+              Ir al paso {issue.step}
+            </button>
+          )}
         </li>
       ))}
     </ul>
@@ -637,7 +645,7 @@ function ReviewStep({
             <p className="nn-invalid" role="alert">
               Antes de generar, revisa {issues.length === 1 ? 'este punto' : `estos ${String(issues.length)} puntos`}:
             </p>
-            <IssueList issues={issues} goTo={goTo} />
+            <IssueList issues={issues} current={5} goTo={goTo} />
           </>
         )}
       </div>
@@ -697,7 +705,7 @@ export function NewNovelPage() {
     )
   }
 
-  const title = STEPS[step - 1] ?? ''
+  const title = STEPS[step - 1]?.title ?? ''
   return (
     <section className="nn-page">
       <title>Nueva novela · My Story Marker</title>
@@ -719,7 +727,7 @@ export function NewNovelPage() {
       </div>
 
       <ol className="nn-steps" aria-label="Pasos">
-        {STEPS.map((name, index) => (
+        {STEPS.map(({ short, title: name }, index) => (
           <li key={name}>
             <button
               type="button"
@@ -731,7 +739,7 @@ export function NewNovelPage() {
               }}
             >
               <span className="nn-step-number">{index + 1}</span>
-              <span className="nn-step-name">{name}</span>
+              <span className="nn-step-name">{short}</span>
             </button>
           </li>
         ))}
