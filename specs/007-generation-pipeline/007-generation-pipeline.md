@@ -39,6 +39,14 @@ docs:
 > a career dated 1992–2026. The planner itself wrote "El domingo de mañana, veintitrés de
 > junio" (23 June 2026 is a Tuesday). Changes under Design, "Tuning iteration 2", and AC 8.
 
+> **Revised 2026-09-25 — plan events must have a place** (programme 004; approval
+> delegated, status stays `implemented`, the new criterion is verified in the same change).
+> Reason: the 10-chapter run `novela-ejemplo-b` stopped with `repair_limit` because
+> `lean_chronology` failed twice with "chronology export failed: events[21].place_id:
+> unknown id None": one of 30 planned events named no known place, the plan check let it
+> through, and both repair rounds rewrote prose that could never fix a plan row. Changes
+> under Design, "Plan events must have a place", and AC 9.
+
 ## Motivation
 
 Spec 004 § 1 rows H01 (planner, writer, editor/critic), H06 (bounded retries at chapter
@@ -131,6 +139,21 @@ H05 (deferred, see Open questions), the legacy `app/agents/**` turn loop (untouc
   failure (spec 008) is fixed by the weekday the feedback gives, or simply by dropping the
   weekday name.
 
+**Plan events must have a place.**
+
+- *Plan check* (`plan_check.event_place_problems`). Every chronology event names a place
+  that resolves (exact, then case- and accent-insensitive) to a plan place or a place
+  already in the bible (brief). Otherwise it is a plan problem ("El evento eN del capítulo
+  C no tiene lugar…"), fed back to the planner in the already bounded replan.
+- *Defence in depth.* Before the check, `normalise_events` gives an event whose place does
+  not resolve its scene's place when that one resolves, and stores the canonical place
+  name; `persist_plan` resolves the same way, so no persisted event has a null `place_id`.
+- *Export errors stop the run.* The Lean exporter stays strict (an unknown `place_id` is an
+  error). When a failed `lean_chronology` is an export error (the chronology never reached
+  Lean), `publish_version` spends no repair round: the version is blocked and the run ends
+  in `stopped_error` with reason `chronology_export_error`, explained as a plan data
+  error, not a prose one.
+
 Deviation from Figure 5: a `chapter_close` failure is repaired by an editor rewrite of the
 whole chapter with the evidence, not by rewriting only the flagged scene (cheaper on Haiku;
 the scenes are already merged by the editor). *Clarified: Figure 5 now says so, and that
@@ -164,6 +187,11 @@ resume restarts the first incomplete chapter from its first scene; no longer a d
    `plan/calendar.txt` with the dates and the canonical figures. **T**
    (`test_pipeline.py::test_plan_calendar_enrichment`) · **D** (the orchestrator's rerun
    of `ejemplo`, recorded in `docs/process/iteraciones.md`).
+9. AC 9 — plan events must have a place: a plan with an event whose place resolves neither
+   itself nor through its scene is rejected by the plan check; an event without place
+   inherits its scene's place; a Lean export error stops the run with
+   `chronology_export_error` instead of opening repair rounds. **T**
+   (`test_pipeline.py::test_event_without_place_is_rejected_or_inherits_the_scene_place`).
 
 ## Verification plan
 
@@ -208,3 +236,4 @@ author (`docs/process/README.md`, "Pendiente para el autor").
 | 6 | D — Langfuse session per novel with role spans, prompt versions and cost score on the live runs; `llm_call` rows (55 calls, 3.10 USD for `novela-ejemplo-a`) |
 | 7 | T — `app/novel/tests/test_pipeline.py`, `app/judge/tests/test_judge.py` · D — `evals/results/after/`, `evals/results/tuning.md` |
 | 8 | T — `test_pipeline.py::test_plan_calendar_enrichment` · D — `novela-ejemplo-a` published at the first pre_publish, 0 repair rounds (`docs/process/iteraciones.md`, tuning 2) |
+| 9 | T — `test_pipeline.py::test_event_without_place_is_rejected_or_inherits_the_scene_place` (added 2026-09-25 with the revision) |
