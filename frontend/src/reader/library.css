@@ -1,0 +1,159 @@
+/* The library at `/` (spec 019): novel cards and filter chips, spec 003's identity. */
+
+.library-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.library-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  padding: 0.4rem 0.95rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--white);
+  color: var(--ink-600);
+  font: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.library-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.library-chip[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--white);
+}
+
+.library-chip-count {
+  min-width: 1.4rem;
+  padding: 0 0.4rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink-600);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.library-chip[aria-pressed='true'] .library-chip-count {
+  background: var(--white);
+  color: var(--accent);
+}
+
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.library-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  overflow: hidden;
+  padding-top: 1.75rem;
+}
+
+/* The brand stripe of main's cards. */
+.library-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 5px;
+  background: linear-gradient(90deg, var(--brand), var(--accent));
+}
+
+.library-card-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.library-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--radius-pill);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.library-badge::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.library-badge-ok {
+  background: var(--pass-tint);
+  color: var(--pass);
+}
+
+.library-badge-fail {
+  background: var(--fail-tint);
+  color: var(--fail);
+}
+
+.library-badge-warn {
+  background: var(--brand-100);
+  color: var(--accent);
+}
+
+.library-badge-neutral {
+  background: var(--surface);
+  color: var(--ink-600);
+}
+
+.library-card-title {
+  margin: 0;
+  font-size: 1.3rem;
+  line-height: 1.25;
+}
+
+.library-card-title a {
+  color: var(--ink);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.library-card-title a:hover {
+  color: var(--accent);
+}
+
+.library-card-recipient {
+  margin: 0;
+  color: var(--ink-600);
+  font-weight: 500;
+}
+
+.library-card-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.library-card-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: auto;
+  padding-top: 0.9rem;
+}
