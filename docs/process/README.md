@@ -48,14 +48,9 @@ examen da 71/72; lo único que le falta es el vídeo.
    AC 9 de la 004.
 3. **Rotar la clave de Langfuse**: estuvo en claro fuera del repositorio durante el
    programa (spec 004, *Open questions*). Ningún fichero versionado la contiene.
-4. **Decidir sobre `backend/tests/test_boundaries_mirror.py`**: es el único test rojo de
-   la suite (1 fallo, 1.758 pasan). La regla de la spec 001 prohíbe E/S de ficheros fuera
-   de la capa de stores, y los módulos nuevos (`app/export`, `app/formal`, `app/judge`,
-   `app/novel`, `app/reader`, `app/tools`, `app/validators`) la hacen legítimamente (CLI,
-   PDF, proyecto Lean, revisión humana): 20+ hallazgos. El clasificador de seguridad del
-   agente se negó a ampliar las exenciones del guard heredado por su cuenta, con razón:
-   es una decisión humana. Opciones: exenciones con motivo por ruta, o restringir la regla
-   a los stores del harness genérico ([detalle](./subagentes-comandos-skills.md)).
+4. ~~**Decidir sobre `backend/tests/test_boundaries_mirror.py`**~~ — **resuelto** (2026-09-25,
+   opción 1 aprobada por el autor): exenciones fichero a fichero en `tools/check_boundaries.py`
+   y `semgrep/forbidden-store-write.yaml`, commit `138add6`. Suite completa: 1760 pasan, 0 fallan.
 5. **Enviar el correo de entrega** con el enlace al repositorio, al PDF de ejemplo, a la
    presentación y al vídeo.
 6. **Repositorio MyFactory**: preparar o enlazar el repositorio de MyFactory que pide la
