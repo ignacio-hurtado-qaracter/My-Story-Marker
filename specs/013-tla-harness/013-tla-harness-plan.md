@@ -1,6 +1,6 @@
 ---
 spec: 013                 # the approved spec this plan implements
-status: approved          # approved 2026-09-24 on the user's delegation (plan 004, V6)
+status: done              # closed 2026-09-25 with spec 013 (programme 004 close-out)
 ---
 
 # Plan 013 — TLA+ model of the harness flow

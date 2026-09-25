@@ -1,7 +1,7 @@
 ---
 id: 013
 title: B9 — TLA+ model of the gift-novel harness flow
-status: approved         # approved 2026-09-24 on the user's delegation (plan 004, V6)
+status: implemented      # closed 2026-09-25 on the user's delegation (programme 004 close-out)
 supersedes: null
 programme: 004
 block: B9
@@ -106,3 +106,20 @@ All closed on the delegation; recorded here as decisions.
    (`formal/tla/tlc-output.txt`: no error, 5,492,531 distinct states, depth 127).*
 5. **Toolchain.** `tla2tools.jar` v1.8.0 from the TLA+ GitHub releases, pinned by URL and
    SHA-256 in `run-tlc.sh`, downloaded into the git-ignored `formal/tla/tools/`.
+
+## Closing note (2026-09-25)
+
+Closed on the user's delegation (programme 004 close-out, Process 2 step 12). Evidence at
+`proyecto-desde-cero` @ `0e8118c`: backend gate `ruff check .` clean, `mypy --strict .`
+clean (290 files), `pytest` 1758 passed / 8 skipped / 1 failed. The one failure is
+`tests/test_boundaries_mirror.py`, the spec 001 store-boundary guard, which flags file I/O
+in the new modules; it is not an acceptance criterion of this spec and is left to the
+author (`docs/process/README.md`, "Pendiente para el autor").
+
+| AC | Satisfied by |
+|---|---|
+| 1 | A · I — TLC parses and explores `formal/tla/GiftNovelHarness.tla`; module reviewed against the list |
+| 2 | A — `GiftNovelHarness.cfg` declares the invariants and the liveness property; no violation in `formal/tla/tlc-output.txt` |
+| 3 | A · D — `formal/tla/run-tlc.sh`: 5,492,531 distinct states, no error, 8 min 17 s (`tlc-output.txt`, re-run with `MAX_REPAIR_ROUNDS = 2` in `1a39e7c`) |
+| 4 | I — `formal/tla/README.md` action → code mapping, confirmed against `app/novel/pipeline.py` in wave C (divergences in `docs/process/iteraciones.md`) |
+| 5 | I — `formal/tla/COUNTEREXAMPLES.md` (CE1–CE4), linked from the README |
