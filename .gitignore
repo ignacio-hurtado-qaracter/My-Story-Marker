@@ -34,3 +34,7 @@ data/
 
 # Claude Code hook logs (spec 009): the policy guard appends its decisions here.
 .claude/hooks/*.log
+
+# SQLite side files (WAL mode)
+*.sqlite-wal
+*.sqlite-shm
