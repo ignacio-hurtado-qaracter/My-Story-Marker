@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 JobStatus = Literal["queued", "resolving", "running", "done", "failed"]
 EntryKind = Literal["character", "place"]
@@ -125,6 +125,50 @@ class ChangeJob(_Model):
     detail: str = ""
 
 
+GenerationState = Literal["queued", "running", "published", "blocked", "stopped_error"]
+
+
+class GenerateRequest(_Model):
+    """Spec 020: a brief (brief.v1.json shape) to ingest and generate. A plain object, so an
+    incomplete brief is answered with its `BriefReport` rather than a generic 422."""
+
+    brief: dict[str, JsonValue] = Field(description="A brief with the brief.v1.json shape.")
+    chapters: int | None = Field(
+        default=None, ge=1, le=10, description="Default: `brief.length.chapters`."
+    )
+
+
+class GenerateAccepted(_Model):
+    novel_id: str
+    job_id: str
+
+
+class GenerationIssue(_Model):
+    name: str
+    point: str
+    chapter: int | None = None
+    explanation: str = ""
+
+
+class GenerationStatus(_Model):
+    """Spec 020: one generation's progress, from the job (if this process runs it) and the
+    story bible (checkpoints, versions, cost rows)."""
+
+    novel_id: str
+    job_id: str | None = None
+    status: GenerationState
+    phase: str = ""
+    chapters_done: int = 0
+    chapters_total: int = 0
+    version: int | None = None
+    cost_usd: float = 0.0
+    calls: int = 0
+    issues: list[GenerationIssue] = Field(default_factory=list)
+    detail: str = ""
+    started_at: str | None = None
+    updated_at: str | None = None
+
+
 __all__ = [
     "BibleEntry",
     "ChangeAccepted",
@@ -135,6 +179,11 @@ __all__ = [
     "ChapterIndex",
     "EntryKind",
     "FactRef",
+    "GenerateAccepted",
+    "GenerateRequest",
+    "GenerationIssue",
+    "GenerationState",
+    "GenerationStatus",
     "JobStatus",
     "NovelDetail",
     "NovelSummary",
