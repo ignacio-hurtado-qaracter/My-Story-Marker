@@ -1,0 +1,67 @@
+{
+  "_doc": "Datos de las ejecuciones que citan el deck y el guion (presentacion/build/build_deck.py). Cifras tomadas de los logs de la CLI (data/logs/<novel_id>.log: coste, llamadas, tiempo de modelo y palabras por capítulo) y de los commits citados. El orquestador rellena final_novel al terminar la novela de 10 capítulos y vuelve a ejecutar el build; un null se muestra como «pendiente». Ver presentacion/README.md.",
+  "updated": "2026-09-24",
+  "model": "claude-haiku-4-5",
+  "three_chapter_novel": {
+    "novel_id": "novela-infantil",
+    "brief": "evals/briefs/b2-infantil.json",
+    "status": "published",
+    "version": 1,
+    "chapters": 3,
+    "words": 3409,
+    "repair_rounds": 1,
+    "calls": 20,
+    "cost_usd": 0.85,
+    "minutes": 21,
+    "model_time_s": 1242,
+    "pdf": "ejemplos/novela-infantil-3-capitulos.pdf",
+    "evidence": "78548f3 · data/logs/novela-infantil.log"
+  },
+  "ten_chapter_attempts": [
+    {
+      "novel_id": "novela-ejemplo",
+      "when": "antes del tuning 1",
+      "status": "blocked",
+      "stop_reason": "repair_limit",
+      "validator": "judge_novel",
+      "why": "saltos temporales sin anclaje y capítulos 1 y 2 solapados («la última clase»)",
+      "chapters_written": 10,
+      "repair_rounds": 1,
+      "calls": 73,
+      "cost_usd": 3.68,
+      "minutes": 91,
+      "model_time_s": 5333,
+      "motivated": "tuning 1",
+      "evidence": "docs/process/iteraciones.md fila 21 · data/logs/novela-ejemplo.log"
+    },
+    {
+      "novel_id": "novela-ejemplo-final",
+      "when": "después del tuning 1",
+      "status": "blocked",
+      "stop_reason": "repair_limit",
+      "validator": "judge_novel",
+      "why": "días de la semana que contradicen su fecha (21, 23 y 24 de junio de 2026) y «treinta años» frente a 34",
+      "chapters_written": 10,
+      "repair_rounds": 2,
+      "calls": 78,
+      "cost_usd": 4.61,
+      "minutes": 109,
+      "model_time_s": 6434,
+      "motivated": "tuning 2",
+      "evidence": "docs/process/iteraciones.md fila 24 · data/logs/novela-ejemplo-final.log"
+    }
+  ],
+  "final_novel": {
+    "novel_id": null,
+    "status": null,
+    "version": null,
+    "chapters": null,
+    "words": null,
+    "repair_rounds": null,
+    "calls": null,
+    "cost_usd": null,
+    "minutes": null,
+    "judge_novel": null,
+    "pdf": "ejemplos/novela-ejemplo.pdf"
+  }
+}

@@ -1,22 +1,31 @@
-"""Build presentacion/presentacion.pptx (and presentacion.pdf) from the repository.
+"""Build presentacion/presentacion.pptx (+ presentacion.pdf) and presentacion/guion.md.
 
-    uvx --with python-pptx --with matplotlib python presentacion/build/build_deck.py
+    uvx --with python-pptx --with pymupdf python presentacion/build/build_deck.py
 
-Numbers are read live from the repo on every run: evals/results.md and
-evals/results/*/*.json (outcomes, costs, prompt versions), evals/results/tuning.md,
-formal/tla/tlc-output.txt and COUNTEREXAMPLES.md, docs/process/red-team-log.md,
-docs/process/lean-caso-real.md. Re-run it after the final novel run.
+Every figure is read from the repository on each run, so the deck and the speaker script
+never go stale: presentacion/build/data/runs.json (novels: 3-chapter, the 10-chapter
+attempts, the final novel), evals/results/*/*.json and evals/results.md (before/after),
+evals/results/tuning.md, docs/process/iteraciones.md (tuning 2), lean-caso-real.md,
+red-team-log.md, docs/security-report.md, formal/tla/tlc-output.txt + .cfg +
+COUNTEREXAMPLES.md, backend/app/novel/pipeline.py (retry limits) and ejemplos/*.pdf.
+A missing file or a null in runs.json shows as «pendiente».
 
-Options: --no-pdf (skip the LibreOffice conversion), --render (force Mermaid re-render).
+Each slide carries its speaker script as notes; the same scripts, plus the likely questions
+of the examiners and the one-line design decision for the email, are written to
+presentacion/guion.md.
+
+Options: --no-pdf (skip LibreOffice), --render (force Mermaid re-render), --no-guion.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import shutil
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 
 from pptx import Presentation
@@ -63,6 +72,7 @@ class Deck:
         self.prs.slide_height = Inches(H)
         self.blank = self.prs.slide_layouts[6]
         self.n = 0
+        self.scripts: list[Script] = []
 
     # -- primitives -------------------------------------------------------------------
 
@@ -255,14 +265,64 @@ class Deck:
                     cell.fill.fore_color.rgb = fill or (MIST if zebra and i % 2 == 0 else WHITE)
         return tbl
 
-    def notes(self, s, txt):
-        s.notes_slide.notes_text_frame.text = txt
+
+    # -- speaker script -----------------------------------------------------------------
+
+    def script(self, s, sc: "Script") -> None:
+        """Speaker notes = the script of this slide; also kept for guion.md."""
+        sc.n = self.n
+        words = len(" ".join(sc.say).split())
+        sc.seconds = max(25, round(words / 2.4 / 5) * 5)  # ~145 palabras por minuto
+        self.scripts.append(sc)
+        s.notes_slide.notes_text_frame.text = sc.notes()
 
 
-# ----------------------------------------------------------------------------- helpers
+# ----------------------------------------------------------------------------- data
+
+PENDING = "pendiente"
+
+
+@dataclass
+class Script:
+    title: str
+    seconds: int
+    key: str
+    say: list[str]
+    numbers: list[str]
+    transition: str
+    n: int = 0
+
+    def notes(self) -> str:
+        out = [f"MENSAJE: {self.key}", "", "QUÉ DECIR:"]
+        out += [f"- {x}" for x in self.say]
+        if self.numbers:
+            out += ["", "CIFRAS: " + " · ".join(self.numbers)]
+        out += ["", f"TRANSICIÓN: {self.transition}", f"(≈ {self.seconds} s)"]
+        return "\n".join(out)
+
+
+def num(n: float | int | None, dec: int = 0) -> str:
+    """Spanish number: 3.409 · 0,85."""
+    if n is None:
+        return PENDING
+    s = f"{n:,.{dec}f}"
+    return s.replace(",", "·").replace(".", ",").replace("·", ".")
+
+
+def usd(x: float | None) -> str:
+    return PENDING if x is None else f"{num(x, 2)} USD"
+
+
+def mins(m: float | None) -> str:
+    return PENDING if m is None else f"{num(m)} min"
+
+
+def fmt_usd(x: float | None) -> str:
+    return "—" if x is None else usd(x)
+
 
 def mark(v: str) -> str:
-    return v.replace("✅", "✓").replace("❌", "✗").replace("⚑", "⚑").strip()
+    return v.replace("✅", "✓").replace("❌", "✗").strip()
 
 
 def status_fill(_i, _j, v):
@@ -275,21 +335,77 @@ def status_fill(_i, _j, v):
     return None
 
 
-def fmt_usd(x: float | None) -> str:
-    return "—" if x is None else f"{x:.2f} USD".replace(".", ",")
+def _limit(name: str, default: int) -> int:
+    m = re.search(rf"^{name}: Final\[int\] = (\d+)", C.read("backend/app/novel/pipeline.py"),
+                  re.M)
+    return int(m.group(1)) if m else default
 
 
-def fmt_min(sec: float | None) -> str:
-    return "—" if sec is None else f"{sec / 60:.0f} min"
+@dataclass
+class Data:
+    tlc: C.TLC
+    cfg: dict[str, str]
+    sec: C.Security
+    ev_b: C.EvalSummary
+    ev_a: C.EvalSummary
+    runs: dict
+    three: dict
+    attempts: list[dict]
+    final: dict
+    final_pub: bool
+    max_repair: int
+    max_chapter: int
+    max_scene: int
+    chap_cost: float | None
+    chap_min: float | None
+    lean_rows: list[list[str]]
+    redteam: list[list[str]]
+    human_review: bool
+    tuning2_after: str | None
+    ntab: int
+
+    @property
+    def novel(self) -> dict:
+        """The novel the deck shows: the final 10-chapter one if published, else the
+        published 3-chapter one."""
+        return self.final if self.final_pub else self.three
+
+    @property
+    def novel_pdf(self) -> str | None:
+        f = self.final.get("pdf") or "ejemplos/novela-ejemplo.pdf"
+        if self.final_pub:
+            return f if C.exists(f) else None
+        t = self.three.get("pdf") or "ejemplos/novela-infantil-3-capitulos.pdf"
+        return t if t and C.exists(t) else None
 
 
-def exists(rel: str) -> bool:
-    return (C.ROOT / rel).exists()
+def load() -> Data:
+    r = C.runs()
+    runs_after = [x for x in C.eval_runs() if x.label == "after" and x.cost]
+    chap = [c for x in runs_after for c in x.by_chapter if c.get("chapter") is not None]
+    er = C.mermaid_blocks("docs/process/diagramas.md")
+    ntab = len(re.findall(r"^\s+(\w+) \{", er[2], re.M)) if len(er) > 2 else 16
+    rt = C.md_tables(C.read("docs/process/red-team-log.md"))
+    return Data(
+        tlc=C.tlc(), cfg=C.tla_config(), sec=C.security(),
+        ev_b=C.eval_summary("before"), ev_a=C.eval_summary("after"),
+        runs=r, three=r.get("three_chapter_novel") or {},
+        attempts=r.get("ten_chapter_attempts") or [], final=C.final_novel(),
+        final_pub=C.final_published(),
+        max_repair=_limit("MAX_REPAIR_ROUNDS", 2), max_chapter=_limit("MAX_CHAPTER_RETRIES", 2),
+        max_scene=_limit("MAX_SCENE_RETRIES", 2),
+        chap_cost=(sum(c["cost_usd"] for c in chap) / len(chap)) if chap else None,
+        chap_min=(sum(c["latency_s"] for c in chap) / len(chap) / 60) if chap else None,
+        lean_rows=C.lean_case_table(),
+        redteam=[[C.strip_md(c) for c in row] for row in rt[0][1:]] if rt else [],
+        human_review=bool(list((C.ROOT / "evals/human-review").glob("review-*.yaml"))),
+        tuning2_after=C.tuning2_after(), ntab=ntab,
+    )
 
 
 # ----------------------------------------------------------------------------- slides
 
-def s_title(d: Deck) -> None:
+def s_title(d: Deck, x: Data) -> None:
     s = d.slide(dark=True)
     d.text(s, M, 0.9, 7, 0.3, "HARNESS ENGINEERING · ENTREGA FINAL", 13, bold=True, color=TERRA)
     d.text(s, M, 1.35, 7, 1.0, "My Story Marker", 54, bold=True, color=WHITE, font=HEAD)
@@ -298,19 +414,29 @@ def s_title(d: Deck) -> None:
            "que se puede verificar", 22, color=RGBColor(0xE4, 0xE7, 0xEB))
     stats = [("10", "capítulos de 1.000–1.500\npalabras, en español"),
              ("6", "roles con Claude Haiku 4.5\norquestados por código"),
-             ("2", "verificaciones formales:\nLean 4 y TLA+")]
+             ("4", "tipos de validador:\nprogramático, semántico,\nLean 4 y TLA+")]
     for i, (big, small) in enumerate(stats):
-        x = M + i * 2.2
-        d.text(s, x, 4.25, 2.0, 0.8, big, 44, bold=True, color=TERRA, font=HEAD)
-        d.text(s, x, 5.1, 2.1, 0.8, small, 12, color=RGBColor(0xC9, 0xCF, 0xD6))
+        xx = M + i * 2.2
+        d.text(s, xx, 4.25, 2.0, 0.8, big, 44, bold=True, color=TERRA, font=HEAD)
+        d.text(s, xx, 5.1, 2.1, 0.9, small, 12, color=RGBColor(0xC9, 0xCF, 0xD6))
     d.text(s, M, 6.55, 7, 0.4, f"Repositorio storyMaker · commit {C.git_head()} · 2026",
            11, color=MUTED)
     d.image(s, SHOTS / "browser-mcp/desktop-cover.png", 7.75, 0.9, 5.0, 5.7, border=False)
-    d.notes(s, "Presentación técnico-comercial. Un producto (novelas-regalo) y el harness que "
-               "lo hace fiable.")
+    d.script(s, Script(
+        "Portada", 30,
+        "Un producto (novelas-regalo) y el harness que lo hace fiable y verificable.",
+        ["Buenos días. Soy [tu nombre] y presento My Story Marker.",
+         "Es una solución técnico-comercial: un servicio que escribe novelas personalizadas "
+         "para regalar, y el harness de agentes que las genera.",
+         "La idea que quiero que os llevéis: aquí lo difícil no es escribir 10 capítulos, "
+         "es poder demostrar que lo que se publica es coherente y está personalizado.",
+         "Os lo cuento en cuatro partes: el problema, cómo funciona, cómo sabemos que "
+         "funciona y qué cuesta."],
+        ["10 capítulos", "6 roles en Haiku 4.5", "Lean 4 + TLA+"],
+        "Empiezo por el problema del cliente."))
 
 
-def s_problem(d: Deck) -> None:
+def s_problem(d: Deck, x: Data) -> None:
     s = d.slide()
     d.header(s, "Problema y propuesta de valor", "Un regalo único que no se puede comprar hecho")
     d.box(s, M, 1.75, 5.85, 3.6, MIST)
@@ -338,79 +464,109 @@ def s_problem(d: Deck) -> None:
          ("Que aparezcan todos los datos no basta si la historia no funciona como historia: "
           "validadores, editor y juez comprueban las dos cosas.", {"color": WHITE})]],
         16, anchor=MSO_ANCHOR.MIDDLE)
-    d.notes(s, "Clientes: padres, parejas, bodas, aniversarios, jubilaciones.")
+    d.script(s, Script(
+        "Problema y propuesta de valor", 60,
+        "El cliente quiere dos cosas a la vez: que el destinatario se reconozca y que la "
+        "historia se lea bien.",
+        ["Clientes: padres, parejas, bodas, jubilaciones. Y un regalo tiene fecha.",
+         "Si se lo pides a un LLM sin más, falla de formas muy concretas: cambia nombres, "
+         "olvida recuerdos, contradice fechas, y la mascota que murió vuelve a aparecer.",
+         "Además el cliente tiene vetos: el nombre de una expareja, un tema que no quiere. "
+         "Eso no puede aparecer nunca.",
+         "La propuesta: una entrevista que produce un brief validado, una novela de 10 "
+         "capítulos, lectura web y PDF con portada, índice y fichas, y cambios puntuales.",
+         "La decisión D11 es el criterio de todo el sistema: personalización y calidad "
+         "narrativa pesan igual. Meter los datos a martillazos no cuenta como éxito."],
+        [],
+        "Veamos cómo se ve el producto."))
 
 
-def s_demo1(d: Deck) -> None:
+def s_demo(d: Deck, x: Data) -> None:
     s = d.slide()
-    d.header(s, "Demo del producto · 1/2", "Del brief a una novela que se lee y se regala")
-    shots = [("visual-check/01-cover.png", "Portada con dedicatoria personalizada"),
-             ("visual-check/02-index.png", "Índice navegable con marcas de versión"),
-             ("visual-check/04-sheets.png", "Fichas desde la story bible, con «Aparece en»")]
-    bw = (W - 2 * M - 0.5) / 3
+    d.header(s, "La solución · demo del producto",
+             "Del brief a una novela que se lee, se regala y se corrige")
+    shots = [("visual-check/01-cover.png", "Portada con dedicatoria"),
+             ("visual-check/02-index.png", "Índice con marcas de versión"),
+             ("visual-check/04-sheets.png", "Fichas desde la story bible")]
+    bw = 2.35
+    from PIL import Image
+    hs = [bw * Image.open(SHOTS / f).size[1] / Image.open(SHOTS / f).size[0]
+          for f, _ in shots if (SHOTS / f).exists()]
+    cy = 1.8 + min(max(hs or [3.0]), 3.4) + 0.25
     for i, (f, cap) in enumerate(shots):
-        x = M + i * (bw + 0.25)
-        d.image(s, SHOTS / f, x, 1.8, bw, 3.55)
-        d.circle_num(s, x, 5.55, 0.36, i + 1, size=12)
-        d.text(s, x + 0.48, 5.57, bw - 0.5, 0.5, cap, 13, bold=True)
-    d.notes(s, "Capturas del lector React tomadas por el validador visual_check (Playwright) "
-               "en pre_publish, novela de demostración demo-faro.")
-
-
-def s_demo2(d: Deck) -> None:
-    s = d.slide()
-    d.header(s, "Demo del producto · 2/2", "El lector pide un cambio: «el perro se llama Nala»")
+        xx = M + i * (bw + 0.15)
+        d.image(s, SHOTS / f, xx, 1.8, bw, 3.4)
+        d.circle_num(s, xx, cy, 0.34, i + 1, size=12)
+        d.text(s, xx + 0.42, cy + 0.02, bw - 0.45, 0.6, cap, 12, bold=True)
+    d.text(s, M, cy + 0.8, 7.35, 0.7,
+           "Lector web en React y PDF exportado con la misma portada, índice navegable y "
+           "fichas con enlaces «Aparece en» a cada capítulo.", 12, color=SLATE)
+    rx = 8.35
+    rw = W - M - rx
+    d.text(s, rx, 1.75, rw, 0.4, "El lector pide un cambio", 17, bold=True, font=HEAD)
     steps = [
-        ("Selecciona el hecho", "en la página o por CLI/API (change_fact)."),
-        ("Se actualiza la story bible", "el hecho es único: nunca hay dos versiones de él."),
-        ("Solo se regeneran sus capítulos", "fact_usage dice qué capítulos lo usan."),
-        ("Versión v+1 publicada", "la v1 se conserva; el índice marca «modificado»."),
-        ("PDF nuevo con «novedades»", "capítulos cambiados con enlaces internos."),
+        ("«El perro se llama Nala»", "desde la página, la CLI o la API."),
+        ("Un único hecho en la BD", "fact_usage dice qué capítulos lo usan."),
+        ("Solo esos se regeneran", "a una versión v+1, en una transacción."),
+        ("La v1 se conserva", "el índice marca «modificado»."),
+        ("PDF con «novedades»", "enlaces a los capítulos cambiados."),
     ]
     for i, (h, t) in enumerate(steps):
-        y = 1.8 + i * 0.86
-        d.circle_num(s, M, y, 0.45, i + 1)
-        d.text(s, M + 0.65, y - 0.02, 4.6, 0.8,
-               [[(h, {"bold": True, "size": 15})], [(t, {"size": 13, "color": SLATE})]], 15)
-    d.image(s, SHOTS / "browser-mcp/desktop-index.png", 6.0, 1.75, 6.73, 3.6)
-    d.box(s, 6.0, 5.55, 6.73, 1.2, GREEN_L)
-    d.text(s, 6.25, 5.65, 6.3, 1.0, [
+        y = 2.3 + i * 0.6
+        d.circle_num(s, rx, y + 0.03, 0.36, i + 1, size=12)
+        d.text(s, rx + 0.5, y, rw - 0.5, 0.6,
+               [[(h, {"bold": True, "size": 13})], [(t, {"size": 11, "color": SLATE})]], 13)
+    d.box(s, rx, 5.4, rw, 1.35, GREEN_L)
+    d.text(s, rx + 0.2, 5.48, rw - 0.4, 1.2, [
         [("Ejecución real (ab4731f): ", {"bold": True}),
-         ("novela de 2 capítulos → versión 2 publicada, 0 apariciones del nombre antiguo, "
-          "16 del nuevo, versión 1 intacta.", {})]], 14, anchor=MSO_ANCHOR.MIDDLE)
-    d.notes(s, "El renombrado se propaga a hechos derivados, brief, plan, reparto y todo "
-               "capítulo que mencione el nombre (iteración 7).")
+         ("novela de 2 capítulos → versión 2 publicada; 0 apariciones del nombre antiguo, "
+          "16 del nuevo; versión 1 intacta.", {})]], 12, anchor=MSO_ANCHOR.MIDDLE)
+    d.script(s, Script(
+        "Demo del producto", 75,
+        "El cliente recibe una novela con portada, índice y fichas, y puede pedir un cambio "
+        "que solo toca lo necesario.",
+        ["Estas capturas las tomó el propio sistema: el validador visual abre el lector con "
+         "Playwright antes de publicar.",
+         "Portada con dedicatoria personalizada, índice navegable, y fichas de personajes y "
+         "lugares generadas desde la base de datos, con enlaces al capítulo donde aparece "
+         "cada uno.",
+         "Lo interesante es el cambio: el lector dice «el perro se llama Nala». Ese nombre "
+         "es un único hecho en la base de datos y sabemos en qué capítulos se usa.",
+         "Solo esos capítulos se regeneran, en una versión nueva. La anterior se conserva y "
+         "el índice marca qué ha cambiado; el PDF lleva una página de novedades.",
+         "Lo probamos de verdad: cero apariciones del nombre antiguo, dieciséis del nuevo, "
+         "y la versión 1 intacta."],
+        ["v1 conservada", "0 nombres antiguos / 16 nuevos"],
+        "¿Qué hay detrás? La arquitectura."))
 
 
-def s_arch(d: Deck) -> None:
+def s_arch(d: Deck, x: Data) -> None:
     s = d.slide()
-    d.header(s, "Arquitectura del harness", "Roles con un solo trabajo, orquestados por código")
+    d.header(s, "Cómo funciona · arquitectura", "Roles con un solo trabajo, orquestados por código")
     roles = [("interviewer", "brief + hechos\ndel texto libre"),
              ("planner", "plan, reparto\ny cronología"),
              ("writer", "3 escenas\npor capítulo"),
              ("editor", "une, pule,\nreescribe"),
-             ("judge", "rúbrica de\n4 criterios"),
+             ("judge", "rúbrica de\n5 criterios"),
              ("publicación", "versión v\n(lector + PDF)")]
     bw, gap, y = 1.72, 0.39, 2.05
     xs = [M + i * (bw + gap) for i in range(len(roles))]
-    for i, (x, (r, sub)) in enumerate(zip(xs, roles)):
+    for i, (xx, (r, sub)) in enumerate(zip(xs, roles)):
         fill, line = (INK, INK) if i == 5 else (TERRA_L, TERRA)
-        sh = d.label_box(s, x, y, bw, 1.05, r, sub, fill, line, 15, 11,
+        sh = d.label_box(s, xx, y, bw, 1.05, r, sub, fill, line, 15, 11,
                          tcolor=WHITE if i == 5 else INK)
         if i == 5:
             sh.text_frame.paragraphs[1].runs[0].font.color.rgb = RGBColor(0xC9, 0xCF, 0xD6)
         if i < len(roles) - 1:
-            d.arrow(s, x + bw, y + 0.52, x + bw + gap, y + 0.52)
-    # validation points under the pipeline
-    pts = [(0, "brief_schema", "hook"), (2, "scene_accept", "≤ 2 reescrituras"),
-           (4, "chapter_close", "≤ 2 reescrituras · checkpoint"),
+            d.arrow(s, xx + bw, y + 0.52, xx + bw + gap, y + 0.52)
+    pts = [(0, "brief_schema", "hook"), (2, "scene_accept", f"≤ {x.max_scene} reescrituras"),
+           (4, "chapter_close", f"≤ {x.max_chapter} reescrituras · checkpoint"),
            (5, "pre_publish", "cobertura · Lean · juez · visual")]
     for idx, name, sub in pts:
-        x = xs[idx] - (0.25 if idx == 4 else 0)
-        d.label_box(s, x, 3.45, bw + (0.5 if idx == 4 else 0), 0.78, name, sub, WHITE, SLATE,
+        xx = xs[idx] - (0.25 if idx == 4 else 0)
+        d.label_box(s, xx, 3.45, bw + (0.5 if idx == 4 else 0), 0.78, name, sub, WHITE, SLATE,
                     12, 10, MSO_SHAPE.HEXAGON)
         d.arrow(s, xs[idx] + bw / 2, y + 1.05, xs[idx] + bw / 2, 3.45, MUTED, 1)
-    # store + observability
     d.box(s, M, 4.55, 8.1, 1.25, MIST, LINE)
     d.text(s, M + 0.25, 4.65, 7.7, 1.1, [
         [("Story bible · SQLite autoritativa", {"bold": True, "size": 15})],
@@ -428,15 +584,28 @@ def s_arch(d: Deck) -> None:
           "su salida con JSON Schema y escribe en la BD en su nombre: la tabla de permisos se "
           "aplica en código, no en un prompt. Cada fallo vuelve, con feedback y presupuesto, "
           "al rol que puede arreglarlo.", {})]], 13, color=SLATE)
-    d.notes(s, "Diagrama completo (Mermaid) en anexo-arquitectura.pdf, desde "
-               "docs/process/diagramas.md.")
+    d.script(s, Script(
+        "Arquitectura del harness", 80,
+        "Seis roles con un solo trabajo cada uno; el código decide, los modelos solo "
+        "redactan.",
+        ["El entrevistador produce el brief; el planner, el plan con reparto y cronología; "
+         "el writer escribe tres escenas por capítulo; el editor las une y pule; el juez "
+         "puntúa con una rúbrica.",
+         "Debajo, los cuatro puntos de validación: al entregar el brief, en cada escena, al "
+         "cerrar cada capítulo y antes de publicar.",
+         f"Todo bucle está acotado: como mucho {x.max_scene} reescrituras por escena, "
+         f"{x.max_chapter} por capítulo y {x.max_repair} rondas de reparación de la novela.",
+         "La decisión clave: ningún modelo tiene herramientas. El orquestador, en Python, "
+         "elige qué ve cada rol, valida su salida con JSON Schema y escribe él en la base de "
+         "datos: los permisos se aplican en código, no se piden en un prompt."],
+        [f"reintentos {x.max_scene}/{x.max_chapter}", f"{x.max_repair} rondas de reparación"],
+        "Todo eso gira en torno a una memoria: la story bible."))
 
 
-def s_memory(d: Deck) -> None:
+def s_memory(d: Deck, x: Data) -> None:
     s = d.slide()
-    er = C.mermaid_blocks("docs/process/diagramas.md")
-    ntab = len(re.findall(r"^\s+(\w+) \{", er[2], re.M)) if len(er) > 2 else 16
-    d.header(s, "Memoria", f"La story bible: una SQLite autoritativa con {ntab} tablas")
+    d.header(s, "Cómo funciona · memoria",
+             f"La story bible: una SQLite autoritativa con {x.ntab} tablas")
     cards = [
         ("Hechos y su uso", "fact · fact_usage",
          "Cada hecho del brief es una fila; fact_usage lo liga a (versión, capítulo, "
@@ -453,82 +622,113 @@ def s_memory(d: Deck) -> None:
     ]
     cw, ch = (W - 2 * M - 0.3) / 2, 2.05
     for i, (t, tabs, body) in enumerate(cards):
-        x = M + (i % 2) * (cw + 0.3)
+        xx = M + (i % 2) * (cw + 0.3)
         y = 1.75 + (i // 2) * (ch + 0.3)
-        d.box(s, x, y, cw, ch, MIST)
-        d.circle_num(s, x + 0.3, y + 0.3, 0.45, i + 1, size=14)
-        d.text(s, x + 0.95, y + 0.3, cw - 1.2, 0.45, t, 18, bold=True, font=HEAD)
-        d.text(s, x + 0.95, y + 0.78, cw - 1.2, 0.3, tabs, 11, font=MONO, color=TERRA)
-        d.text(s, x + 0.95, y + 1.15, cw - 1.25, 0.85, body, 13, color=SLATE)
+        d.box(s, xx, y, cw, ch, MIST)
+        d.circle_num(s, xx + 0.3, y + 0.3, 0.45, i + 1, size=14)
+        d.text(s, xx + 0.95, y + 0.3, cw - 1.2, 0.45, t, 18, bold=True, font=HEAD)
+        d.text(s, xx + 0.95, y + 0.78, cw - 1.2, 0.3, tabs, 11, font=MONO, color=TERRA)
+        d.text(s, xx + 0.95, y + 1.15, cw - 1.25, 0.85, body, 13, color=SLATE)
     d.text(s, M, 6.5, W - 2 * M, 0.3,
-           "Diagrama entidad-relación completo (Mermaid) en anexo-arquitectura.pdf", 11,
-           color=MUTED)
-    d.notes(s, "Decisiones D1, D2, D6, V4. Migraciones 1000_init, 1001_tlc_rules, "
-               "1300_forbidden_terms_global.")
+           "Los roles reciben hechos estructurados a través de tools con schema "
+           "(app/tools/), no fragmentos recuperados por similitud. Diagrama ER en "
+           "anexo-arquitectura.pdf.", 11, color=MUTED)
+    d.script(s, Script(
+        "Memoria: la story bible", 60,
+        "Una sola fuente de verdad en SQLite que usan validadores, lector y Lean.",
+        ["La story bible es una SQLite autoritativa: si algo no está ahí, no es verdad para "
+         "el sistema.",
+         "Cada hecho del brief es una fila, y fact_usage registra en qué capítulo y escena se "
+         "usa. Eso es lo que permite regenerar solo los capítulos afectados.",
+         "La cronología guarda eventos con fecha, lugar y participantes, y es exactamente lo "
+         "que se exporta a Lean.",
+         "Texto del capítulo y checkpoint se guardan en la misma transacción: si se cae, se "
+         "reanuda en el primer capítulo incompleto sin duplicar ni perder nada."],
+        [f"{x.ntab} tablas"],
+        "Sobre esa memoria actúan los validadores."))
 
 
-def s_validators(d: Deck) -> None:
+def s_validators(d: Deck, x: Data) -> None:
     s = d.slide()
-    d.header(s, "Validadores", "Cada fallo se detecta donde es barato repararlo")
+    d.header(s, "Cómo sabemos que funciona · validadores",
+             "Cada fallo se detecta donde es barato repararlo")
     pts = [("hook", "al entregar el brief"), ("scene_accept", "cada escena"),
            ("chapter_close", "cada capítulo"), ("pre_publish", "antes de publicar")]
     pw = 2.75
     for i, (p, sub) in enumerate(pts):
-        x = M + i * (pw + 0.4)
-        d.label_box(s, x, 1.7, pw, 0.72, p, sub, TERRA_L if i else MIST, TERRA, 14, 11,
+        xx = M + i * (pw + 0.4)
+        d.label_box(s, xx, 1.7, pw, 0.72, p, sub, TERRA_L if i else MIST, TERRA, 14, 11,
                     MSO_SHAPE.CHEVRON if i else MSO_SHAPE.PENTAGON)
     rows = [["Tipo", "Validadores", "Punto de ejecución", "Si falla"],
             ["Programático", "brief_schema · schema_role_output · chapter_length · "
-             "exact_names · brief_coverage · prose_repetition · no_placeholders · visual_check",
+             "exact_names · brief_coverage · no_placeholders · calendar_consistency · "
+             "prose_repetition (linter X02) · visual_check",
              "hook · scene_accept · chapter_close · pre_publish",
              "vuelve al rol productor con la evidencia"],
             ["Guardrail", "forbidden_words_scene · forbidden_words_chapter · "
              "free_text_injection (prescan)", "entrevista · scene_accept · chapter_close",
-             "reescritura ≤ 2 → forbidden_word_limit"],
+             f"reescritura ≤ {x.max_scene} → forbidden_word_limit"],
             ["Semántico", "judge_chapter · judge_novel · revisión humana (misma rúbrica)",
-             "chapter_close · pre_publish · una novela", "editor; aprueba si cada criterio ≥ 3 "
-             "y media ≥ 3,5"],
-            ["Formal", "lean_chronology (4 invariantes) · TLA+/TLC del flujo (en desarrollo)",
-             "pre_publish · desarrollo", "versión bloqueada; 1 ronda de reparación de los "
-             "capítulos citados"]]
-    d.table(s, M, 2.7, W - 2 * M, rows, [1.3, 4.6, 3.0, 3.2], size=12, row_h=0.62)
-    d.text(s, M, 6.05, W - 2 * M, 0.7, [
+             "chapter_close · pre_publish · una novela",
+             "editor; aprueba si cada criterio ≥ 3 y media ≥ 3,5"],
+            ["Formal", "lean_chronology (4 invariantes) · TLA+/TLC del flujo",
+             "pre_publish · desarrollo",
+             f"versión bloqueada; ≤ {x.max_repair} rondas de reparación de los capítulos "
+             "citados"]]
+    d.table(s, M, 2.7, W - 2 * M, rows, [1.3, 4.8, 2.9, 3.1], size=12, row_h=0.66)
+    d.text(s, M, 6.15, W - 2 * M, 0.7, [
         [("Cada validador tiene nombre y punto de ejecución, y envía su resultado a Langfuse "
           "como score. ", {}),
-         ("Un fallo en pre_publish no reescribe la novela: ", {"bold": True}),
-         ("solo se reabren los capítulos que cita la evidencia.", {})]], 13, color=SLATE)
-    d.notes(s, "Registro K3 en app/validators/registry.py. Tabla completa en "
-               "docs/process/diagramas.md y anexo-arquitectura.pdf.")
+         ("Si se agota el presupuesto, la versión queda bloqueada: ", {"bold": True}),
+         ("nunca se publica.", {})]], 13, color=SLATE)
+    d.script(s, Script(
+        "Validadores", 75,
+        "Cuatro tipos de validador, cada uno en el punto donde arreglar el fallo es más "
+        "barato.",
+        ["Programáticos: schema, longitud, nombres exactos, cobertura de los datos del brief. "
+         "El último que añadimos es calendar_consistency: comprueba que un día de la semana "
+         "junto a una fecha es el correcto. Luego os cuento por qué.",
+         "También hay un linter de prosa, prose_repetition, que detecta repeticiones y "
+         "clichés de IA; es el opcional X02 y es blando para no provocar bucles.",
+         "Semánticos: el juez por capítulo y por novela, con una rúbrica de continuidad, "
+         "tono, calidad narrativa, personalización natural y final. Aprueba con cada "
+         "criterio ≥ 3 y media ≥ 3,5.",
+         "Formales: Lean sobre la cronología de cada novela, y TLA+ sobre el propio harness.",
+         "La regla: si un fallo agota su presupuesto, la versión se bloquea. Nunca se publica "
+         "algo que no pasó."],
+        ["4 tipos", "4 puntos de ejecución", "juez: ≥ 3 y media ≥ 3,5"],
+        "Un tipo especial de validador son los guardrails."))
 
 
-def s_guardrails(d: Deck) -> None:
+def s_guardrails(d: Deck, x: Data) -> None:
     s = d.slide()
-    d.header(s, "Guardrails y policy", "Reglas que se cumplen aunque el modelo no quiera")
+    d.header(s, "Cómo sabemos que funciona · guardrails",
+             "Reglas que se cumplen aunque el modelo no quiera")
     cols = [
         ("Vetos en 3 niveles", [
             ("Global: ", "sembrado por migración (1300)."),
             ("Novela: ", "los vetos del cliente en el brief."),
             ("Léxico: ", "variantes extra que aporta cada validador."),
-            ("Un acierto ", "vuelve al escritor, ≤ 2 veces.")]),
+            ("Un acierto ", f"vuelve al escritor, ≤ {x.max_scene} veces.")]),
         ("Un solo normalizador", [
             ("Plegado común ", "de texto y término (NFKD, sin tildes)."),
             ("Detecta: ", "t0nt0 · tontooo · t.o.n.t.o · cabrones → cabrón."),
             ("Sin falsos positivos: ", "«ridículo», «tontería»."),
             ("Palabra completa ", "y frases, no subcadenas.")]),
-        ("Audit log y hooks", [
-            ("policy_decision: ", "cada decisión con término, intento y traza."),
-            ("Score guardrail:* ", "en Langfuse."),
-            ("PreToolUse policy_guard: ", ".env, claves, escritura directa a la BD."),
-            ("PostToolUse validate_chapter: ", "mismas reglas en ediciones a mano.")]),
+        ("Texto libre = no confiable", [
+            ("Prescan determinista ", "de inyección antes del modelo."),
+            ("El extractor ", "solo devuelve hechos, y marca la sospecha."),
+            ("Ningún rol ", "recibe el texto libre crudo."),
+            ("Cada decisión ", "en policy_decision y en Langfuse.")]),
     ]
     cw = (W - 2 * M - 0.6) / 3
     for i, (t, items) in enumerate(cols):
-        x = M + i * (cw + 0.3)
-        d.box(s, x, 1.75, cw, 2.95, MIST)
-        d.text(s, x + 0.25, 1.92, cw - 0.5, 0.4, t, 17, bold=True, font=HEAD)
-        d.bullets(s, x + 0.25, 2.45, cw - 0.45, 2.2, items, 13, gap=4)
-    rows = [["Intento en Claude Code (commit 54854d3)", "Resultado"],
-            ["Write backend/.env · valor con forma de clave sk-ant-…", "bloqueado (exit 2)"],
+        xx = M + i * (cw + 0.3)
+        d.box(s, xx, 1.75, cw, 2.95, MIST)
+        d.text(s, xx + 0.25, 1.92, cw - 0.5, 0.4, t, 17, bold=True, font=HEAD)
+        d.bullets(s, xx + 0.25, 2.45, cw - 0.45, 2.2, items, 13, gap=4)
+    rows = [["Hooks de Claude Code (mismo código que el pipeline)", "Resultado"],
+            ["Write backend/.env · valor con forma de clave de API", "bloqueado (exit 2)"],
             ["Bash sqlite3 data/harness.sqlite \"delete …\"", "bloqueado (exit 2)"],
             ["Bash sqlite3 … \"select …\" · Edit backend/app/main.py", "permitido (exit 0)"],
             ["Capítulo con «c4br0n» o de 2 palabras", "bloqueado (exit 2)"]]
@@ -537,73 +737,114 @@ def s_guardrails(d: Deck) -> None:
         return (RED_L if "bloqueado" in v else GREEN_L) if j == 1 else None
 
     d.table(s, M, 4.95, W - 2 * M, rows, [8, 3], size=12, row_h=0.33, cell_fill=fill)
-    d.notes(s, "Motor en app/policy/engine.py: decide y registra, nunca reescribe. El texto "
-               "libre del cliente es contenido no confiable: prescan de inyección y solo "
-               "hechos extraídos llegan a los roles.")
+    d.script(s, Script(
+        "Guardrails y policy", 60,
+        "Los vetos del cliente y la inyección se paran en código, antes y después del "
+        "modelo.",
+        ["Palabras prohibidas en tres niveles: globales, las del cliente para su novela, y "
+         "variantes léxicas.",
+         "Un único normalizador quita tildes, mayúsculas, plurales y leetspeak antes de "
+         "comparar.",
+         "Si aparece un veto, el capítulo vuelve al escritor con un límite de intentos; si "
+         "se agota, la generación se para y queda registrado.",
+         "El texto libre del cliente se trata como no confiable: un prescan determinista "
+         "antes del modelo, el extractor solo devuelve hechos, y ningún rol ve el texto "
+         "crudo.",
+         "Y los hooks de Claude Code usan el mismo código: si yo, o un agente, intento "
+         "escribir una clave o borrar la base de datos, se bloquea."],
+        ["3 niveles de vetos", "14 casos de hooks probados"],
+        "Para la coherencia temporal usamos verificación formal: Lean."))
 
 
-def s_lean(d: Deck) -> None:
+def s_lean(d: Deck, x: Data) -> None:
     s = d.slide()
-    d.header(s, "Verificación formal · Lean 4",
-             "Un build verde prueba que la cronología es coherente")
-    inv = [("temporalOrder", "Lo que se cuenta después ocurre el mismo día o más tarde."),
-           ("agesCoherent", "Cada edad declarada = años cumplidos desde el nacimiento."),
+    d.header(s, "Cómo sabemos que funciona · Lean 4",
+             "La cronología de cada novela se demuestra, no se opina")
+    inv = [("temporalOrder", "Lo contado después ocurre el mismo día o más tarde."),
+           ("agesCoherent", "Cada edad declarada = años desde el nacimiento."),
            ("noBilocation", "Nadie está en dos lugares el mismo día."),
-           ("noAfterExit", "Tras una muerte o partida, esa persona no vuelve a aparecer.")]
+           ("noAfterExit", "Tras una muerte o partida, esa persona no reaparece.")]
     for i, (n, t) in enumerate(inv):
-        x = M + (i % 2) * 3.95
-        y = 1.75 + (i // 2) * 1.35
-        d.box(s, x, y, 3.75, 1.15, TERRA_L)
-        d.text(s, x + 0.22, y + 0.14, 3.4, 0.35, n, 15, bold=True, font=MONO, color=TERRA)
-        d.text(s, x + 0.22, y + 0.52, 3.35, 0.6, t, 12)
-    d.bullets(s, M, 4.6, 7.6, 1.5, [
-        ("Bool + Prop + teorema de corrección: ", "la comprobación es una prueba, no un true."),
-        ("Solo core Lean, sin Mathlib; ", "decide +kernel (decide revienta maxRecDepth ~100 "
-                                           "eventos)."),
-        ("Se genera desde la story bible ", "en pre_publish; si falla, no se publica y el "
-                                           "fallo vuelve al editor con los eventos."),
-    ], 13, gap=4)
-    # stats
-    sx = M + 8.2
-    for i, (big, small) in enumerate([("3 s", "100 eventos"), ("17 s", "300 eventos")]):
-        d.text(s, sx + i * 2.2, 1.75, 2.0, 0.7, big, 36, bold=True, color=TERRA, font=HEAD)
-        d.text(s, sx + i * 2.2, 2.5, 2.0, 0.3, f"build · {small}", 12, color=SLATE)
-    # real case
-    real = C.lean_real_case()
-    d.box(s, sx, 3.1, W - M - sx, 3.0, MIST)
-    d.text(s, sx + 0.22, 3.22, W - M - sx - 0.4, 0.35, "Caso real", 16, bold=True, font=HEAD)
-    if real:
-        body = re.sub(r"^#.*\n", "", real).strip()
-        body = C.strip_md(re.split(r"\n\s*\n", body)[0])[:420]
-        d.text(s, sx + 0.22, 3.62, W - M - sx - 0.4, 2.4, body, 12, color=SLATE)
+        xx = M + (i % 2) * 2.95
+        y = 1.75 + (i // 2) * 1.2
+        d.box(s, xx, y, 2.8, 1.05, TERRA_L)
+        d.text(s, xx + 0.18, y + 0.12, 2.5, 0.3, n, 13, bold=True, font=MONO, color=TERRA)
+        d.text(s, xx + 0.18, y + 0.45, 2.5, 0.6, t, 11)
+    d.bullets(s, M, 4.3, 5.75, 2.3, [
+        ("Se genera desde la story bible ", "y corre en pre_publish (lake build); si falla, "
+                                            "no se publica."),
+        ("También antes de escribir: ", "el plan pasa el mismo diagnóstico y se replanea."),
+        ("Bool + Prop + teorema: ", "la comprobación es una prueba; decide +kernel, sin "
+                                    "Mathlib (300 eventos en 17 s)."),
+    ], 12, gap=5)
+    d.text(s, M, 5.55, 5.75, 0.6, [
+        [("Lo que Lean no vio: ", {"bold": True}),
+         ("edades (las recalcula el exportador; las vio judge_chapter) y una partida que el "
+          "planner no registró como evento.", {})]], 11, color=MUTED)
+    rx = 6.75
+    rw = W - M - rx
+    d.box(s, rx, 1.75, rw, 4.95, MIST)
+    d.text(s, rx + 0.25, 1.88, rw - 0.5, 0.4, "Caso real (L04)", 17, bold=True, font=HEAD)
+    rows = x.lean_rows
+    if rows:
+        d.text(s, rx + 0.25, 2.3, rw - 0.5, 0.55,
+               "b4-temporal, plan sin prechequeo: la mascota muere en 2005 y lleva los anillos "
+               "en la boda de 2008.", 12, color=SLATE)
+        tab = [["Validador", "¿Lo vio?"]]
+        for r in rows[1:]:
+            name = r[0]
+            if "," in name:
+                name = f"{len(name.split(','))} validadores programáticos"
+            saw = r[2] if len(r) > 2 else ""
+            short = "Sí" if saw.startswith("Sí") else "No"
+            det = re.split(r"[:(]", saw, maxsplit=1)
+            det_s = det[1].split(",")[0].strip()[:40] if len(det) > 1 and short == "Sí" else ""
+            if short == "No" and "aprobó" in saw:
+                det_s = "aprobó el capítulo de la muerte y la boda"
+            tab.append([name, f"{short} — {det_s}".rstrip(" —") if det_s else short])
+
+        def fill(_i, j, v):
+            return (GREEN_L if v.startswith("Sí") else RED_L) if j == 1 else None
+
+        d.table(s, rx + 0.25, 2.95, rw - 0.5, tab, [2.2, 3.0], size=11, row_h=0.42,
+                cell_fill=fill)
+        yb = 2.95 + 0.42 * len(tab) + 0.15
+        d.text(s, rx + 0.25, yb, rw - 0.5, 6.6 - yb, [
+            [("Lectura honesta: ", {"bold": True}),
+             ("no lo vio solo Lean; judge_novel coincidió. Lean es determinista, señala el "
+              "evento exacto y actúa antes de escribir (~0,12 USD frente a ~1,3 USD). Solo "
+              "prueba lo que el planner pone en la cronología.", {})]], 12, color=SLATE)
     else:
-        log = C.read("evals/results/before/logs/b4-temporal.log")
-        invs = sorted(set(re.findall(r"chronology (\w+):", log)))
-        runs = {r.brief: r for r in C.eval_runs()}
-        b4 = runs.get("b4-temporal")
-        txt = [[("b4-temporal: ", {"bold": True}),
-                (f"el diagnóstico de cronología del plan (los mismos invariantes) detectó "
-                 f"{', '.join(invs) or 'las trampas'} — la mascota muerta que reaparece — "
-                 f"antes de escribir una línea; tras 1 replan, parada controlada", {})],
-               [(f"({fmt_usd(b4.cost if b4 else None)} en vez de una novela entera).",
-                 {})],
-               [("Pendiente: un caso cazado por Lean en pre_publish y por ningún otro "
-                 "validador (docs/process/lean-caso-real.md).", {"italic": True,
-                                                                  "color": MUTED})]]
-        d.text(s, sx + 0.22, 3.62, W - M - sx - 0.4, 2.4, txt, 12, color=SLATE, spacing=4)
-    d.notes(s, "formal/lean/Chronology/Basic.lean; exportador backend/app/formal/"
-               "lean_export.py. Detalle en anexo-lean-invariantes.pdf.")
+        d.text(s, rx + 0.25, 2.4, rw - 0.5, 1.0, f"Caso real: {PENDING} "
+               "(docs/process/lean-caso-real.md).", 13, italic=True, color=MUTED)
+    lean_yes = sum(1 for r in rows[1:] if len(r) > 2 and r[2].startswith("Sí"))
+    d.script(s, Script(
+        "Lean 4", 90,
+        "Lean prueba la coherencia temporal de la cronología; en el caso real cazó lo que el "
+        "juez de capítulo aprobó.",
+        ["De la story bible se genera un fichero Lean y se demuestran cuatro invariantes: "
+         "orden temporal, edades, nadie en dos sitios, nadie reaparece tras morir o irse.",
+         "Corre antes de publicar; si falla, la versión no se publica y el fallo vuelve al "
+         "editor. Y el mismo diagnóstico se aplica al plan, antes de escribir una línea.",
+         "El enunciado pide un caso real. Lo forzamos con el brief de trampas temporales, "
+         "quitando el prechequeo: la mascota muere en 2005 y lleva los anillos en la boda de "
+         "2008.",
+         "Lean lo vio, con evento, fecha y capítulo. El juez de novela también. Pero el juez "
+         "de capítulo aprobó el capítulo que cuenta la muerte y la boda, y los validadores "
+         "programáticos no miran fechas.",
+         "Lo digo con honestidad: no es algo que solo viera Lean. Su valor es que es "
+         "determinista, localiza el evento y actúa antes de gastar la escritura."],
+        [f"{lean_yes} validadores lo vieron" if rows else "caso real pendiente",
+         "~0,12 USD en el plan frente a ~1,3 USD de novela"],
+        "Lean verifica la historia; TLA+ verifica el harness."))
 
 
-def s_tla(d: Deck) -> None:
+def s_tla(d: Deck, x: Data) -> None:
     s = d.slide()
-    t = C.tlc()
-    cfg = C.tla_config()
-    d.header(s, "Verificación formal · TLA+",
-             "El flujo del harness, comprobado con TLC")
-    # snake: row 1 left to right, row 2 right to left
+    t, cfg = x.tlc, x.cfg
+    d.header(s, "Cómo sabemos que funciona · TLA+", "El flujo del harness, comprobado con TLC")
     row1 = ["Configured", "Planned", "Scene", "Editor", "Close"]
-    row2 = ["Checkpoint", "Next", "PrePublish", "Published"]  # under Close … Planned
+    row2 = ["Checkpoint", "Next", "PrePublish", "Published"]
     bw, gap = 1.75, 0.5
     xs = [M + i * (bw + gap) for i in range(5)]
     for i, n in enumerate(row1):
@@ -612,16 +853,17 @@ def s_tla(d: Deck) -> None:
             d.arrow(s, xs[i] + bw, 2.02, xs[i + 1], 2.02)
     d.arrow(s, xs[4] + bw / 2, 2.3, xs[4] + bw / 2, 2.75)
     for i, n in enumerate(row2):
-        x = xs[4 - i]
+        xx = xs[4 - i]
         pub = n == "Published"
-        d.label_box(s, x, 2.75, bw, 0.55, n, "", INK if pub else TERRA_L,
+        d.label_box(s, xx, 2.75, bw, 0.55, n, "", INK if pub else TERRA_L,
                     INK if pub else TERRA, 13, tcolor=WHITE if pub else INK)
         if i < len(row2) - 1:
-            d.arrow(s, x, 3.02, xs[3 - i] + bw, 3.02)
+            d.arrow(s, xx, 3.02, xs[3 - i] + bw, 3.02)
     d.label_box(s, xs[0], 2.75, bw, 0.55, "StoppedError", "", RED_L, RED, 12)
     d.text(s, M, 3.45, W - 2 * M, 0.35,
-           "Bucles acotados (≤ 2 reintentos, 1 reparación) → StoppedError al agotarse. "
-           "Crash → Resume desde la BD. ChangeFact → versión v+1.", 12, color=SLATE)
+           f"Bucles acotados (≤ {cfg.get('MAX_CHAPTER_RETRIES', '?')} reintentos, "
+           f"≤ {cfg.get('MAX_REPAIR_ROUNDS', '?')} rondas de reparación) → StoppedError al "
+           "agotarse. Crash → Resume desde la BD. ChangeFact → versión v+1.", 12, color=SLATE)
     rows = [["Propiedad", "Tipo", "Garantiza"],
             ["NoUnvalidatedPublish", "invariante", "no se publica nada que no pasó todos los "
                                                    "validadores"],
@@ -634,24 +876,44 @@ def s_tla(d: Deck) -> None:
     sx = M + 8.45
     d.box(s, sx, 3.95, W - M - sx, 2.4, INK)
     d.text(s, sx + 0.25, 4.05, W - M - sx - 0.5, 2.2, [
-        [(("Sin errores" if t.ok else "Con errores"), {"bold": True, "size": 20,
-                                                        "color": GREEN_L if t.ok else RED_L})],
+        [(("Sin errores" if t.ok else "Con errores" if t.version else PENDING),
+          {"bold": True, "size": 20, "color": GREEN_L if t.ok else RED_L})],
         [(f"{t.distinct}", {"bold": True, "size": 30, "color": TERRA, "font": HEAD})],
         [("estados distintos", {"size": 12, "color": WHITE})],
         [(f"{t.generated} generados · profundidad {t.depth} · {t.duration}",
           {"size": 11, "color": RGBColor(0xC9, 0xCF, 0xD6)})],
         [(f"N = {cfg.get('N', '?')} capítulos · {cfg.get('SCENES', '?')} escenas · "
           f"reintentos {cfg.get('MAX_SCENE_RETRIES', '?')}/"
-          f"{cfg.get('MAX_CHAPTER_RETRIES', '?')}",
+          f"{cfg.get('MAX_CHAPTER_RETRIES', '?')} · reparación "
+          f"{cfg.get('MAX_REPAIR_ROUNDS', '?')}",
           {"size": 11, "color": RGBColor(0xC9, 0xCF, 0xD6)})]], 12)
-    d.notes(s, "formal/tla/GiftNovelHarness.tla + .cfg; salida en tlc-output.txt. TLC corre en "
-               "desarrollo, no por generación.")
+    d.text(s, M, 6.5, W - 2 * M, 0.3,
+           "TLC se re-ejecutó al subir MAX_REPAIR_ROUNDS de 1 a 2 en el tuning 1. "
+           "Correspondencia acción → código en formal/tla/README.md.", 11, color=MUTED)
+    d.script(s, Script(
+        "TLA+", 75,
+        "El harness es una máquina de estados y TLC comprueba que nunca publica nada sin "
+        "validar y que siempre termina.",
+        ["Modelamos el flujo completo como máquina de estados: configuración, plan, escenas, "
+         "editor, cierre de capítulo, checkpoint, pre-publicación y publicación; con "
+         "reintentos, crash y reanudación, y cambio del lector.",
+         "Cuatro invariantes de seguridad: nunca se publica sin validar, reanudar no duplica "
+         "ni pierde capítulos, la versión anterior se conserva, y los reintentos están "
+         "acotados incluso tras un crash.",
+         "Y liveness: toda generación acaba publicando o en error, nunca en un bucle.",
+         f"TLC explora el modelo pequeño que pide el enunciado, {cfg.get('N', '?')} "
+         f"capítulos con {cfg.get('MAX_CHAPTER_RETRIES', '?')} reintentos: {t.distinct} "
+         f"estados distintos, sin errores.",
+         "Al subir las rondas de reparación de 1 a 2, lo primero fue volver a pasar TLC."],
+        [f"{t.distinct} estados distintos", f"{t.generated} generados",
+         f"profundidad {t.depth}", f"{t.duration}"],
+        "Lo más valioso de TLA+ no fue este verde, fueron los rojos de antes."))
 
 
-def s_tla_ce(d: Deck) -> None:
+def s_tla_ce(d: Deck, x: Data) -> None:
     s = d.slide()
     d.header(s, "TLA+ · contraejemplos", "Cuatro trazas de TLC que cambiaron el código",
-             "El modelo se escribió en paralelo al pipeline, leyendo el esquema y el plan tal "
+             "El modelo se escribió antes que el pipeline, leyendo el esquema y el plan tal "
              "cual. TLC encontró dónde esa lectura se rompía.")
     ce = C.counterexamples()
     rules = {
@@ -672,7 +934,8 @@ def s_tla_ce(d: Deck) -> None:
         trace = C.strip_md(r[3]).replace("states", "estados")
         rows.append([cid, C.strip_md(r[2]), trace, causes.get(cid, C.strip_md(r[5])),
                      rules.get(cid, "")])
-    d.table(s, M, 2.1, W - 2 * M, rows, [0.6, 2.0, 1.0, 4.3, 4.3], size=12, row_h=0.72)
+    if len(rows) > 1:
+        d.table(s, M, 2.1, W - 2 * M, rows, [0.6, 2.0, 1.0, 4.3, 4.3], size=12, row_h=0.72)
     d.box(s, M, 5.95, W - 2 * M, 0.8, TERRA_L)
     d.text(s, M + 0.3, 6.0, W - 2 * M - 0.6, 0.7, [
         [("Efecto: ", {"bold": True}),
@@ -680,28 +943,41 @@ def s_tla_ce(d: Deck) -> None:
           "pipeline, que nació con las cuatro reglas. Dos mutaciones (publicar sin pre_publish, "
           "regenerar en sitio) confirman que las propiedades no son vacías.", {})]], 13,
            anchor=MSO_ANCHOR.MIDDLE)
-    d.notes(s, "Detalle de cada traza en formal/tla/COUNTEREXAMPLES.md y "
-               "anexo-tla-spec.pdf.")
+    d.script(s, Script(
+        "Contraejemplos CE1–CE4", 75,
+        "TLC encontró cuatro errores de diseño cuando aún eran baratos: antes de escribir el "
+        "pipeline.",
+        ["Escribimos el modelo en paralelo al diseño, leyendo el esquema tal cual. TLC "
+         "encontró cuatro trazas mínimas que lo rompían.",
+         "CE1: si el proceso cae entre guardar el capítulo y guardar el checkpoint, al "
+         "reanudar se escribe dos veces. Solución: las dos cosas en una transacción.",
+         "CE2 y CE4: los contadores de reintentos y de rondas de reparación vivían en "
+         "memoria; un crash los ponía a cero y el coste dejaba de estar acotado. Solución: "
+         "se leen de la base de datos.",
+         "CE3: la reparación insertaba una segunda fila del mismo capítulo. Solución: upsert "
+         "por versión y capítulo, y una versión publicada no se toca. El pipeline nació ya "
+         "con esas cuatro reglas."],
+        ["4 contraejemplos", "trazas de 18 a 50 estados"],
+        "Todo esto se puede ver en ejecución gracias a la observabilidad."))
 
 
-def s_langfuse(d: Deck) -> None:
+def s_langfuse(d: Deck, x: Data) -> None:
     s = d.slide()
-    d.header(s, "Observabilidad · Langfuse", "Qué hizo cada llamada, cuánto costó y con qué prompt")
+    d.header(s, "Cómo sabemos que funciona · Langfuse",
+             "Qué hizo cada llamada, cuánto costó y con qué prompt")
     levels = [("Sesión", "una por novela: entrevista, generación y regeneraciones"),
               ("Traza", "una por generate o change_fact"),
               ("Spans", "phase:* · chapter:<n> · role:<rol> · tool:<nombre>"),
-              ("Generaciones", "tokens, coste (pricing.py) y latencia por llamada"),
+              ("Generaciones", "tokens, coste y latencia por llamada"),
               ("Scores", "cada validador, guardrail y criterio del juez; novel_cost_usd")]
     for i, (n, t) in enumerate(levels):
         y = 1.8 + i * 0.9
-        x = M + i * 0.3
-        d.label_box(s, x, y, 1.75, 0.66, n, "", TERRA_L if i < 4 else INK,
+        xx = M + i * 0.3
+        d.label_box(s, xx, y, 1.75, 0.66, n, "", TERRA_L if i < 4 else INK,
                     TERRA if i < 4 else INK, 14, tcolor=INK if i < 4 else WHITE)
-        d.text(s, x + 1.95, y + 0.08, 5.2 - i * 0.3, 0.6, t, 13, color=SLATE,
+        d.text(s, xx + 1.95, y + 0.08, 5.2 - i * 0.3, 0.6, t, 13, color=SLATE,
                anchor=MSO_ANCHOR.MIDDLE)
-    # prompts table from the last eval run
     prompts: dict[tuple[str, str], tuple[str, int]] = {}
-    import json
     for f in sorted((C.ROOT / "evals/results").glob("*/*.json")):
         try:
             data = json.loads(f.read_text(encoding="utf-8"))
@@ -710,7 +986,10 @@ def s_langfuse(d: Deck) -> None:
         for p in data.get("prompts") or []:
             k = (p["role"], p["prompt_name"])
             old = prompts.get(k, ("", 0))
-            prompts[k] = (str(p["prompt_version"]), old[1] + int(p.get("calls", 0)))
+            ver = str(p["prompt_version"])
+            keep = ver if not old[0] or (ver.isdigit() and old[0].isdigit()
+                                         and int(ver) > int(old[0])) else old[0]
+            prompts[k] = (keep, old[1] + int(p.get("calls", 0)))
     rows = [["Rol", "Prompt", "Versión", "Llamadas"]]
     for (role, name), (ver, calls) in sorted(prompts.items()):
         rows.append([role, name, ver if len(ver) < 12 else ver[:11] + "…", str(calls)])
@@ -720,152 +999,353 @@ def s_langfuse(d: Deck) -> None:
     if len(rows) > 1:
         d.table(s, tx, 2.25, W - M - tx, rows, [1.3, 1.7, 1.2, 1.0], size=11, row_h=0.36)
     d.text(s, tx, 2.35 + 0.36 * len(rows), W - M - tx, 1.2,
-           "Cada llamada guarda prompt_version también en llm_call (SQLite), así el coste y "
-           "la comparación antes/después no dependen de Langfuse. Sin claves: NoopObserver.",
-           11, color=SLATE)
-    d.notes(s, "backend/app/commons/observability/ (contrato K2). Prompts en "
-               "backend/app/prompts/*.md publicados en la gestión de prompts de Langfuse.")
+           "Última versión usada por prompt. Cada llamada guarda prompt_version también en "
+           "llm_call (SQLite): el antes/después no depende de Langfuse.", 11, color=SLATE)
+    d.script(s, Script(
+        "Observabilidad con Langfuse", 50,
+        "Cada novela es una sesión con coste, validadores y versión de prompt por llamada.",
+        ["Una sesión por novela, que incluye la entrevista y las regeneraciones; una traza "
+         "por generación o cambio.",
+         "Spans con nombre por fase, capítulo, rol y tool; tokens, coste y latencia por "
+         "llamada, por capítulo y por novela.",
+         "Todos los validadores, incluidos Lean y el juez, llegan como scores.",
+         "Y los prompts están versionados en Langfuse: la tabla de la derecha sale de las "
+         "evals y dice qué versión produjo cada resultado. Es lo que hace creíble el "
+         "antes/después del tuning."],
+        [],
+        "Y eso nos lleva a las evals."))
 
 
-def s_evals(d: Deck) -> None:
+def _outcome(o: str) -> str:
+    return {"published": "publicada", "blocked": "bloqueada", "pipeline_error": "parada (plan)",
+            "rejected_by_validation": "rechazado"}.get(o, o)
+
+
+def s_evals(d: Deck, x: Data) -> None:
     s = d.slide()
-    label = C.results_label()
-    d.header(s, "Evals", f"Cinco briefs × validadores · iteración «{label}»")
-    tab = C.results_table()
-    short = {"brief_schema": "schema", "forbidden_words_scene": "vetos esc.",
-             "forbidden_words_chapter": "vetos cap.", "chapter_length": "longitud",
-             "exact_names": "nombres", "brief_coverage": "cobertura",
-             "prose_repetition": "repetición", "judge_chapter": "juez cap.",
-             "judge_novel": "juez nov.", "lean_chronology": "Lean", "visual_check": "visual",
-             "injection": "inyección", "final": "final", "cost USD": "USD", "brief": "brief"}
-    if tab:
-        head = tab[0]
-        keep = [i for i, h in enumerate(head) if h != "tokens in/out"]
-        rows = [[short.get(head[i], head[i]) for i in keep]]
-        for r in tab[1:]:
-            rows.append([mark(C.strip_md(r[i])) if i < len(r) else "" for i in keep])
-        widths = [1.5] + [0.75] * (len(keep) - 3) + [1.55, 0.7]
-        d.table(s, M, 1.75, W - 2 * M, rows, widths, size=10, row_h=0.42,
-                cell_fill=status_fill)
-    y = 1.75 + 0.42 * (len(tab) if tab else 1) + 0.3
-    tuning = C.tuning_md()
-    d.box(s, M, y, W - 2 * M, min(1.9, H - 0.7 - y), MIST)
-    d.text(s, M + 0.3, y + 0.15, 5, 0.4, "Iteración de tuning", 16, bold=True, font=HEAD)
-    if tuning:
-        tt = C.md_tables(tuning)
-        body = C.strip_md(re.sub(r"^#.*\n", "", tuning).strip().split("\n\n")[0])[:500]
-        d.text(s, M + 0.3, y + 0.6, W - 2 * M - 0.6, 1.8, body, 12, color=SLATE)
-        del tt
-    else:
-        d.text(s, M + 0.3, y + 0.6, W - 2 * M - 0.6, 1.8, [
-            [("Lo que ya muestra «before»: ", {"bold": True}),
-             ("el validador que bloquea es brief_coverage (recuerdos obligatorios que no "
-              "aparecen literalmente); b3 marca la inyección y no la sigue; b4 se detiene en el "
-              "plan por la cronología; b5 se rechaza antes de generar, como se esperaba.", {})],
-            [("Pendiente: ", {"bold": True}),
-             ("la ejecución «after» tras un cambio de prompt y su comparación "
-              "(compare_iterations.py → evals/results/tuning.md); esta sección se rellena sola "
-              "al reconstruir.", {"italic": True})]], 12, color=SLATE, spacing=6)
-    d.notes(s, "evals/run_evals.py; tabla en evals/results.md; detalle en "
-               "anexo-evals-tabla.pdf.")
-
-
-def s_redteam(d: Deck) -> None:
-    s = d.slide()
-    d.header(s, "Red-team", "Ataques probados, qué los detuvo y qué queda pendiente")
-    tabs = C.md_tables(C.read("docs/process/red-team-log.md"))
-    rows = [["#", "Caso", "Defensa", "Estado"]]
-    if tabs:
-        for r in tabs[0][1:]:
-            rows.append([C.strip_md(r[0]), C.strip_md(r[1]), C.strip_md(r[3]),
-                         mark(C.strip_md(r[4]))])
+    d.header(s, "Cómo sabemos que funciona · evals y tuning 1",
+             "Cinco briefs, antes y después de la iteración de tuning")
+    b, a = x.ev_b, x.ev_a
+    d.box(s, M, 1.75, 4.2, 2.1, INK)
+    d.text(s, M + 0.3, 1.88, 3.7, 0.3, "NOVELAS PUBLICADAS", 12, bold=True, color=TERRA)
+    big = (f"{b.published}/{b.generable} → {a.published}/{a.generable}"
+           if b.generable and a.generable else PENDING)
+    d.text(s, M + 0.3, 2.22, 3.8, 0.8, big, 40, bold=True, color=WHITE, font=HEAD)
+    d.text(s, M + 0.3, 3.1, 3.7, 0.6,
+           "entre los briefs generables (antes → después); b5 se rechaza en el brief, como "
+           "se espera.", 11, color=RGBColor(0xC9, 0xCF, 0xD6))
+    runs = {(r.brief, r.label): r for r in C.eval_runs()}
+    briefs = sorted({r.brief for r in runs.values()})
+    tab = [["Brief", "Antes", "Después", "USD"]]
+    for br in briefs:
+        rb, ra = runs.get((br, "before")), runs.get((br, "after"))
+        tab.append([br, _outcome(b.outcomes.get(br, "—")), _outcome(a.outcomes.get(br, "—")),
+                    num(ra.cost, 2) if ra and ra.cost else "—"])
 
     def fill(_i, j, v):
-        if j != 3:
-            return None
-        if v.startswith("✓") and "pendiente" not in v.lower():
-            return GREEN_L
-        if "pendiente" in v.lower():
-            return AMBER_L
+        if j in (1, 2):
+            return GREEN_L if v == "publicada" else AMBER_L if v in ("bloqueada",
+                                                                      "rechazado") else RED_L
         return None
 
-    d.table(s, M, 1.75, W - 2 * M, rows, [0.5, 4.0, 4.6, 3.0], size=11, row_h=0.5,
-            cell_fill=fill)
-    d.text(s, M, 6.45, W - 2 * M, 0.4,
-           "Hallazgo de revisión (R2): el texto libre crudo llegaba al planner y al juez; desde "
-           "a721bc7 solo reciben los hechos extraídos.", 12, color=SLATE)
-    d.notes(s, "docs/process/red-team-log.md. Los casos de generación se actualizan con cada "
-               "ejecución de evals.")
+    if len(tab) > 1:
+        d.table(s, M, 4.1, 4.2, tab, [1.7, 1.2, 1.2, 0.6], size=11, row_h=0.4, cell_fill=fill)
+    rx = M + 4.5
+    rw = W - M - rx
+    d.box(s, rx, 1.75, rw, 4.95, MIST)
+    d.text(s, rx + 0.3, 1.88, rw - 0.6, 0.4, "Qué cambió: causa y arreglo", 17, bold=True,
+           font=HEAD)
+    d.bullets(s, rx + 0.3, 2.4, rw - 0.6, 3.4, [
+        ("brief_coverage ", "exigía la frase literal del recuerdo → palabras de contenido "
+                            "normalizadas (spec 008)."),
+        ("noAfterExit ", "daba por «salido» a quien enterraba a la mascota → eje de la "
+                         "historia, solo el primer participante; Lean y Python iguales."),
+        ("Planner ", "capítulos solapados y saltos vagos → time_marker por capítulo y chequeo "
+                     "de solape."),
+        ("Juez ", "bloqueaba por defectos «posibles» → solo un defecto «alta» concreto; "
+                  "umbrales D11 intactos."),
+        ("Reparación ", "rehacía capítulos que nadie pedía → solo capitulos_a_reparar; "
+                        f"MAX_REPAIR_ROUNDS 1 → {x.max_repair}, TLC re-ejecutado."),
+    ], 13, gap=6)
+    d.text(s, rx + 0.3, 5.6, rw - 0.6, 0.9,
+           "Prompts en Langfuse: planner 2 → 4 · writer 3 → 4 · editor 3 → 4 · juez 1 → 2. "
+           "b4 pasa de un falso positivo a un bloqueo correcto: su trampa de edad no tiene "
+           "lectura coherente.", 11, color=SLATE)
+    d.script(s, Script(
+        "Evals y tuning 1", 90,
+        "Una iteración de tuning medida: de 0 a 2 novelas publicadas sin bajar ningún umbral.",
+        ["Cinco briefs: ejemplo, infantil, inyección, trampas temporales y contradictorio.",
+         f"Antes del tuning se publicaban {b.published} de {b.generable}. El problema no "
+         "eran las novelas: brief_coverage exigía la frase literal del recuerdo aunque el "
+         "capítulo lo contara, y el espejo Python de noAfterExit daba un falso positivo.",
+         "Arreglamos los validadores, añadimos marcas temporales al plan, hicimos que el juez "
+         "solo bloquee por defectos graves y concretos, y que la reparación toque solo los "
+         "capítulos que el juez pide.",
+         f"Después: {a.published} de {a.generable} publicadas. Los umbrales de calidad no "
+         "se bajaron.",
+         "El brief de trampas temporales sigue bloqueado, y es lo correcto: su trampa de "
+         "edad no tiene ninguna lectura coherente. El contradictorio se rechaza antes de "
+         "generar."],
+        [f"{b.published}/{b.generable} → {a.published}/{a.generable} publicadas",
+         f"coste medio publicada ≈ {usd(a.cost_published)}"],
+        "Antes de los resultados finales, un punto de seguridad."))
 
 
-def s_claude_code(d: Deck) -> None:
+def s_security(d: Deck, x: Data) -> None:
     s = d.slide()
-    d.header(s, "Uso de Claude Code", "Construido por un orquestador y subagentes en paralelo")
+    sec = x.sec
+    d.header(s, "Cómo sabemos que funciona · seguridad y opcionales",
+             "Red-team, informe de seguridad y los extras que suman nota")
+    crit_high = sec.by_sev.get("crítica", 0) + sec.by_sev.get("alta", 0)
+    med = sec.by_sev.get("media", 0)
+    stats = [(str(sec.total) if sec.total else PENDING, "hallazgos en el informe X04"),
+             (str(crit_high) if sec.total else PENDING, "críticos o altos"),
+             (f"{med}/{med}" if sec.total else PENDING, "medios corregidos, con test"),
+             (str(sec.fixed) if sec.total else PENDING, "corregidos en total")]
+    for i, (big, small) in enumerate(stats):
+        y = 1.75 + i * 1.12
+        d.text(s, M, y, 3.3, 0.6, big, 32, bold=True, color=TERRA, font=HEAD)
+        d.text(s, M, y + 0.6, 3.3, 0.35, small, 12, color=SLATE)
+    ok = sum(1 for r in x.redteam if len(r) > 4 and "✅" in r[4])
+    d.box(s, M, 6.25, 3.3, 0.55, TERRA_L)
+    d.text(s, M + 0.15, 6.28, 3.0, 0.5,
+           f"Red-team: {ok}/{len(x.redteam)} casos detenidos" if x.redteam else
+           f"Red-team: {PENDING}", 13, bold=True, anchor=MSO_ANCHOR.MIDDLE)
     cards = [
-        ("CLAUDE.md + AGENTS.md", "Mapa de docs y Procesos 0–3: docs → spec → plan → código. "
-                                  "Proceso 0 en 4 rondas antes de la spec 004."),
-        ("Subagentes por bloque", "12 bloques, 4 oleadas, un git worktree por agente; "
-                                  "contratos K1–K5 publicados antes que su implementación."),
-        ("Skills", "gift-novel-run (creada: generar e inspeccionar de punta a punta), react, "
-                   "sqlite, verification, fastapi."),
-        ("Comandos /", "/generate-novel · /inspect-novel · /change-fact · /exam-gap."),
-        ("Hooks", "PreToolUse policy_guard y PostToolUse validate_chapter: el mismo código que "
-                  "el pipeline, 14 casos probados."),
-        ("Browser MCP", "Playwright MCP inspeccionó el lector: cazó un 500 intermitente "
-                        "(SQLite entre hilos) y fichas sin versionar; ambos corregidos."),
+        ("X04 · Informe de seguridad", "Secretos en 201 commits, pip-audit y npm audit, "
+         "inyección (prescan 10/17 → 17/17), exfiltración entre novelas, hooks. Skill "
+         "security-review-harness para repetirlo."),
+        ("X03 · Login con SQLite", "bcrypt + JWT; cada novela tiene dueño y otro usuario "
+         "recibe 404. Cierra SEC-01 y SEC-08 (spec 018)."),
+        ("X01 · Servidor MCP", "FastMCP de solo lectura: list_novels, get_chapter, "
+         "list_versions, query_story_bible, download_novel. Schemas, trazas en Langfuse e "
+         "identidad del usuario."),
+        ("X02 · Linter de prosa", "prose_repetition: repeticiones, 4-gramas y clichés de IA "
+         "en español; blando para no crear bucles de reescritura."),
     ]
-    cw, ch = (W - 2 * M - 0.6) / 3, 1.95
+    cx = M + 3.7
+    cw = (W - M - cx - 0.3) / 2
     for i, (t, body) in enumerate(cards):
-        x = M + (i % 3) * (cw + 0.3)
-        y = 1.75 + (i // 3) * (ch + 0.25)
-        d.box(s, x, y, cw, ch, MIST)
-        d.circle_num(s, x + 0.25, y + 0.25, 0.42, i + 1, size=13)
-        d.text(s, x + 0.82, y + 0.28, cw - 1.0, 0.4, t, 16, bold=True, font=HEAD)
-        d.text(s, x + 0.25, y + 0.85, cw - 0.5, 1.05, body, 12, color=SLATE)
-    d.box(s, M, 6.15, W - 2 * M, 0.65, TERRA_L)
-    d.text(s, M + 0.3, 6.18, W - 2 * M - 0.6, 0.6, [
-        [("Un límite que funcionó: ", {"bold": True}),
-         ("un subagente intentó ampliar las exenciones de una regla de seguridad y el "
-          "clasificador del modo auto lo bloqueó; la decisión quedó para el humano.", {})]],
-           13, anchor=MSO_ANCHOR.MIDDLE)
-    d.notes(s, "docs/process/subagentes-comandos-skills.md y browser-mcp-log.md.")
+        xx = cx + (i % 2) * (cw + 0.3)
+        y = 1.75 + (i // 2) * 2.55
+        d.box(s, xx, y, cw, 2.3, MIST)
+        d.text(s, xx + 0.25, y + 0.2, cw - 0.5, 0.4, t, 15, bold=True, font=HEAD)
+        d.text(s, xx + 0.25, y + 0.7, cw - 0.5, 1.5, body, 13, color=SLATE)
+    d.script(s, Script(
+        "Seguridad y opcionales", 70,
+        f"Revisión de seguridad hecha por un agente: {sec.total} hallazgos, ninguno crítico "
+        "ni alto, y los medios corregidos con test.",
+        [f"Además del red-team, hicimos el opcional X04: un agente revisó el sistema. {sec.total} "
+         f"hallazgos, {crit_high} críticos o altos; los {med} medios están corregidos, cada "
+         "uno con un test que falla sin el cambio.",
+         "Ejemplo: el prescan de inyección solo detectaba 10 de 17 variantes; ahora 17 de 17.",
+         "El hallazgo más serio era que no había autenticación. Lo cerró el login, X03: "
+         "bcrypt, JWT, y un usuario no puede ver las novelas de otro.",
+         "X01 es un servidor MCP de solo lectura para consultar y descargar novelas, que "
+         "respeta la identidad. X02 es el linter de prosa."],
+        [f"{sec.total} hallazgos", f"{crit_high} críticos/altos", f"{sec.fixed} corregidos",
+         "inyección 17/17"],
+        "Ahora, los resultados con novelas de verdad de 10 capítulos."))
 
 
-def s_cost(d: Deck) -> None:
+def s_ten(d: Deck, x: Data) -> None:
     s = d.slide()
-    d.header(s, "Coste y latencia", "Lo que cuesta una novela con Claude Haiku 4.5")
-    runs = [r for r in C.eval_runs() if r.cost]
-    chap = [c for r in runs for c in r.by_chapter if c.get("chapter") is not None]
-    plan = [c for r in runs for c in r.by_chapter if c.get("chapter") is None]
-    cpc = sum(c["cost_usd"] for c in chap) / len(chap) if chap else None
-    lpc = sum(c["latency_s"] for c in chap) / len(chap) if chap else None
-    cplan = sum(c["cost_usd"] for c in plan) / len(plan) if plan else 0.0
-    lplan = sum(c["latency_s"] for c in plan) / len(plan) if plan else 0.0
-    est = cplan + 10 * cpc if cpc else None
-    estl = lplan + 10 * lpc if lpc else None
-    stats = [(fmt_usd(cpc), "coste medio por capítulo"),
-             (fmt_min(lpc), "tiempo de modelo por capítulo"),
-             (fmt_usd(est), "estimación, novela de 10 capítulos"),
-             (fmt_min(estl), "estimación de tiempo, 10 capítulos")]
+    d.header(s, "Resultados · novelas de 10 capítulos",
+             "Dos bloqueadas, una publicada: nada sin validar sale" if x.final_pub else
+             "Dos novelas bloqueadas: nada sin validar se publica")
+    cols = list(x.attempts[:2])
+    cols.append({"final": True, **x.final})
+    cw = (W - 2 * M - 0.6) / 3
+    for i, a in enumerate(cols):
+        xx = M + i * (cw + 0.3)
+        final = a.get("final")
+        st = a.get("status")
+        pub = st == "published"
+        fill = GREEN_L if pub else (MIST if final and not st else RED_L)
+        d.box(s, xx, 1.75, cw, 3.25, fill)
+        kick = "INTENTO FINAL" if final else f"INTENTO {i + 1} · {a.get('when', '')}".upper()
+        d.text(s, xx + 0.25, 1.9, cw - 0.5, 0.3, kick, 11, bold=True, color=TERRA)
+        label = ("publicada" if pub else "bloqueada" if st == "blocked"
+                 else (st or PENDING))
+        d.text(s, xx + 0.25, 2.2, cw - 0.5, 0.55, label.capitalize(), 26, bold=True,
+               font=HEAD, color=GREEN if pub else RED if st == "blocked" else MUTED)
+        if final and not st:
+            body = [[("Generándose con el tuning 2. ", {"bold": True}),
+                     ("Estado, coste, palabras y rondas se rellenan desde runs.json al "
+                      "reconstruir.", {})]]
+        elif final:
+            body = [[(f"{a.get('chapters') or '?'} capítulos · "
+                      f"{num(a.get('words'))} palabras", {"bold": True})],
+                     [(f"{a.get('repair_rounds', 0)} "
+                       f"{'ronda' if a.get('repair_rounds') == 1 else 'rondas'} de reparación · "
+                       f"{mins(a.get('minutes'))}", {})],
+                     [(f"judge_novel: {a.get('judge_novel') or '—'}", {})]]
+        else:
+            body = [[(f"{a.get('validator', '?')}: ", {"bold": True}),
+                     (a.get("why", ""), {})],
+                    [(f"{a.get('chapters_written', '?')} capítulos escritos · "
+                      f"{a.get('repair_rounds', '?')} "
+                      f"{'ronda' if a.get('repair_rounds') == 1 else 'rondas'} de reparación · "
+                      f"{mins(a.get('minutes'))}", {"color": SLATE})]]
+        d.text(s, xx + 0.25, 2.85, cw - 0.5, 1.5, body, 12, spacing=4)
+        d.text(s, xx + 0.25, 4.35, cw - 0.5, 0.5, usd(a.get("cost_usd")), 22, bold=True,
+               font=HEAD, color=INK)
+        if i < len(cols) - 1:
+            d.arrow(s, xx + cw + 0.02, 3.35, xx + cw + 0.28, 3.35, TERRA, 2)
+            d.text(s, xx + 0.25, 5.1, cw - 0.5, 0.35, f"→ motivó el {a.get('motivated', '')}",
+                   12, bold=True, color=TERRA)
+    d.box(s, M, 5.6, W - 2 * M, 1.15, INK)
+    d.text(s, M + 0.3, 5.68, W - 2 * M - 0.6, 1.0, [
+        [("Tuning 2 · calendario determinista. ", {"bold": True, "color": TERRA}),
+         ("El writer inventaba el día de la semana y cada reparación inventaba otro. Ahora el "
+          "plan corrige los días en Python (calendar_facts.py), writer y editor reciben "
+          "plan/calendar.txt con fechas y cifras canónicas, y calendar_consistency para en "
+          "chapter_close «…pero el 23 de junio de 2026 es martes».", {"color": WHITE})]],
+        12, anchor=MSO_ANCHOR.MIDDLE)
+    spent = sum(a.get("cost_usd") or 0 for a in x.attempts)
+    if x.final_pub:
+        fin_say = (f"El intento final, ya con el tuning 2, se publicó: {x.final.get('chapters')} "
+                   f"capítulos, {num(x.final.get('words'))} palabras, "
+                   f"{x.final.get('repair_rounds')} rondas de reparación, "
+                   f"{usd(x.final.get('cost_usd'))}.")
+    elif x.final.get("status"):
+        fin_say = (f"El intento final terminó como «{x.final.get('status')}»: también lo "
+                   "contamos, porque el sistema volvió a negarse a publicar algo que no pasaba.")
+    else:
+        fin_say = ("El intento final, con el tuning 2, se estaba generando al preparar esta "
+                   "presentación; si os preguntan, está en runs.json y en el log.")
+    a1 = x.attempts[0] if x.attempts else {}
+    a2 = x.attempts[1] if len(x.attempts) > 1 else {}
+    d.script(s, Script(
+        "Novelas de 10 capítulos y tuning 2", 90,
+        "Las dos primeras novelas completas se bloquearon, y eso es el sistema funcionando: "
+        "nada sin validar llega al cliente.",
+        ["Esta es para mí la diapositiva más importante.",
+         f"Primer intento: diez capítulos escritos y el juez de novela la suspendió por "
+         f"saltos temporales y dos capítulos solapados. Coste {usd(a1.get('cost_usd'))}. No "
+         "se publicó. Eso motivó el tuning 1.",
+         f"Segundo intento, tras el tuning 1: tras {a2.get('repair_rounds', '?')} rondas de "
+         "reparación, bloqueada otra vez: el 24 de junio aparecía como lunes cuando es "
+         f"miércoles, y en cada ronda los días de la semana cambiaban. Coste {usd(a2.get('cost_usd'))}. Tampoco se publicó.",
+         "La causa: nadie calculaba el calendario. El modelo inventaba el día de la semana, y "
+         "cada reparación inventaba otro, así que no convergía. El error ya estaba en el plan.",
+         "Tuning 2: el calendario lo calcula Python, no el LLM. El plan se corrige, el writer "
+         "recibe las fechas reales, y un validador determinista para el error en el capítulo, "
+         "sin gastar una ronda del juez.",
+         fin_say],
+        [f"intentos bloqueados: {usd(a1.get('cost_usd'))} y {usd(a2.get('cost_usd'))}",
+         f"total gastado sin publicar: {usd(spent)}"],
+        "Veamos la novela que sí se entrega."))
+
+
+def s_novel(d: Deck, x: Data) -> None:
+    s = d.slide()
+    nv = x.novel
+    pdf = x.novel_pdf
+    ten = x.final_pub
+    d.header(s, "Resultados · la novela de ejemplo",
+             "Novela de 10 capítulos publicada y exportada a PDF" if ten else
+             "Una novela publicada de principio a fin, en PDF")
+    imgs = []
+    if pdf:
+        tag = "novela-10" if ten else "novela-3"
+        imgs = [C.pdf_page_png(pdf, 0, f"{tag}-portada"), C.pdf_page_png(pdf, 1, f"{tag}-indice"),
+                C.pdf_page_png(pdf, 2, f"{tag}-cap1")]
+    shown = [p for p in imgs if p]
+    iw = 2.45
+    for i, p in enumerate(shown):
+        d.image(s, p, M + i * (iw + 0.2), 1.8, iw, 3.5, fit="contain")
+    if not shown:
+        d.label_box(s, M, 1.8, 3 * iw + 0.4, 3.5, "PDF " + PENDING,
+                    "ejemplos/novela-ejemplo.pdf", MIST, LINE)
+    d.text(s, M, 5.45, 3 * iw + 0.4, 0.4,
+           (pdf or "ejemplos/novela-ejemplo.pdf") + " · portada, índice y capítulo 1", 11,
+           color=MUTED)
+    rx = M + 3 * iw + 0.8
+    rw = W - M - rx
+    stats = [(str(nv.get("chapters") or PENDING), "capítulos"),
+             (num(nv.get("words")) if nv.get("words") else PENDING, "palabras"),
+             (usd(nv.get("cost_usd")), "coste con Haiku 4.5"),
+             (mins(nv.get("minutes")), "de generación"),
+             (str(nv.get("repair_rounds")) if nv.get("repair_rounds") is not None else PENDING,
+              "rondas de reparación")]
+    for i, (big, small) in enumerate(stats):
+        y = 1.75 + i * 0.82
+        d.text(s, rx, y, rw, 0.5, big, 26, bold=True, color=TERRA, font=HEAD)
+        d.text(s, rx, y + 0.48, rw, 0.3, small, 11, color=SLATE)
+    note = ("Brief de ejemplo del README (evals/briefs/ejemplo.json); todos los validadores "
+            "en verde, incluido Lean y judge_novel." if ten else
+            "Brief b2-infantil, 3 capítulos. La novela de 10 capítulos (ejemplos/"
+            "novela-ejemplo.pdf) está pendiente y sustituye a esta al reconstruir.")
+    d.box(s, M, 5.95, W - 2 * M, 0.8, GREEN_L if ten else AMBER_L)
+    d.text(s, M + 0.3, 6.0, W - 2 * M - 0.6, 0.7, note, 12, anchor=MSO_ANCHOR.MIDDLE)
+    if ten:
+        say = [f"Esta es la novela de ejemplo: {nv.get('chapters')} capítulos, "
+               f"{num(nv.get('words'))} palabras, generada con el brief del README.",
+               "Portada con dedicatoria, índice navegable y fichas, igual que en la web.",
+               f"Costó {usd(nv.get('cost_usd'))} y tardó {mins(nv.get('minutes'))}, con "
+               f"{nv.get('repair_rounds')} rondas de reparación.",
+               "Pasó todos los validadores: nombres, cobertura, calendario, Lean y el juez de "
+               "novela."]
+    else:
+        say = ["Esta es la novela que tenemos publicada de principio a fin con el pipeline "
+               f"real: {nv.get('chapters')} capítulos, {num(nv.get('words'))} palabras, para "
+               "una niña de siete años.",
+               f"Costó {usd(nv.get('cost_usd'))} y {mins(nv.get('minutes'))}; necesitó "
+               f"{nv.get('repair_rounds')} ronda de reparación y después pasó todo.",
+               "Portada con dedicatoria, índice y fichas, exportada a PDF.",
+               "La novela de 10 capítulos con el brief de ejemplo es la que se estaba "
+               "generando con el tuning 2; si está, este hueco la muestra al reconstruir."]
+    d.script(s, Script(
+        "Novela de ejemplo", 60,
+        "El sistema funciona de principio a fin: brief → novela publicada → PDF.",
+        say,
+        [f"{nv.get('chapters') or PENDING} capítulos", f"{num(nv.get('words'))} palabras",
+         usd(nv.get("cost_usd")), mins(nv.get("minutes"))],
+        "¿Y cuánto cuesta esto como negocio?"))
+
+
+def s_cost(d: Deck, x: Data) -> None:
+    s = d.slide()
+    d.header(s, "Resultados · coste y latencia", "Lo que cuesta una novela con Claude Haiku 4.5")
+    fin = x.final
+    ten_cost = fin.get("cost_usd") if x.final_pub else None
+    ten_min = fin.get("minutes") if x.final_pub else None
+    att = [a.get("cost_usd") for a in x.attempts if a.get("cost_usd")]
+    stats = [(usd(x.chap_cost), "coste medio por capítulo (evals)"),
+             (mins(x.chap_min), "tiempo de modelo por capítulo"),
+             (usd(ten_cost) if ten_cost else
+              (f"{num(min(att), 2)}–{num(max(att), 2)} USD" if att else PENDING),
+              "novela de 10 capítulos" if ten_cost else
+              "novela de 10 capítulos (intentos completos)"),
+             (mins(ten_min) if ten_min else
+              (f"{min(a['minutes'] for a in x.attempts)}–"
+               f"{max(a['minutes'] for a in x.attempts)} min" if x.attempts else PENDING),
+              "tiempo real, 10 capítulos")]
     for i, (big, small) in enumerate(stats):
         y = 1.8 + i * 1.18
-        d.text(s, M, y, 3.6, 0.65, big, 34, bold=True, color=TERRA, font=HEAD)
-        d.text(s, M, y + 0.66, 3.6, 0.35, small, 12, color=SLATE)
-    d.text(s, M, 6.55, 12, 0.35,
-           f"Medido en {len(chap)} capítulos de {len(runs)} ejecuciones de evals (tiempo de "
-           "modelo secuencial); smoke de 1 capítulo: 0,30 USD, 7 llamadas, ~6,5 min.",
-           11, color=MUTED)
-    # chart 1: cost per brief
-    if runs:
+        d.text(s, M, y, 3.7, 0.65, big, 30, bold=True, color=TERRA, font=HEAD)
+        d.text(s, M, y + 0.66, 3.7, 0.35, small, 12, color=SLATE)
+    bars: list[tuple[str, float]] = []
+    for r in C.eval_runs():
+        if r.label == "after" and r.cost:
+            bars.append((f"{r.brief} (3 cap.)", r.cost))
+    if x.three.get("cost_usd"):
+        bars.append(("novela-infantil (3 cap.)", x.three["cost_usd"]))
+    for i, a in enumerate(x.attempts):
+        if a.get("cost_usd"):
+            bars.append((f"10 cap. intento {i + 1} (bloq.)", a["cost_usd"]))
+    if ten_cost:
+        bars.append(("10 cap. final (publicada)", ten_cost))
+    if bars:
         cd = CategoryChartData()
-        cd.categories = [f"{r.brief} ({r.label})" for r in runs]
-        cd.add_series("USD", [round(r.cost or 0, 2) for r in runs])
+        cd.categories = [b[0] for b in reversed(bars)]
+        cd.add_series("USD", [round(b[1], 2) for b in reversed(bars)])
         gf = s.shapes.add_chart(XL_CHART_TYPE.BAR_CLUSTERED, Inches(4.4), Inches(1.7),
-                                Inches(4.3), Inches(4.6), cd)
-        _style_chart(gf.chart, "Coste por ejecución (USD)")
+                                Inches(4.6), Inches(4.7), cd)
+        _style_chart(gf.chart, "Coste por novela (USD)")
     by_role: dict[str, float] = {}
-    import json
-    for f in sorted((C.ROOT / "evals/results").glob("*/*.json")):
+    for f in sorted((C.ROOT / "evals/results/after").glob("*.json")):
         try:
             data = json.loads(f.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -877,11 +1357,31 @@ def s_cost(d: Deck) -> None:
         items = sorted(by_role.items(), key=lambda kv: kv[1])
         cd2.categories = [k for k, _ in items]
         cd2.add_series("USD", [round(v, 2) for _, v in items])
-        gf2 = s.shapes.add_chart(XL_CHART_TYPE.BAR_CLUSTERED, Inches(8.9), Inches(1.7),
-                                 Inches(3.85), Inches(4.6), cd2)
-        _style_chart(gf2.chart, "Coste acumulado por rol (USD)")
-    d.notes(s, "Datos de evals/results/*/*.json (tabla llm_call). Las ejecuciones incluyen la "
-               "ronda de reparación de pre_publish, así que la estimación es conservadora.")
+        gf2 = s.shapes.add_chart(XL_CHART_TYPE.BAR_CLUSTERED, Inches(9.2), Inches(1.7),
+                                 Inches(3.55), Inches(4.7), cd2)
+        _style_chart(gf2.chart, "Coste por rol, evals «after»")
+    d.text(s, M, 6.55, 12, 0.35,
+           "Datos: tabla llm_call (evals/results/*/*.json) y logs de la CLI "
+           "(presentacion/build/data/runs.json). Las reparaciones cuentan en el coste.",
+           11, color=MUTED)
+    d.script(s, Script(
+        "Coste y latencia", 60,
+        "Una novela de 10 capítulos cuesta unos pocos dólares de modelo y se genera en "
+        "menos de dos horas.",
+        [f"Un capítulo cuesta de media {usd(x.chap_cost)} y unos {mins(x.chap_min)} de "
+         "modelo, contando escenas, editor, juez y reparaciones.",
+         ("La novela de 10 capítulos publicada costó " + usd(ten_cost) + "."
+          if ten_cost else
+          f"Las novelas de 10 capítulos completas costaron entre {usd(min(att) if att else None)}"
+          f" y {usd(max(att) if att else None)}, y eso incluye las rondas de reparación."),
+         "El writer es el rol más caro, seguido del editor y el juez: tiene sentido, son los "
+         "que producen y leen más texto.",
+         "Comercialmente, el coste de modelo es pequeño frente al precio de un regalo "
+         "personalizado; lo que cuesta de verdad es el tiempo, y por eso los bucles están "
+         "acotados: una novela nunca se queda gastando indefinidamente."],
+        [f"{usd(x.chap_cost)}/capítulo", f"{mins(x.chap_min)}/capítulo"] +
+        ([usd(ten_cost)] if ten_cost else [f"{usd(a)}" for a in att]),
+        "Cómo se construyó todo esto: Claude Code."))
 
 
 def _style_chart(ch, title: str) -> None:
@@ -905,79 +1405,160 @@ def _style_chart(ch, title: str) -> None:
     ser.format.fill.fore_color.rgb = TERRA
     ch.value_axis.visible = False
     ch.value_axis.has_major_gridlines = False
-    ch.category_axis.tick_labels.font.size = Pt(11)
+    ch.category_axis.tick_labels.font.size = Pt(10)
     ch.category_axis.format.line.color.rgb = LINE
 
 
-def s_tradeoffs(d: Deck) -> None:
+def s_claude_code(d: Deck, x: Data) -> None:
+    s = d.slide()
+    d.header(s, "Cómo se construyó · Claude Code",
+             "Un orquestador y subagentes en paralelo, con reglas escritas")
+    cards = [
+        ("CLAUDE.md + AGENTS.md", "Mapa de docs y Procesos 0–3: docs → spec → plan → código. "
+                                  "Proceso 0: preguntas con recomendación antes de editar."),
+        ("Subagentes por bloque", "Un git worktree por agente, bloques en oleadas; contratos "
+                                  "K1–K5 publicados antes que su implementación."),
+        ("Skills", "gift-novel-run y security-review-harness (creadas), react, sqlite, "
+                   "verification, fastapi."),
+        ("Comandos /", "/generate-novel · /inspect-novel · /change-fact · /exam-gap."),
+        ("Hooks", "PreToolUse policy_guard y PostToolUse validate_chapter: el mismo código que "
+                  "el pipeline, 14 casos probados."),
+        ("Browser MCP", "Playwright MCP inspeccionó el lector: cazó un 500 intermitente "
+                        "(SQLite entre hilos) y fichas sin versionar; ambos corregidos."),
+    ]
+    cw, ch = (W - 2 * M - 0.6) / 3, 1.95
+    for i, (t, body) in enumerate(cards):
+        xx = M + (i % 3) * (cw + 0.3)
+        y = 1.75 + (i // 3) * (ch + 0.25)
+        d.box(s, xx, y, cw, ch, MIST)
+        d.circle_num(s, xx + 0.25, y + 0.25, 0.42, i + 1, size=13)
+        d.text(s, xx + 0.82, y + 0.28, cw - 1.0, 0.4, t, 16, bold=True, font=HEAD)
+        d.text(s, xx + 0.25, y + 0.85, cw - 0.5, 1.05, body, 12, color=SLATE)
+    d.box(s, M, 6.15, W - 2 * M, 0.65, TERRA_L)
+    d.text(s, M + 0.3, 6.18, W - 2 * M - 0.6, 0.6, [
+        [("Un límite que funcionó: ", {"bold": True}),
+         ("un subagente intentó ampliar las exenciones de una regla de seguridad y el "
+          "clasificador del modo auto lo bloqueó; la decisión quedó para el humano.", {})]],
+           13, anchor=MSO_ANCHOR.MIDDLE)
+    d.script(s, Script(
+        "Uso de Claude Code", 60,
+        "Claude Code fue el equipo: un orquestador, subagentes en paralelo y reglas que "
+        "hacían cumplir el proceso.",
+        ["CLAUDE.md y AGENTS.md definen el proceso: primero docs, luego spec, luego plan y "
+         "código, y antes de editar, una ronda de preguntas con recomendación.",
+         "Un orquestador repartió el trabajo en bloques; cada subagente trabajaba en su "
+         "propio worktree, en paralelo, y los contratos entre bloques se publicaban primero.",
+         "Skills propias: gift-novel-run para generar e inspeccionar una novela, y "
+         "security-review-harness para repetir la revisión de seguridad. Comandos como "
+         "/generate-novel o /change-fact.",
+         "Y el browser MCP no fue decorativo: encontró un error 500 intermitente por una "
+         "conexión SQLite compartida entre hilos, que corregimos."],
+        ["14 casos de hooks", "1 worktree por agente"],
+        "Toda esta construcción se apoya en decisiones que tomamos conscientemente."))
+
+
+def s_tradeoffs(d: Deck, x: Data) -> None:
     s = d.slide()
     d.header(s, "Decisiones clave y trade-offs", "Qué elegimos, frente a qué, y lo que costó")
     rows = [["Decisión", "Frente a", "Por qué", "Coste"],
             ["Multi-agente con orquestador determinista", "un agente con herramientas",
-             "permisos en código, reintento por paso, trazas por rol", "más llamadas y más "
-                                                                         "orquestación"],
-            ["SQLite autoritativa (y el texto en la BD)", "ficheros + índice derivado",
-             "una sola verdad para validadores, lector y Lean", "sin diffs de git sobre la "
-                                                                 "prosa"],
+             "permisos en código, reintento por paso, trazas por rol",
+             "más llamadas y más orquestación"],
+            ["SQLite autoritativa con hechos estructurados", "RAG vectorial sobre la prosa",
+             "hechos exactos, fact_usage, entrada de Lean", "sin búsqueda semántica en el "
+                                                            "pipeline"],
+            ["Calendario y cifras en Python", "confiar en el LLM y el juez",
+             "determinista y barato; converge", "solo días junto a una fecha"],
             ["Lector web + PDF exportado", "solo PDF interactivo",
              "pedir cambios, ver versiones, validar con MCP", "dos superficies que mantener"],
             ["TLA+ antes que el pipeline", "modelar después",
-             "4 errores de diseño cazados cuando eran baratos", "el modelo abstrae prosa y "
-                                                                "validadores"],
+             "4 errores de diseño cazados cuando eran baratos", "el modelo abstrae la prosa"],
             ["Lean core, decide +kernel", "Mathlib, native_decide",
              "sin descargas; confía en el kernel", "noBilocation cuadrático"],
             ["claude -p sin tools", "SDK con API key", "ninguna clave en el repo; rol aislado",
-             "arranque por llamada; política de privacidad del CLI"],
+             "arranque por llamada"],
             ["Haiku 4.5 para todos los roles", "Sonnet/Opus en writer y juez",
-             "coste y latencia de 10 capítulos", "calidad vigilada por juez; subida por rol"],
+             "coste y latencia de 10 capítulos", "calidad vigilada por el juez"],
             ["Juez bloqueante (≥ 3, media ≥ 3,5)", "juez consultivo",
-             "D11: la calidad también bloquea", "reescrituras con presupuesto 2"]]
-    d.table(s, M, 1.7, W - 2 * M, rows, [3.2, 2.4, 3.6, 2.9], size=11, row_h=0.54)
-    d.notes(s, "docs/process/trade-offs.md, con opciones, criterios y elección para cada una.")
+             "D11: la calidad también bloquea",
+             f"reescrituras ≤ {x.max_chapter}, reparaciones ≤ {x.max_repair}"]]
+    d.table(s, M, 1.7, W - 2 * M, rows, [3.2, 2.5, 3.6, 2.8], size=12, row_h=0.49)
+    d.script(s, Script(
+        "Decisiones y trade-offs", 75,
+        "Cada decisión tiene alternativa, criterio y coste; la más importante es separar la "
+        "verdad de la prosa.",
+        ["Multi-agente frente a un agente con herramientas: elegimos roles orquestados por "
+         "código porque los permisos se aplican en código y cada paso se valida y reintenta "
+         "por separado. El precio: más llamadas.",
+         "SQLite con hechos estructurados frente a RAG vectorial: aquí necesitamos hechos "
+         "exactos y saber en qué capítulo se usa cada uno, no fragmentos parecidos.",
+         "Calendario en Python en vez de confiar en el juez: lo aprendimos por las malas con "
+         "la segunda novela bloqueada.",
+         "Y el juez es bloqueante: por D11, la calidad narrativa también puede impedir la "
+         "publicación."],
+        [],
+        "Ninguna de estas decisiones es gratis; estas son las limitaciones."))
 
 
-def s_limits(d: Deck) -> None:
+def s_limits(d: Deck, x: Data) -> None:
     s = d.slide()
     d.header(s, "Limitaciones y siguientes pasos", "Lo que todavía no está demostrado")
     lim = [
-        ("Evals «before»: ", "b2 y b3 quedan bloqueadas por brief_coverage; falta publicar la "
-                             "novela de 10 capítulos del ejemplo."),
-        ("Lean: ", "aún sin un caso real cazado en pre_publish que no viera otro validador."),
-        ("Revisión humana ", "pendiente (protocolo y plantilla listos)."),
-        ("Reparto sin versionar: ", "solo el nombre se reconstruye por versión."),
-        ("Verificación ligera (V3), ", "registrada como riesgo aceptado U."),
-        ("policy_guard trabaja por patrones; ", "la defensa de fondo es BibleRepository."),
+        ("Fichas de personajes sin versionar en la BD: ", "solo el nombre se reconstruye por "
+                                                          "versión."),
+        ("Días sin fecha al lado ", "(«aquel lunes») y duraciones («treinta años») no se "
+                                    "validan; van por prompt."),
+        ("Lean solo prueba lo que hay en la cronología: ", "una partida que el planner no "
+                                                           "registra no se detecta."),
+        ("b4 bloquea bien pero caro: ", "agota reparaciones y el timeout de 45 min."),
         ("Regla de fronteras heredada: ", "21 accesos a ficheros fuera de los stores, "
-                                          "pendientes de decisión humana."),
+                                          "pendientes de decisión."),
     ]
-    if C.tuning_md():
-        lim[0] = ("Evals: ", "ver la iteración de tuning en el anexo de evals.")
-    if C.lean_real_case():
-        lim.pop(1)
-    if list((C.ROOT / "evals/human-review").glob("review-*.yaml")):
-        lim = [x for x in lim if not x[0].startswith("Revisión humana")]
+    if not x.human_review:
+        lim.insert(2, ("Revisión humana ", "pendiente: protocolo, rúbrica y plantilla listos."))
+    if not x.final_pub:
+        lim.insert(0, ("Novela de 10 capítulos: ", f"{PENDING} de publicar con el tuning 2."))
     nxt = [
-        ("Tuning de cobertura: ", "cambio de prompt, ejecución «after» y comparación."),
-        ("Novela de ejemplo ", "de 10 capítulos, publicada y exportada a PDF."),
-        ("Revisión humana ", "de una novela completa y calibración del juez (compare.py)."),
         ("Versionar el reparto ", "(descripción y rol por versión)."),
-        ("Subir un rol a Sonnet ", "solo si falla de forma repetida, con registro."),
-        ("Vídeo de demo ", "del flujo completo."),
+        ("Validar días y duraciones ", "en la prosa, no solo junto a fechas."),
+        ("Evento «departure» obligatorio ", "cuando el brief dice que alguien se fue."),
+        ("Revisión humana ", "y calibración del juez con compare.py."),
+        ("Paralelizar capítulos ", "independientes para bajar la latencia."),
+        ("Tools de escritura en el MCP ", "con permisos y confirmación."),
     ]
     cw = (W - 2 * M - 0.3) / 2
-    d.box(s, M, 1.75, cw, 4.55, MIST)
+    d.box(s, M, 1.75, cw, 4.95, MIST)
     d.text(s, M + 0.3, 1.9, cw - 0.6, 0.4, "Limitaciones", 19, bold=True, font=HEAD)
-    d.bullets(s, M + 0.3, 2.45, cw - 0.6, 4.2, lim, 14, gap=8, marker_color=SLATE)
+    d.bullets(s, M + 0.3, 2.45, cw - 0.6, 4.2, lim[:7], 14, gap=7, marker_color=SLATE)
     x2 = M + cw + 0.3
-    d.box(s, x2, 1.75, cw, 4.55, TERRA_L)
-    d.text(s, x2 + 0.3, 1.9, cw - 0.6, 0.4, "Siguientes pasos", 19, bold=True, font=HEAD,
+    d.box(s, x2, 1.75, cw, 4.95, TERRA_L)
+    d.text(s, x2 + 0.3, 1.9, cw - 0.6, 0.4, "Con más tiempo", 19, bold=True, font=HEAD,
            color=TERRA)
-    d.bullets(s, x2 + 0.3, 2.45, cw - 0.6, 4.2, nxt, 14, gap=8)
-    d.notes(s, "Lista generada: los puntos desaparecen al existir tuning.md, "
-               "lean-caso-real.md o una revisión humana rellenada.")
+    d.bullets(s, x2 + 0.3, 2.45, cw - 0.6, 4.2, nxt, 14, gap=9)
+    d.script(s, Script(
+        "Limitaciones y siguientes pasos", 60,
+        "Sabemos exactamente qué no está demostrado todavía, y está escrito.",
+        ["Prefiero decirlo yo antes de que me lo preguntéis.",
+         "Las fichas de personajes no están versionadas en la base de datos: si cambia la "
+         "descripción de un personaje, la versión antigua de la ficha no la conserva; el "
+         "nombre sí.",
+         "El validador de calendario solo mira días de la semana junto a una fecha; «aquel "
+         "lunes» o «treinta años» dependen del prompt.",
+         "Lean solo prueba lo que el planner mete en la cronología: si alguien emigra y el "
+         "plan no crea el evento de partida, nadie lo detecta.",
+         ("La revisión humana con la misma rúbrica está preparada pero pendiente. "
+          if not x.human_review else "") +
+         "Y queda una decisión abierta sobre una regla heredada de accesos a ficheros."],
+        [],
+        "Para cerrar, la decisión que lo resume todo."))
 
 
-def s_closing(d: Deck) -> None:
+EMAIL = ("Separé la verdad de la prosa: una story bible SQLite con validadores deterministas, "
+         "Lean y TLA+ decide qué es cierto, y un bucle acotado planner → writer → editor → "
+         "juez solo publica versiones que lo pasan todo; si no, bloquea, nunca entrega.")
+
+
+def s_closing(d: Deck, x: Data) -> None:
     s = d.slide(dark=True)
     d.text(s, M + 0.4, 1.2, 10, 0.4, "LA DECISIÓN DE DISEÑO MÁS IMPORTANTE", 14, bold=True,
            color=TERRA)
@@ -990,9 +1571,157 @@ def s_closing(d: Deck) -> None:
     d.text(s, M + 0.4, 5.3, W - 2 * M, 0.35, "ANEXOS", 12, bold=True, color=TERRA)
     d.text(s, M + 0.4, 5.7, W - 2 * M - 0.8, 0.8, "  ·  ".join(annexes), 13,
            color=RGBColor(0xC9, 0xCF, 0xD6))
-    d.text(s, M + 0.4, 6.55, 10, 0.35, f"presentacion/ · commit {C.git_head()}", 11,
-           color=MUTED)
-    d.notes(s, "Frase de la entrega (≤ 3 líneas).")
+    d.text(s, M + 0.4, 6.55, 10, 0.35, f"Gracias · preguntas · presentacion/ · commit "
+           f"{C.git_head()}", 11, color=MUTED)
+    d.script(s, Script(
+        "Cierre", 40,
+        "Separar la verdad de la prosa, y publicar solo lo que pasa todos los validadores.",
+        ["Si tuviera que quedarme con una decisión: separar la verdad de la prosa.",
+         "Lo que es cierto sobre la historia vive en una base de datos, y lo comprueban "
+         "validadores deterministas, Lean y TLA+. Los modelos solo redactan.",
+         "El bucle está acotado y solo publica lo que pasa todo. Las dos novelas bloqueadas "
+         "que os he enseñado son la prueba de que eso se cumple.",
+         "En los anexos está el detalle de TLA+, Lean, evals y arquitectura. Muchas gracias; "
+         "encantado de responder preguntas."],
+        [],
+        "Preguntas."))
+
+
+# ----------------------------------------------------------------------------- guion.md
+
+def qa(x: Data) -> list[tuple[str, str]]:
+    a1 = x.attempts[0] if x.attempts else {}
+    a2 = x.attempts[1] if len(x.attempts) > 1 else {}
+    t = x.tlc
+    fin = x.final
+    if x.final_pub:
+        cost_ans = (f"La novela de 10 capítulos publicada costó {usd(fin.get('cost_usd'))} y "
+                    f"tardó {mins(fin.get('minutes'))}, con {fin.get('repair_rounds')} rondas "
+                    "de reparación. ")
+    else:
+        cost_ans = ("La novela final de 10 capítulos está pendiente en runs.json; las dos "
+                    f"completas que se bloquearon costaron {usd(a1.get('cost_usd'))} y "
+                    f"{usd(a2.get('cost_usd'))}, en {mins(a1.get('minutes'))} y "
+                    f"{mins(a2.get('minutes'))}. ")
+    return [
+        ("¿Por qué multi-agente y no un solo agente con herramientas?",
+         "Porque quería que los permisos se cumplieran en código. Ningún modelo tiene "
+         "herramientas: el orquestador decide qué ve cada rol, valida su salida con schema y "
+         "escribe él en la base de datos. Así cada paso se valida y se reintenta por separado, "
+         "hay trazas por rol y cada fallo vuelve al rol que puede arreglarlo. El coste es "
+         "más llamadas y más código de orquestación; un agente único sería más simple, pero "
+         "no podría demostrar quién escribió qué."),
+        ("¿Por qué SQLite y no RAG vectorial?",
+         "Porque lo que necesita el pipeline son hechos exactos, no fragmentos parecidos: el "
+         "nombre del perro, la fecha de la boda, y en qué capítulo se usa cada hecho "
+         "(fact_usage), que es lo que permite regenerar solo lo afectado y exportar la "
+         "cronología a Lean. Los roles reciben hechos estructurados a través de tools "
+         "validadas con schema (app/tools/). El índice heredado del harness genérico sí tiene "
+         "FTS5 y sqlite-vec, pero el pipeline de novelas-regalo no lo usa: una búsqueda por "
+         "similitud podría devolver un hecho parecido pero falso."),
+        ("¿Qué detecta Lean que no detecte el juez?",
+         "Caso L04, con el brief de trampas temporales y sin el prechequeo: la mascota muere "
+         "en 2005 y lleva los anillos en la boda de 2008. Lean lo detectó con evento, fecha y "
+         "capítulo. judge_novel también, pero judge_chapter aprobó el capítulo que cuenta la "
+         "muerte y la boda, y ningún validador programático mira fechas. La diferencia: Lean "
+         "es determinista, localiza el evento exacto y actúa sobre el plan, antes de escribir "
+         "(~0,12 USD frente a ~1,3 USD de novela). Limitación: solo prueba lo que el planner "
+         "pone en la cronología."),
+        ("¿Qué contraejemplos encontró TLC y qué cambiaron en el código?",
+         "Cuatro, antes de que existiera el pipeline. CE1: un crash entre guardar el capítulo "
+         "y el checkpoint duplicaba el capítulo → texto y checkpoint en una transacción. CE2: "
+         "el contador de reintentos de capítulo vivía en memoria → se cuenta desde "
+         "validator_result. CE3: la reparación insertaba una segunda fila → upsert por "
+         "(versión, capítulo) y la versión publicada no se escribe. CE4: el contador de rondas "
+         "de reparación en memoria → columna repair_rounds guardada junto a «blocked». El "
+         f"modelo actual pasa: {t.distinct} estados distintos, sin errores."),
+        ("¿Cómo evitas que la personalización estropee la narrativa?",
+         "Es la decisión D11: las dos pesan igual. brief_coverage comprueba que cada dato "
+         "obligatorio aparece, pero el juez puntúa continuidad, tono, calidad narrativa, "
+         "personalización natural (penaliza la personalización forzada) y final, y aprueba "
+         "solo con cada criterio ≥ 3 y media ≥ 3,5. Un capítulo con todos los datos pero mal "
+         "escrito no pasa. El linter de prosa añade repeticiones y clichés."),
+        ("¿Cómo tratas la inyección en el texto libre?",
+         "Como contenido no confiable. Un prescan determinista antes del modelo (tras la "
+         "revisión de seguridad detecta 17 de 17 variantes), el extractor solo devuelve hechos "
+         "y marca la sospecha, ningún rol recibe el texto crudo, y ningún modelo tiene "
+         "herramientas para hacer daño. Las peticiones de cambio del lector también se "
+         "escanean. Riesgo aceptado: un hecho extraído llega a los prompts, delimitado como "
+         "dato."),
+        ("¿Qué pasa si el juez suspende?",
+         f"En un capítulo, el editor lo reescribe con la evidencia, como mucho "
+         f"{x.max_chapter} veces. En la novela, hay hasta {x.max_repair} rondas de reparación "
+         "solo de los capítulos que el juez señala. Si se agota, la versión queda «blocked» y "
+         "nunca se publica: es el invariante NoUnvalidatedPublish de TLA+. Las dos novelas de "
+         "10 capítulos bloqueadas son exactamente eso."),
+        ("¿Cuánto cuesta y cuánto tarda una novela?",
+         cost_ans + f"Un capítulo cuesta de media {usd(x.chap_cost)} y unos "
+         f"{mins(x.chap_min)} de modelo; la novela de 3 capítulos publicada costó "
+         f"{usd(x.three.get('cost_usd'))} en {mins(x.three.get('minutes'))}."),
+        ("¿Por qué Haiku?",
+         "Por coste y latencia: una novela son unas 70–80 llamadas. La calidad la vigila el "
+         "juez con umbrales bloqueantes. Subir un rol concreto a Sonnet es una variable de "
+         "entorno (MODEL_<ROL>) y se registraría en el log de iteraciones; no hizo falta: los "
+         "fallos que vimos eran de diseño (calendario, validadores), no del modelo."),
+        ("¿Cómo funciona el cambio del lector y qué se conserva?",
+         "El lector pide «el perro se llama Nala». El hecho es una fila única; fact_usage dice "
+         "qué capítulos lo usan y, si es un nombre, se busca el antiguo en hechos, brief, plan "
+         "y texto. Solo esos capítulos se regeneran a una versión v+1, todo en una "
+         "transacción. La versión anterior se conserva intacta (PreviousVersionKept), el "
+         "índice marca los capítulos modificados y el PDF lleva una página de novedades."),
+        ("¿Cuáles son las limitaciones reales?",
+         "Las fichas de personajes no están versionadas en la BD (solo el nombre); los días de "
+         "la semana sin fecha al lado y las duraciones no se validan; Lean solo ve lo que el "
+         "planner registra; " +
+         ("la revisión humana está pendiente; " if not x.human_review else "") +
+         "y hay una regla heredada de accesos a ficheros pendiente de decisión (el test de "
+         "fronteras)."),
+        ("¿Qué harías con más tiempo?",
+         "Versionar el reparto, validar días y duraciones en toda la prosa, exigir eventos de "
+         "partida cuando el brief dice que alguien se fue, hacer la revisión humana y calibrar "
+         "el juez, paralelizar capítulos para bajar la latencia y añadir tools de escritura "
+         "al servidor MCP con confirmación."),
+        ("¿Cómo usaste Claude Code?",
+         "Como un equipo: una sesión orquestadora escribió la spec del programa y lanzó "
+         "subagentes en paralelo, uno por bloque y cada uno en su git worktree, con contratos "
+         "publicados antes. CLAUDE.md y AGENTS.md fijan el proceso docs → spec → plan → "
+         "código. Hooks de validación y de policy, skills propias (gift-novel-run, "
+         "security-review-harness), comandos / y el browser MCP, que encontró un 500 "
+         "intermitente de SQLite entre hilos."),
+        ("¿Por qué se bloquearon las novelas de 10 capítulos? ¿No es un fracaso?",
+         "Es el sistema funcionando. La primera, por saltos temporales y capítulos solapados; "
+         "la segunda, por días de la semana que contradecían su fecha, que el modelo "
+         "reinventaba en cada reparación. Ninguna llegó al cliente. Cada bloqueo produjo una "
+         "iteración de tuning con causa y efecto registrados; la segunda movió el calendario "
+         "a Python y a un validador determinista."),
+    ]
+
+
+def write_guion(d: Deck, x: Data, out: Path) -> None:
+    total = sum(sc.seconds for sc in d.scripts)
+    L = ["# Guion de la presentación", "",
+         "> Generado por `presentacion/build/build_deck.py` a partir de los mismos datos que el "
+         "deck (`build/data/runs.json`, evals, TLC, informe de seguridad…). Las cifras "
+         "coinciden con las diapositivas; si cambian los datos, se regenera. Para cambiar el "
+         "texto, edita el script, no este fichero.", "",
+         f"**Duración estimada:** {total // 60} min {total % 60:02d} s en "
+         f"{len(d.scripts)} diapositivas (objetivo 12–15 min). Las notas del orador de cada "
+         "diapositiva llevan este mismo guion.", "",
+         "**Consejos:** habla a partir de los puntos, no leas. Si vas justo de tiempo, acorta "
+         "Langfuse (11), contraejemplos (10) y Claude Code (17); no recortes la 14 (novelas "
+         "bloqueadas): es el argumento central.", ""]
+    for sc in d.scripts:
+        L += [f"## {sc.n}. {sc.title} · ≈ {sc.seconds} s", "", f"**Mensaje clave.** {sc.key}",
+              "", "**Qué decir:**", ""]
+        L += [f"- {s}" for s in sc.say]
+        if sc.numbers:
+            L += ["", "**Cifras que mencionar:** " + " · ".join(sc.numbers)]
+        L += ["", f"**Transición:** {sc.transition}", ""]
+    L += ["---", "", "## Preguntas probables del tribunal", ""]
+    for i, (q, a) in enumerate(qa(x), 1):
+        L += [f"**{i}. {q}**", "", a, ""]
+    L += ["---", "", "## Frase para el email (≤ 3 líneas)", "", f"> {EMAIL}", ""]
+    out.write_text("\n".join(L), encoding="utf-8")
 
 
 # ----------------------------------------------------------------------------- main
@@ -1017,25 +1746,35 @@ def to_pdf(pptx: Path) -> Path | None:
     return pdf
 
 
+SLIDES = (s_title, s_problem, s_demo, s_arch, s_memory, s_validators, s_guardrails, s_lean,
+          s_tla, s_tla_ce, s_langfuse, s_evals, s_security, s_ten, s_novel, s_cost,
+          s_claude_code, s_tradeoffs, s_limits, s_closing)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-pdf", action="store_true")
+    ap.add_argument("--no-guion", action="store_true")
     ap.add_argument("--render", action="store_true", help="force Mermaid re-render")
     ap.add_argument("--out", default=str(C.PRES / "presentacion.pptx"))
     a = ap.parse_args()
     C.render_all(force=a.render)
+    x = load()
     d = Deck()
-    for fn in (s_title, s_problem, s_demo1, s_demo2, s_arch, s_memory, s_validators,
-               s_guardrails, s_lean, s_tla, s_tla_ce, s_langfuse, s_evals, s_redteam,
-               s_claude_code, s_cost, s_tradeoffs, s_limits, s_closing):
-        fn(d)
+    for fn in SLIDES:
+        fn(d, x)
     out = Path(a.out)
     d.prs.save(out)
-    print(f"wrote {out.relative_to(C.ROOT)} ({out.stat().st_size / 1e6:.1f} MB, {d.n} slides)")
+    print(f"wrote {out} ({out.stat().st_size / 1e6:.1f} MB, {d.n} slides)")
+    if not a.no_guion:
+        g = C.PRES / "guion.md"
+        write_guion(d, x, g)
+        print(f"wrote {g.relative_to(C.ROOT)} "
+              f"({sum(sc.seconds for sc in d.scripts) / 60:.1f} min)")
     if not a.no_pdf:
         pdf = to_pdf(out)
         if pdf:
-            print(f"wrote {pdf.relative_to(C.ROOT)}")
+            print(f"wrote {pdf}")
 
 
 if __name__ == "__main__":

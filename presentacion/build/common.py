@@ -189,7 +189,7 @@ def tlc() -> TLC:
     m = re.search(r"depth of the complete state graph search is (\d+)", t)
     if m:
         r.depth = m.group(1)
-    m = re.search(r"Finished in (\S+)", t)
+    m = re.search(r"Finished in (\d+min \d+s|\S+)", t)
     if m:
         r.duration = m.group(1)
     m = re.search(r"TLC2 Version (\S+)", t)
@@ -265,3 +265,148 @@ def git_head() -> str:
                               capture_output=True, text=True, check=True).stdout.strip()
     except (subprocess.SubprocessError, OSError):
         return "?"
+
+
+# --------------------------------------------------------------------------- runs.json and summaries
+
+RUNS_FILE = HERE / "data" / "runs.json"
+
+
+def runs() -> dict:
+    """presentacion/build/data/runs.json, or {} if missing or invalid (the deck then says
+    «pendiente»)."""
+    try:
+        return json.loads(RUNS_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def final_novel() -> dict:
+    return runs().get("final_novel") or {}
+
+
+def final_published() -> bool:
+    f = final_novel()
+    return f.get("status") == "published"
+
+
+def exists(rel: str) -> bool:
+    return (ROOT / rel).exists()
+
+
+@dataclass
+class EvalSummary:
+    label: str
+    published: int = 0
+    generable: int = 0
+    cost_published: float | None = None
+    outcomes: dict[str, str] = field(default_factory=dict)
+
+
+def eval_summary(label: str) -> EvalSummary:
+    """Published versions among the generable briefs (not rejected by brief validation)."""
+    s = EvalSummary(label)
+    costs: list[float] = []
+    for r in eval_runs():
+        if r.label != label:
+            continue
+        fin = r.final or {}
+        status = fin.get("status") if fin else None
+        s.outcomes[r.brief] = status or r.outcome
+        if r.outcome == "rejected_by_validation":
+            continue
+        s.generable += 1
+        if status == "published":
+            s.published += 1
+            if r.cost:
+                costs.append(r.cost)
+    if costs:
+        s.cost_published = sum(costs) / len(costs)
+    return s
+
+
+@dataclass
+class Security:
+    total: int = 0
+    by_sev: dict[str, int] = field(default_factory=dict)
+    fixed: int = 0
+    accepted: int = 0
+    pending: int = 0
+    rows: list[list[str]] = field(default_factory=list)
+
+
+def security() -> Security:
+    """Counts from the findings table of docs/security-report.md (Id · Área · Descripción ·
+    Severidad · Estado)."""
+    s = Security()
+    for tab in md_tables(read("docs/security-report.md")):
+        if tab and tab[0][:1] == ["Id"]:
+            for r in tab[1:]:
+                if not re.match(r"SEC-\d+", strip_md(r[0])):
+                    continue
+                sev, st = strip_md(r[3]).lower(), strip_md(r[4]).lower()
+                s.rows.append([strip_md(c) for c in r])
+                s.total += 1
+                s.by_sev[sev] = s.by_sev.get(sev, 0) + 1
+                if st.startswith("corregido"):
+                    s.fixed += 1
+                elif st.startswith("aceptado"):
+                    s.accepted += 1
+                else:
+                    s.pending += 1
+            break
+    return s
+
+
+def iteration_section(title: str) -> str:
+    """The body of a '### <title>' section of docs/process/iteraciones.md ('' if absent)."""
+    t = read("docs/process/iteraciones.md")
+    m = re.search(rf"^### {re.escape(title)}\n(.*?)(?=^#{{2,3}} |\Z)", t, re.S | re.M)
+    return m.group(1) if m else ""
+
+
+def tuning2_after() -> str | None:
+    """The 'Después' paragraph of tuning iteration 2, or None while it says pendiente."""
+    body = iteration_section("Iteración de tuning 2")
+    m = re.search(r"\*\*Después\.\*\*(.*?)(?:\n\n|\Z)", body, re.S)
+    if not m or "pendiente" in m.group(1).lower():
+        return None
+    return strip_md(m.group(1)).strip()
+
+
+def lean_case_table() -> list[list[str]]:
+    """Validator → saw-it rows of docs/process/lean-caso-real.md."""
+    tabs = md_tables(lean_real_case())
+    return [[strip_md(c) for c in r] for r in tabs[0]] if tabs else []
+
+
+def pdf_page_png(rel_pdf: str, page: int, name: str, dpi: int = 110) -> Path | None:
+    """Render one page of a repository PDF to img/<name>.png with PyMuPDF (optional). Without
+    PyMuPDF the committed PNG is used, if any."""
+    out = IMG / f"{name}.png"
+    src = ROOT / rel_pdf
+    if not src.exists():
+        return None
+    try:
+        import pymupdf  # type: ignore[import-not-found]
+    except ImportError:
+        return out if out.exists() else None
+    stamp = IMG / f"{name}.sha"
+    digest = hashlib.sha256(src.read_bytes()).hexdigest()[:12] + f"-{page}-{dpi}"
+    if out.exists() and stamp.exists() and stamp.read_text().strip() == digest:
+        return out
+    doc = pymupdf.open(str(src))
+    if page >= len(doc):
+        return None
+    doc[page].get_pixmap(dpi=dpi).save(str(out))
+    stamp.write_text(digest)
+    return out
+
+
+def pdf_pages(rel_pdf: str) -> int | None:
+    try:
+        import pymupdf  # type: ignore[import-not-found]
+    except ImportError:
+        return None
+    p = ROOT / rel_pdf
+    return len(pymupdf.open(str(p))) if p.exists() else None

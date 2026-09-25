@@ -3,3 +3,6 @@
 .html/
 .lo-profile/
 __pycache__/
+
+# runs.json lives in build/data/, which the root rule data/ would otherwise ignore
+!data/

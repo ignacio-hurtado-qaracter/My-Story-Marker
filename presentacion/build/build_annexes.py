@@ -282,6 +282,27 @@ def annex_evals() -> tuple[str, str]:
              "en `b2-infantil` y `b3-injection`; `b3` marca la inyección (⚑) y no la sigue; "
              "`b4-temporal` se detiene en la planificación por la cronología; `b5` se rechaza "
              "en la validación del brief, como se esperaba."))
+    r = C.runs()
+    nov = ["| Novela | Momento | Estado | Motivo | Capítulos | Rondas de reparación | Llamadas "
+           "| Coste USD | Minutos |", "|---|---|---|---|---|---|---|---|---|"]
+    three = r.get("three_chapter_novel") or {}
+    if three:
+        nov.append(f"| `{three.get('novel_id')}` (3 cap.) | — | {three.get('status')} | — | "
+                   f"{three.get('chapters')} | {three.get('repair_rounds')} | "
+                   f"{three.get('calls')} | {three.get('cost_usd')} | {three.get('minutes')} |")
+    for a in r.get("ten_chapter_attempts") or []:
+        nov.append(f"| `{a.get('novel_id')}` | {a.get('when')} | {a.get('status')} | "
+                   f"{a.get('validator')}: {a.get('why')} | {a.get('chapters_written')} | "
+                   f"{a.get('repair_rounds')} | {a.get('calls')} | {a.get('cost_usd')} | "
+                   f"{a.get('minutes')} |")
+    fin = r.get("final_novel") or {}
+    nov.append(f"| `{fin.get('novel_id') or '—'}` (final) | después del tuning 2 | "
+               f"{fin.get('status') or 'pendiente'} | {fin.get('judge_novel') or '—'} | "
+               f"{fin.get('chapters') or '—'} | {fin.get('repair_rounds') if fin.get('repair_rounds') is not None else '—'} | "
+               f"{fin.get('calls') or '—'} | {fin.get('cost_usd') or '—'} | "
+               f"{fin.get('minutes') or '—'} |")
+    t2 = C.iteration_section("Iteración de tuning 2")
+    tuning2_html = (md(t2, demote=2) if t2 else "<div class='pending'><b>Pendiente.</b></div>")
     labels = C.eval_labels()
     per_label = "".join(
         f"<h3>Iteración «{lab}»</h3>" + md(_drop_column(re.sub(
@@ -294,6 +315,8 @@ def annex_evals() -> tuple[str, str]:
                              "tokens in/out"), demote=1)
              + "<p class='src'>Tokens por ejecución en la sección 3.</p>", first=True),
         part("Iteración de tuning: antes / después", "evals/results/tuning.md", tuning_html),
+        part("Novelas completas y tuning 2", "presentacion/build/data/runs.json · "
+             "docs/process/iteraciones.md", md("\n".join(nov)) + tuning2_html),
         part("Coste y latencia por ejecución", "evals/results/*/*.json",
              md("\n".join(rows)) + "<h3>Por capítulo</h3>" + md("\n".join(chap))),
         part("Tablas por iteración", "evals/results/<iteración>/table.md", per_label or
